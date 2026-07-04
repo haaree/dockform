@@ -1,0 +1,56 @@
+/*
+ * Inter font — self-hosted for air-gapped deployment.
+ *
+ * To bundle the actual Inter font files:
+ * 1. Download Inter from https://github.com/rsms/inter/releases
+ * 2. Place .woff2 files in this directory
+ * 3. Uncomment the @font-face rules below
+ *
+ * Until then, system fonts provide a near-identical fallback.
+ */
+
+/*
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/Inter-Light.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/Inter-Regular.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/Inter-Medium.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/Inter-SemiBold.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/Inter-Bold.woff2') format('woff2');
+}
+*/
+
+/* System font fallback — visually close to Inter on all platforms */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 300 700;
+  src: local('Inter'), local('Segoe UI'), local('system-ui');
+}

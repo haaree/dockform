@@ -1,0 +1,221 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Company {
+  id        String   @id @default(uuid()) @db.Uuid
+  name      String
+  code      String   @unique
+  type      String   @default("Standalone")
+  status    String   @default("active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  plants Plant[]
+  users  User[]
+  forms  Form[]
+
+  @@map("companies")
+}
+
+model Plant {
+  id              String   @id @default(uuid()) @db.Uuid
+  companyId       String   @map("company_id") @db.Uuid
+  name            String
+  code            String   @unique
+  location        String?
+  capacityWorkers Int?     @map("capacity_workers")
+  status          String   @default("active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  departments Department[]
+  users       User[]
+  responses   Response[]
+
+  @@map("plants")
+}
+
+model Department {
+  id         String   @id @default(uuid()) @db.Uuid
+  plantId    String   @map("plant_id") @db.Uuid
+  name       String
+  headUserId String?  @map("head_user_id") @db.Uuid
+  status     String   @default("active")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  plant Plant  @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  head  User?  @relation("DepartmentHead", fields: [headUserId], references: [id])
+  teams Team[]
+  users User[]
+
+  @@map("departments")
+}
+
+model Team {
+  id           String   @id @default(uuid()) @db.Uuid
+  departmentId String   @map("department_id") @db.Uuid
+  name         String
+  leadUserId   String?  @map("lead_user_id") @db.Uuid
+  status       String   @default("active")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  lead       User?      @relation("TeamLead", fields: [leadUserId], references: [id])
+  users      User[]
+
+  @@map("teams")
+}
+
+model Role {
+  id          String   @id @default(uuid()) @db.Uuid
+  key         String   @unique
+  name        String
+  description String?
+  status      String   @default("active")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  permissions Permission[]
+  users       User[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id        String  @id @default(uuid()) @db.Uuid
+  roleId    String  @map("role_id") @db.Uuid
+  module    String
+  canView   Boolean @default(false) @map("can_view")
+  canCreate Boolean @default(false) @map("can_create")
+  canEdit   Boolean @default(false) @map("can_edit")
+  canDelete Boolean @default(false) @map("can_delete")
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, module])
+  @@map("permissions")
+}
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  passwordHash String?  @map("password_hash")
+  fullName     String   @map("full_name")
+  roleId       String?  @map("role_id") @db.Uuid
+  companyId    String?  @map("company_id") @db.Uuid
+  plantId      String?  @map("plant_id") @db.Uuid
+  departmentId String?  @map("department_id") @db.Uuid
+  teamId       String?  @map("team_id") @db.Uuid
+  status       String   @default("active")
+  preferences  Json     @default("{}")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  role       Role?       @relation(fields: [roleId], references: [id])
+  company    Company?    @relation(fields: [companyId], references: [id])
+  plant      Plant?      @relation(fields: [plantId], references: [id])
+  department Department? @relation(fields: [departmentId], references: [id])
+  team       Team?       @relation(fields: [teamId], references: [id])
+
+  departmentsHeaded Department[] @relation("DepartmentHead")
+  teamsLed          Team[]       @relation("TeamLead")
+  formsCreated      Form[]
+  responses         Response[]
+
+  @@map("users")
+}
+
+model Form {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String
+  description      String?
+  domain           String?
+  tag              String?
+  isTemplate       Boolean  @default(false) @map("is_template")
+  isCustomTemplate Boolean  @default(false) @map("is_custom_template")
+  status           String   @default("draft")
+  createdById      String?  @map("created_by") @db.Uuid
+  companyId        String?  @map("company_id") @db.Uuid
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @default(now()) @updatedAt @map("updated_at")
+
+  createdBy User?       @relation(fields: [createdById], references: [id])
+  company   Company?    @relation(fields: [companyId], references: [id])
+  fields    FormField[]
+  responses Response[]
+
+  @@map("forms")
+}
+
+model FormField {
+  id           String   @id @default(uuid()) @db.Uuid
+  formId       String   @map("form_id") @db.Uuid
+  sortOrder    Int      @default(0) @map("sort_order")
+  type         String
+  label        String
+  placeholder  String   @default("")
+  helpText     String   @default("") @map("help_text")
+  defaultValue String   @default("") @map("default_value")
+  options      Json     @default("[]")
+  validation   Json     @default("{}")
+  isRequired   Boolean  @default(false) @map("is_required")
+  isReadOnly   Boolean  @default(false) @map("is_read_only")
+  isHidden     Boolean  @default(false) @map("is_hidden")
+  isSearchable Boolean  @default(false) @map("is_searchable")
+  isIndexed    Boolean  @default(false) @map("is_indexed")
+  logic        Json     @default("[]")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  form           Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
+  responseValues ResponseValue[]
+
+  @@index([formId])
+  @@map("form_fields")
+}
+
+model Response {
+  id          String   @id @default(uuid()) @db.Uuid
+  formId      String   @map("form_id") @db.Uuid
+  submittedBy String?  @map("submitted_by") @db.Uuid
+  plantId     String?  @map("plant_id") @db.Uuid
+  status      String   @default("draft")
+  submittedAt DateTime @default(now()) @map("submitted_at")
+
+  form   Form           @relation(fields: [formId], references: [id])
+  user   User?          @relation(fields: [submittedBy], references: [id])
+  plant  Plant?         @relation(fields: [plantId], references: [id])
+  values ResponseValue[]
+
+  @@map("responses")
+}
+
+model ResponseValue {
+  id         String @id @default(uuid()) @db.Uuid
+  responseId String @map("response_id") @db.Uuid
+  fieldId    String @map("field_id") @db.Uuid
+  value      Json   @default("null")
+
+  response    Response              @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  field       FormField             @relation(fields: [fieldId], references: [id])
+  attachments ResponseAttachment[]
+
+  @@unique([responseId, fieldId])
+  @@index([responseId])
+  @@map("response_values")
+}
+
+model ResponseAttachment {
+  id              String   @id @default(uuid()) @db.Uuid
+  responseValueId String   @map("response_value_id") @db.Uuid
+  storageKey      String   @map("storage_key")
+  mimeType        String?  @map("mime_type")
+  sizeBytes       BigInt?  @map("size_bytes")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  responseValue ResponseValue @relation(fields: [responseValueId], references: [id], onDelete: Cascade)
+
+  @@map("response_attachments")
+}

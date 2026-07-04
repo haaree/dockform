@@ -1,0 +1,1939 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#2563EB">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { height: 100%; }
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); border-radius: 10px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    input, select, textarea, button { font-family: inherit; }
+    button { cursor: pointer; appearance: none; -webkit-appearance: none; background-color: transparent; border: none; color: inherit; }
+    [draggable=true] { -webkit-user-drag: element; }
+  </style>
+</helmet>
+
+<div style="{{ appStyle }}">
+  <sc-if value="{{ isAuthed }}" hint-placeholder-val="{{ true }}">
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside style="{{ sidebarStyle }}">
+    <!-- Brand -->
+    <div style="display:flex;align-items:center;gap:10px;padding:14px;border-bottom:1px solid var(--border);flex-shrink:0;min-height:56px;overflow:hidden">
+      {{ brandIcon }}
+      <sc-if value="{{ sidebarOpen }}">
+        <span style="font-size:13px;font-weight:700;color:var(--text);letter-spacing:-0.3px;white-space:nowrap;flex:1">FormOS</span>
+        <button onClick="{{ toggleSidebar }}" style="{{ iconBtnStyle }}">{{ collapseIcon }}</button>
+      </sc-if>
+    </div>
+    <!-- Search -->
+    <sc-if value="{{ sidebarOpen }}">
+      <div style="padding:10px 12px;flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:7px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:7px 10px">
+          {{ searchIcon }}
+          <input style="border:none;background:transparent;color:var(--text);font-size:12px;width:100%;outline:none;caret-color:var(--accent)" placeholder="Search…">
+        </div>
+      </div>
+    </sc-if>
+    <!-- Nav -->
+    <div style="flex:1;overflow-y:auto;padding:4px 0">
+      <sc-for list="{{ navSections }}" as="nsec" hint-placeholder-count="3">
+        <sc-if value="{{ sidebarOpen }}">
+          <div style="padding:12px 16px 4px;font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.9px;white-space:nowrap">{{ nsec.label }}</div>
+        </sc-if>
+        <sc-for list="{{ nsec.items }}" as="nitem" hint-placeholder-count="4">
+          <div onClick="{{ nitem.onClick }}" style="{{ nitem.style }}" title="{{ nitem.label }}">
+            {{ nitem.icon }}
+            <sc-if value="{{ sidebarOpen }}">
+              <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:13px">{{ nitem.label }}</span>
+            </sc-if>
+          </div>
+        </sc-for>
+      </sc-for>
+    </div>
+    <!-- Expand button (collapsed) -->
+    <sc-if value="{{ sidebarCollapsed }}">
+      <div style="padding:10px;flex-shrink:0;border-top:1px solid var(--border);display:flex;justify-content:center">
+        <button onClick="{{ toggleSidebar }}" style="{{ iconBtnStyle }}">{{ expandIcon }}</button>
+      </div>
+    </sc-if>
+    <!-- User profile -->
+    <div style="padding:12px;border-top:1px solid var(--border);display:flex;align-items:center;gap:8px;flex-shrink:0;overflow:hidden">
+      <div style="width:30px;height:30px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0">SC</div>
+      <sc-if value="{{ sidebarOpen }}">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Sarah Chen</div>
+          <div style="font-size:10px;color:var(--muted)">Administrator</div>
+        </div>
+        <button style="{{ iconBtnStyle }}">{{ settingsSmIcon }}</button>
+        <button onClick="{{ logout }}" title="Sign out" style="{{ iconBtnStyle }}">{{ logoutIcon }}</button>
+      </sc-if>
+    </div>
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <div style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-width:0;position:relative">
+    <sc-if value="{{ isMobile }}">
+      <sc-if value="{{ sidebarClosed }}">
+        <button onClick="{{ toggleSidebar }}" style="{{ mobileMenuBtnStyle }}">{{ menuIcon }}</button>
+      </sc-if>
+    </sc-if>
+
+    <!-- ─── DASHBOARD ─── -->
+    <sc-if value="{{ isDashboard }}" hint-placeholder-val="{{ true }}">
+      <div style="padding:28px 32px 20px;flex-shrink:0">
+        <h1 style="font-size:21px;font-weight:700;color:var(--text);letter-spacing:-0.5px">Dashboard</h1>
+        <p style="font-size:13px;color:var(--muted);margin-top:3px">Welcome back, Sarah — here's your platform overview.</p>
+      </div>
+      <div style="{{ dashGridStyle }}">
+        <sc-for list="{{ dashStats }}" as="stat" hint-placeholder-count="4">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px">
+              <span style="font-size:12px;font-weight:500;color:var(--muted)">{{ stat.label }}</span>
+              <div style="{{ stat.iconBg }}">{{ stat.icon }}</div>
+            </div>
+            <div style="font-size:28px;font-weight:700;color:var(--text);letter-spacing:-1px">{{ stat.value }}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:5px">{{ stat.change }}</div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="flex:1;overflow:auto;padding:0 32px 32px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <div style="padding:16px 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:14px;font-weight:600;color:var(--text)">Recent Forms</span>
+            <button onClick="{{ gotoForms }}" style="{{ linkBtnStyle }}">View all →</button>
+          </div>
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--surface2)">
+                <th style="{{ thStyle }}">Name</th>
+                <th style="{{ thStyle }}">Category</th>
+                <th style="{{ thStyle }}">Fields</th>
+                <th style="{{ thStyle }}">Responses</th>
+                <th style="{{ thStyle }}">Status</th>
+                <th style="{{ thStyle }}">Updated</th>
+                <th style="{{ thStyle }}">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ formsRows }}" as="frm" hint-placeholder-count="4">
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="{{ tdStyle }}">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="width:30px;height:30px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--muted)">{{ formListIcon }}</div>
+                      <span style="font-size:13px;font-weight:500;color:var(--text)">{{ frm.name }}</span>
+                    </div>
+                  </td>
+                  <td style="{{ tdStyle }}"><span style="font-size:12px;color:var(--muted)">{{ frm.category }}</span></td>
+                  <td style="{{ tdStyle }}"><span style="font-size:13px;color:var(--text)">{{ frm.fields }}</span></td>
+                  <td style="{{ tdStyle }}"><span style="font-size:13px;color:var(--text)">{{ frm.responses }}</span></td>
+                  <td style="{{ tdStyle }}">{{ frm.statusBadge }}</td>
+                  <td style="{{ tdStyle }}"><span style="font-size:12px;color:var(--muted)">{{ frm.updated }}</span></td>
+                  <td style="{{ tdStyle }}"><button onClick="{{ frm.onEdit }}" style="{{ smSecBtnStyle }}">Edit</button></td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ─── FORMS LIST ─── -->
+    <sc-if value="{{ isForms }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:24px 32px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <h1 style="font-size:21px;font-weight:700;color:var(--text);letter-spacing:-0.5px">Forms</h1>
+          <p style="font-size:13px;color:var(--muted);margin-top:3px">{{ formsCount }} forms in your workspace</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px">
+          {{ searchIcon }}
+          <input style="border:none;background:transparent;color:var(--text);font-size:13px;width:200px;outline:none" placeholder="Search forms…">
+        </div>
+        <button onClick="{{ gotoBuilder }}" style="{{ primaryBtnStyle }}">{{ plusIcon }}<span>New Form</span></button>
+      </div>
+      <div style="flex:1;overflow:auto;padding:24px 32px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--surface2)">
+                <th style="{{ thStyle }}">Name</th>
+                <th style="{{ thStyle }}">Category</th>
+                <th style="{{ thStyle }}">Fields</th>
+                <th style="{{ thStyle }}">Responses</th>
+                <th style="{{ thStyle }}">Status</th>
+                <th style="{{ thStyle }}">Updated</th>
+                <th style="{{ thStyle }}">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ formsRows }}" as="frm" hint-placeholder-count="4">
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="{{ tdStyle }}">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="width:30px;height:30px;border-radius:8px;background:var(--surface2);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;flex-shrink:0;color:var(--muted)">{{ formListIcon }}</div>
+                      <span style="font-size:13px;font-weight:500;color:var(--text)">{{ frm.name }}</span>
+                    </div>
+                  </td>
+                  <td style="{{ tdStyle }}"><span style="font-size:12px;color:var(--muted)">{{ frm.category }}</span></td>
+                  <td style="{{ tdStyle }}"><span style="font-size:13px;color:var(--text)">{{ frm.fields }}</span></td>
+                  <td style="{{ tdStyle }}"><span style="font-size:13px;color:var(--text)">{{ frm.responses }}</span></td>
+                  <td style="{{ tdStyle }}">{{ frm.statusBadge }}</td>
+                  <td style="{{ tdStyle }}"><span style="font-size:12px;color:var(--muted)">{{ frm.updated }}</span></td>
+                  <td style="{{ tdStyle }}">
+                    <div style="display:flex;gap:6px;align-items:center">
+                      <button onClick="{{ frm.onEdit }}" style="{{ smSecBtnStyle }}">Edit</button>
+                      <button style="{{ iconBtnSmStyle }}">{{ moreIcon }}</button>
+                    </div>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ─── FORM BUILDER ─── -->
+    <sc-if value="{{ isBuilder }}" hint-placeholder-val="{{ false }}">
+      <!-- Toolbar -->
+      <div style="height:52px;padding:0 20px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;background:var(--surface)">
+        <button onClick="{{ gotoForms }}" style="{{ iconBtnStyle }}">{{ backIcon }}</button>
+        <div style="width:1px;height:18px;background:var(--border)"></div>
+        {{ formNameInput }}
+        <div style="flex:1"></div>
+        <div style="{{ tabGroupStyle }}">
+          <button onClick="{{ setBuildTab }}" style="{{ buildTabStyle }}">Build</button>
+          <button onClick="{{ setLogicTab }}" style="{{ logicTabStyle }}">Logic</button>
+          <button onClick="{{ setPreviewTab }}" style="{{ previewTabStyle }}">Preview</button>
+        </div>
+        <div style="width:1px;height:18px;background:var(--border)"></div>
+        <button onClick="{{ openSaveTemplateModal }}" style="{{ secBtnStyle }}">Save as Template</button>
+        <button style="{{ secBtnStyle }}">Save Draft</button>
+        <button style="{{ primaryBtnStyle }}">{{ publishIcon }}<span>Publish</span></button>
+      </div>
+
+      <!-- BUILD MODE: 3-panel layout -->
+      <sc-if value="{{ isBuildMode }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex:1;overflow:hidden">
+
+          <!-- Field Palette -->
+          <div style="width:232px;border-right:1px solid var(--border);overflow-y:auto;flex-shrink:0;background:var(--surface)">
+            <div style="padding:12px 10px 8px;position:sticky;top:0;background:var(--surface);z-index:1;border-bottom:1px solid var(--border)">
+              <div style="font-size:9.5px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.9px;margin-bottom:8px">Field Library</div>
+              <div style="display:flex;align-items:center;gap:6px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;padding:6px 9px">
+                {{ searchSmIcon }}
+                <input style="border:none;background:transparent;color:var(--text);font-size:11px;width:100%;outline:none" placeholder="Search fields…">
+              </div>
+            </div>
+            <div style="padding:8px 10px">
+              <sc-for list="{{ fieldCategories }}" as="fcat" hint-placeholder-count="6">
+                <div style="margin-bottom:10px">
+                  <div style="font-size:9px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.9px;margin-bottom:5px;padding:2px 2px">{{ fcat.label }}</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:3px">
+                    <sc-for list="{{ fcat.fields }}" as="ftype" hint-placeholder-count="3">
+                      <button onClick="{{ ftype.onClick }}" style="{{ fieldBtnStyle }}" title="{{ ftype.label }}">
+                        <div style="color:var(--muted);display:flex;align-items:center;justify-content:center">{{ ftype.icon }}</div>
+                        <span style="font-size:9px;color:var(--text);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block;text-align:center">{{ ftype.label }}</span>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <!-- Canvas -->
+          <div style="flex:1;overflow-y:auto;background:var(--surface2);min-width:0">
+            <div style="max-width:680px;margin:0 auto;padding:24px 20px">
+              <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;margin-bottom:14px">
+                <div style="font-size:18px;font-weight:700;color:var(--text);margin-bottom:4px">{{ currentFormName }}</div>
+                <div style="font-size:13px;color:var(--muted)">{{ currentFormDesc }}</div>
+              </div>
+              <sc-if value="{{ hasFields }}" hint-placeholder-val="{{ false }}">
+                <sc-for list="{{ formFields }}" as="field" hint-placeholder-count="2">
+                  <div onClick="{{ field.onSelect }}" onDragOver="{{ field.onDragOver }}" onDrop="{{ field.onDrop }}" style="{{ field.cardStyle }}">
+                    <div style="display:flex;align-items:center;gap:8px;padding:10px 12px;border-bottom:1px solid var(--border)">
+                      <div draggable="true" onDragStart="{{ field.onDragStart }}" style="cursor:grab;color:var(--muted2);display:flex;align-items:center;flex-shrink:0">{{ gripIcon }}</div>
+                      <div style="color:var(--muted);display:flex;align-items:center">{{ field.typeIcon }}</div>
+                      <span style="font-size:13px;font-weight:500;color:var(--text);flex:1">{{ field.label }}</span>
+                      <sc-if value="{{ field.required }}"><span style="color:#EF4444;font-size:12px;font-weight:700">*</span></sc-if>
+                      <span style="{{ field.typeBadgeStyle }}">{{ field.typeLabel }}</span>
+                      <div style="display:flex;gap:2px;margin-left:2px">
+                        <button onClick="{{ field.onDuplicate }}" style="{{ iconBtnSmStyle }}">{{ copySmIcon }}</button>
+                        <button onClick="{{ field.onDelete }}" style="{{ field.delBtnStyle }}">{{ trashSmIcon }}</button>
+                      </div>
+                    </div>
+                    <div style="padding:12px">{{ field.preview }}</div>
+                  </div>
+                </sc-for>
+              </sc-if>
+              <sc-if value="{{ noFields }}" hint-placeholder-val="{{ true }}">
+                <div style="background:var(--surface);border:2px dashed var(--border);border-radius:12px;padding:56px 24px;text-align:center;color:var(--muted)">
+                  {{ emptyIcon }}
+                  <div style="font-size:15px;font-weight:600;color:var(--text);margin-top:16px">Start building your form</div>
+                  <div style="font-size:13px;color:var(--muted);margin-top:6px;line-height:1.6">Click any field type from the palette on the left.</div>
+                </div>
+              </sc-if>
+              <button onClick="{{ addTextField }}" style="width:100%;margin-top:12px;padding:10px;background:var(--surface);border:1px dashed var(--border);border-radius:8px;color:var(--muted);font-size:12px;display:flex;align-items:center;justify-content:center;gap:6px;font-weight:500">
+                {{ plusSmIcon }} Add Text Field
+              </button>
+            </div>
+          </div>
+
+          <!-- Properties Panel -->
+          <div style="width:300px;border-left:1px solid var(--border);overflow-y:auto;flex-shrink:0;background:var(--surface)">
+            {{ propertiesPanel }}
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- PREVIEW MODE -->
+      <sc-if value="{{ isPreviewMode }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;overflow-y:auto;background:var(--surface2)">
+          <div style="max-width:680px;margin:32px auto;padding:0 20px 40px">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:32px">
+              <h2 style="font-size:20px;font-weight:700;color:var(--text);margin-bottom:6px">{{ currentFormName }}</h2>
+              <p style="font-size:13px;color:var(--muted);margin-bottom:28px">{{ currentFormDesc }}</p>
+              {{ previewFields }}
+              <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border)">
+                <button style="{{ primaryBtnStyle }}">Submit Form</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </sc-if>
+
+      <!-- LOGIC MODE -->
+      <sc-if value="{{ isLogicMode }}" hint-placeholder-val="{{ false }}">
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;color:var(--muted)">
+          {{ zapIcon }}
+          <div style="font-size:15px;font-weight:600;color:var(--text);margin-top:8px">Conditional Logic Builder</div>
+          <div style="font-size:13px;color:var(--muted);text-align:center;max-width:380px;line-height:1.6">Define rules to show, hide, or require fields based on user responses. Add fields in Build mode first.</div>
+          <sc-if value="{{ hasFields }}" hint-placeholder-val="{{ false }}">
+            {{ logicPanel }}
+          </sc-if>
+        </div>
+      </sc-if>
+    </sc-if>
+
+    <!-- ─── COMPANIES ─── -->
+    <sc-if value="{{ isCompanies }}" hint-placeholder-val="{{ false }}">{{ companiesScreen }}</sc-if>
+    <!-- ─── PLANTS ─── -->
+    <sc-if value="{{ isPlants }}" hint-placeholder-val="{{ false }}">{{ plantsScreen }}</sc-if>
+    <!-- ─── DEPARTMENTS ─── -->
+    <sc-if value="{{ isDepartments }}" hint-placeholder-val="{{ false }}">{{ departmentsScreen }}</sc-if>
+    <!-- ─── TEAMS ─── -->
+    <sc-if value="{{ isTeams }}" hint-placeholder-val="{{ false }}">{{ teamsScreen }}</sc-if>
+    <!-- ─── ROLES ─── -->
+    <sc-if value="{{ isRoles }}" hint-placeholder-val="{{ false }}">{{ rolesScreen }}</sc-if>
+    <!-- ─── PERMISSIONS ─── -->
+    <sc-if value="{{ isPermissions }}" hint-placeholder-val="{{ false }}">{{ permissionsScreen }}</sc-if>
+    <!-- ─── RESPONSES ─── -->
+    <sc-if value="{{ isResponses }}" hint-placeholder-val="{{ false }}">{{ responsesScreen }}</sc-if>
+    <!-- ─── REPORTS ─── -->
+    <sc-if value="{{ isReports }}" hint-placeholder-val="{{ false }}">{{ reportsScreen }}</sc-if>
+
+    <!-- ─── USERS ─── -->
+    <sc-if value="{{ isUsers }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:24px 32px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <h1 style="font-size:21px;font-weight:700;color:var(--text);letter-spacing:-0.5px">Users</h1>
+          <p style="font-size:13px;color:var(--muted);margin-top:3px">Manage platform users and their access levels</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px">
+          {{ searchIcon }}
+          <input style="border:none;background:transparent;color:var(--text);font-size:13px;width:180px;outline:none" placeholder="Search users…">
+        </div>
+        <button style="{{ primaryBtnStyle }}">{{ plusIcon }}<span>Invite User</span></button>
+      </div>
+      <div style="flex:1;overflow:auto;padding:24px 32px">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse">
+            <thead>
+              <tr style="background:var(--surface2)">
+                <th style="{{ thStyle }}">User</th>
+                <th style="{{ thStyle }}">Email</th>
+                <th style="{{ thStyle }}">Role</th>
+                <th style="{{ thStyle }}">Department</th>
+                <th style="{{ thStyle }}">Status</th>
+                <th style="{{ thStyle }}">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ usersRows }}" as="user" hint-placeholder-count="4">
+                <tr style="border-bottom:1px solid var(--border)">
+                  <td style="{{ tdStyle }}">
+                    <div style="display:flex;align-items:center;gap:10px">
+                      <div style="{{ user.avatarStyle }}">{{ user.initials }}</div>
+                      <span style="font-size:13px;font-weight:500;color:var(--text)">{{ user.name }}</span>
+                    </div>
+                  </td>
+                  <td style="{{ tdStyle }}"><span style="font-size:12px;color:var(--muted)">{{ user.email }}</span></td>
+                  <td style="{{ tdStyle }}"><span style="font-size:12px;color:var(--text)">{{ user.role }}</span></td>
+                  <td style="{{ tdStyle }}"><span style="font-size:12px;color:var(--muted)">{{ user.department }}</span></td>
+                  <td style="{{ tdStyle }}">{{ user.statusBadge }}</td>
+                  <td style="{{ tdStyle }}">
+                    <div style="display:flex;gap:6px">
+                      <button style="{{ smSecBtnStyle }}">Edit</button>
+                      <button style="{{ iconBtnSmStyle }}">{{ moreIcon }}</button>
+                    </div>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ─── SETTINGS ─── -->
+    <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:24px 32px 20px;flex-shrink:0;border-bottom:1px solid var(--border)">
+        <h1 style="font-size:21px;font-weight:700;color:var(--text);letter-spacing:-0.5px">Settings</h1>
+        <p style="font-size:13px;color:var(--muted);margin-top:3px">Customize your platform appearance and preferences</p>
+      </div>
+      <div style="flex:1;overflow:auto;padding:28px 32px">
+        <div style="max-width:640px;display:flex;flex-direction:column;gap:20px">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px">
+            <h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Accent Color</h3>
+            <p style="font-size:12px;color:var(--muted);margin-bottom:18px">Sets the primary color across buttons, active states, and highlights</p>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+              <sc-for list="{{ themeOptions }}" as="theme" hint-placeholder-count="9">
+                <button onClick="{{ theme.onClick }}" style="{{ theme.btnStyle }}">
+                  <div style="{{ theme.swatchStyle }}"></div>
+                  <span style="font-size:11px;color:var(--text);font-weight:500">{{ theme.name }}</span>
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px">Dark Mode</h3>
+                <p style="font-size:12px;color:var(--muted)">Switch between light and dark interface themes</p>
+              </div>
+              <div onClick="{{ toggleDark }}" style="{{ darkToggleStyle }}"><div style="{{ darkKnobStyle }}"></div></div>
+            </div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px">
+            <h3 style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:16px">Platform Preferences</h3>
+            {{ prefRows }}
+          </div>
+        </div>
+      </div>
+    </sc-if>
+
+    <!-- ─── KNOWLEDGE PACKS ─── -->
+    <sc-if value="{{ isKnowledgePacks }}" hint-placeholder-val="{{ false }}">
+      <div style="padding:24px 32px;flex-shrink:0;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+        <div style="flex:1">
+          <h1 style="font-size:21px;font-weight:700;color:var(--text);letter-spacing:-0.5px">Templates</h1>
+          <p style="font-size:13px;color:var(--muted);margin-top:3px">Pre-built compliance templates — activate and customise in the Form Builder</p>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px">
+          {{ searchIcon }}
+          <input value="{{ packSearchValue }}" onChange="{{ onPackSearch }}" style="border:none;background:transparent;color:var(--text);font-size:13px;width:180px;outline:none" placeholder="Search templates…">
+        </div>
+      </div>
+      <div style="padding:14px 32px 0;display:flex;gap:8px;flex-wrap:wrap;flex-shrink:0">
+        <sc-for list="{{ packDomainOptions }}" as="dopt" hint-placeholder-count="5">
+          <button onClick="{{ dopt.onClick }}" style="{{ dopt.style }}">{{ dopt.label }}</button>
+        </sc-for>
+      </div>
+      <div style="flex:1;overflow:hidden;display:flex">
+        <div style="flex:1;overflow-y:auto;padding:24px 32px">
+          <div style="{{ packsGridStyle }}">
+            <sc-for list="{{ knowledgePacks }}" as="pack" hint-placeholder-count="6">
+              <div style="{{ pack.cardStyle }}">
+                <div style="padding:20px 20px 16px">
+                  <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px">
+                    <div style="{{ pack.iconBoxStyle }}">{{ pack.icon }}</div>
+                    <div style="flex:1;min-width:0">
+                      <div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:5px;line-height:1.3">{{ pack.name }}</div>
+                      <span style="{{ pack.tagStyle }}">{{ pack.tag }}</span>
+                    </div>
+                    <sc-if value="{{ pack.isActive }}">
+                      <div style="{{ pack.activeBadgeStyle }}">{{ checkSmIcon }} Active</div>
+                    </sc-if>
+                  </div>
+                  <p style="font-size:12px;color:var(--muted);line-height:1.6;margin-bottom:14px">{{ pack.description }}</p>
+                  <div style="display:flex;align-items:center;gap:14px;margin-bottom:16px">
+                    <span style="font-size:11px;color:var(--muted);font-weight:500">{{ pack.fieldCount }} fields</span>
+                    <span style="font-size:11px;color:var(--muted)">{{ pack.domain }}</span>
+                  </div>
+                  <div style="display:flex;gap:8px">
+                    <button onClick="{{ pack.onActivate }}" style="{{ pack.activateBtnStyle }}">{{ pack.activateLabel }}</button>
+                    <button onClick="{{ pack.onPreview }}" style="{{ pack.previewBtnStyle }}">Preview fields</button>
+                    <sc-if value="{{ pack.isCustom }}">
+                      <button onClick="{{ pack.onDelete }}" style="{{ pack.deleteBtnStyle }}">{{ trashSmIcon }}</button>
+                    </sc-if>
+                  </div>
+                </div>
+                <div style="border-top:1px solid var(--border);padding:10px 20px;display:flex;gap:5px;flex-wrap:wrap">
+                  <sc-for list="{{ pack.chips }}" as="chip" hint-placeholder-count="3">
+                    <span style="{{ chip.style }}">{{ chip.label }}</span>
+                  </sc-for>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        {{ previewPanel }}
+      </div>
+    </sc-if>
+
+    <!-- ─── PLACEHOLDER SCREENS ─── -->
+    <sc-if value="{{ isPlaceholder }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+        {{ buildingIcon }}
+        <div style="font-size:16px;font-weight:600;color:var(--text);margin-top:10px">{{ placeholderTitle }}</div>
+        <div style="font-size:13px;color:var(--muted)">This module is coming in the next phase</div>
+        <button onClick="{{ gotoForms }}" style="{{ secBtnStyle }}">Go to Forms</button>
+      </div>
+    </sc-if>
+
+  </div>
+  {{ saveTemplateModal }}
+  <sc-if value="{{ isMobile }}">
+    <sc-if value="{{ sidebarOpen }}">
+      <div onClick="{{ toggleSidebar }}" style="position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:40"></div>
+    </sc-if>
+  </sc-if>
+  </sc-if>
+  <sc-if value="{{ notAuthed }}" hint-placeholder-val="{{ false }}">
+    {{ authScreen }}
+  </sc-if>
+</div></x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    isAuthed: false,
+    authMode: 'login',
+    authEmail: '',
+    authPassword: '',
+    authError: '',
+    nav: 'dashboard',
+    accent: '#2563EB',
+    dark: false,
+    sidebarOpen: true,
+    builderTab: 'build',
+    fieldPropTab: 'props',
+    currentFormName: 'New Form',
+    currentFormDesc: 'Add a description…',
+    fields: [],
+    selectedId: null,
+    fieldCounter: 0,
+    dragSrcIdx: null,
+    activePackId: null,
+    previewPackId: null,
+    packSearch: '',
+    packDomainFilter: 'All',
+    customPacks: [],
+    showSaveTemplateModal: false,
+    saveTemplateName: '',
+    saveTemplateDomain: 'Custom',
+    winWidth: (typeof window !== 'undefined' && window.innerWidth) || 1440,
+    companies: [
+      { id:1, name:'Acme Precision Industries', code:'ACM-001', type:'Parent Company', plants:4, employees:1240, status:'active' },
+      { id:2, name:'Acme Textiles Pvt Ltd', code:'ACM-002', type:'Subsidiary', plants:2, employees:680, status:'active' },
+      { id:3, name:'Acme Auto Components', code:'ACM-003', type:'Subsidiary', plants:1, employees:310, status:'active' },
+      { id:4, name:'Acme Green Energy', code:'ACM-004', type:'Joint Venture', plants:1, employees:95, status:'inactive' },
+    ],
+    plants: [
+      { id:1, name:'Chennai Manufacturing Plant', code:'PLT-CH01', company:'Acme Precision Industries', location:'Chennai, Tamil Nadu', capacity:'450 workers', status:'active' },
+      { id:2, name:'Coimbatore Textile Unit', code:'PLT-CB01', company:'Acme Textiles Pvt Ltd', location:'Coimbatore, Tamil Nadu', capacity:'320 workers', status:'active' },
+      { id:3, name:'Pune Auto Parts Facility', code:'PLT-PN01', company:'Acme Auto Components', location:'Pune, Maharashtra', capacity:'310 workers', status:'active' },
+      { id:4, name:'Bengaluru Electronics Unit', code:'PLT-BL01', company:'Acme Precision Industries', location:'Bengaluru, Karnataka', capacity:'260 workers', status:'review' },
+      { id:5, name:'Nagpur Ancillary Plant', code:'PLT-NG01', company:'Acme Precision Industries', location:'Nagpur, Maharashtra', capacity:'180 workers', status:'draft' },
+    ],
+    departments: [
+      { id:1, name:'Production', plant:'Chennai Manufacturing Plant', head:'Ravi Kumar', headcount:180, status:'active' },
+      { id:2, name:'Quality Assurance', plant:'Chennai Manufacturing Plant', head:'Priya Iyer', headcount:42, status:'active' },
+      { id:3, name:'Maintenance', plant:'Coimbatore Textile Unit', head:'Suresh Babu', headcount:36, status:'active' },
+      { id:4, name:'Environment, Health & Safety', plant:'Pune Auto Parts Facility', head:'Anita Desai', headcount:14, status:'active' },
+      { id:5, name:'Human Resources', plant:'Bengaluru Electronics Unit', head:'Kavya Reddy', headcount:9, status:'active' },
+    ],
+    teams: [
+      { id:1, name:'Line 1 — Assembly', department:'Production', lead:'Ravi Kumar', members:24, status:'active' },
+      { id:2, name:'Incoming Inspection', department:'Quality Assurance', lead:'Priya Iyer', members:8, status:'active' },
+      { id:3, name:'Preventive Maintenance Crew', department:'Maintenance', lead:'Suresh Babu', members:12, status:'active' },
+      { id:4, name:'Safety Committee', department:'Environment, Health & Safety', lead:'Anita Desai', members:6, status:'active' },
+    ],
+    roles: [
+      { id:1, name:'Administrator', permKey:'admin', description:'Full platform access, user & role management', users:3, permissions:'All Permissions', status:'active' },
+      { id:2, name:'Form Editor', permKey:'editor', description:'Create and edit forms, view responses', users:12, permissions:'Forms · Templates · Responses', status:'active' },
+      { id:3, name:'Compliance Auditor', permKey:'auditor', description:'Fill and submit compliance checklists', users:28, permissions:'Forms (Fill Only) · Responses (Own)', status:'active' },
+      { id:4, name:'Viewer', permKey:'viewer', description:'Read-only access to dashboards and reports', users:47, permissions:'View Only', status:'active' },
+    ],
+    selectedPermRole: 'admin',
+    permissionsByRole: {
+      admin: [
+        { id:1, module:'Forms', view:true, create:true, edit:true, delete:true },
+        { id:2, module:'Templates', view:true, create:true, edit:true, delete:true },
+        { id:3, module:'Responses', view:true, create:true, edit:true, delete:true },
+        { id:4, module:'Users', view:true, create:true, edit:true, delete:true },
+        { id:5, module:'Companies & Plants', view:true, create:true, edit:true, delete:true },
+        { id:6, module:'Reports', view:true, create:true, edit:true, delete:true },
+        { id:7, module:'Settings', view:true, create:true, edit:true, delete:false },
+      ],
+      editor: [
+        { id:1, module:'Forms', view:true, create:true, edit:true, delete:false },
+        { id:2, module:'Templates', view:true, create:true, edit:false, delete:false },
+        { id:3, module:'Responses', view:true, create:false, edit:false, delete:false },
+        { id:4, module:'Users', view:false, create:false, edit:false, delete:false },
+        { id:5, module:'Companies & Plants', view:true, create:false, edit:false, delete:false },
+        { id:6, module:'Reports', view:true, create:false, edit:false, delete:false },
+        { id:7, module:'Settings', view:false, create:false, edit:false, delete:false },
+      ],
+      auditor: [
+        { id:1, module:'Forms', view:true, create:false, edit:false, delete:false },
+        { id:2, module:'Templates', view:true, create:false, edit:false, delete:false },
+        { id:3, module:'Responses', view:true, create:true, edit:false, delete:false },
+        { id:4, module:'Users', view:false, create:false, edit:false, delete:false },
+        { id:5, module:'Companies & Plants', view:true, create:false, edit:false, delete:false },
+        { id:6, module:'Reports', view:true, create:false, edit:false, delete:false },
+        { id:7, module:'Settings', view:false, create:false, edit:false, delete:false },
+      ],
+      viewer: [
+        { id:1, module:'Forms', view:true, create:false, edit:false, delete:false },
+        { id:2, module:'Templates', view:true, create:false, edit:false, delete:false },
+        { id:3, module:'Responses', view:true, create:false, edit:false, delete:false },
+        { id:4, module:'Users', view:false, create:false, edit:false, delete:false },
+        { id:5, module:'Companies & Plants', view:true, create:false, edit:false, delete:false },
+        { id:6, module:'Reports', view:true, create:false, edit:false, delete:false },
+        { id:7, module:'Settings', view:false, create:false, edit:false, delete:false },
+      ],
+    },
+    responses: [
+      { id:1, form:'Tamil Nadu Factory Act Compliance Checklist', packId:'tn-factory-act', submittedBy:'Ravi Kumar', plant:'Chennai Manufacturing Plant', date:'Jun 30, 2026', status:'published' },
+      { id:2, form:'Preventive Maintenance Work Order', packId:'preventive-maint', submittedBy:'Suresh Babu', plant:'Coimbatore Textile Unit', date:'Jun 29, 2026', status:'published' },
+      { id:3, form:'Workplace Incident & Accident Report', packId:'incident-report', submittedBy:'Anita Desai', plant:'Pune Auto Parts Facility', date:'Jun 29, 2026', status:'review' },
+      { id:4, form:'Employee Onboarding Form', packId:'employee-onboarding', submittedBy:'Kavya Reddy', plant:'Bengaluru Electronics Unit', date:'Jun 27, 2026', status:'published' },
+      { id:5, form:'Visitor Entry & Exit Register', packId:'visitor-log', submittedBy:'Security Desk', plant:'Chennai Manufacturing Plant', date:'Jun 26, 2026', status:'draft' },
+    ],
+    forms: [
+      { id:1, name:'Employee Onboarding', fields:12, responses:47, status:'published', updated:'Jun 28', category:'HR' },
+      { id:2, name:'Plant Safety Checklist', fields:8, responses:0, status:'draft', updated:'Jun 30', category:'Safety' },
+      { id:3, name:'Equipment Inspection Report', fields:15, responses:23, status:'published', updated:'Jun 25', category:'Maintenance' },
+      { id:4, name:'Supplier Quality Audit', fields:20, responses:5, status:'review', updated:'Jun 29', category:'Quality' },
+    ],
+    users: [
+      { id:1, name:'Sarah Chen', email:'sarah@acme.com', role:'Admin', department:'Engineering', status:'active', initials:'SC', color:'#2563EB' },
+      { id:2, name:'Michael Torres', email:'m.torres@acme.com', role:'Editor', department:'Operations', status:'active', initials:'MT', color:'#059669' },
+      { id:3, name:'Emily Nakamura', email:'emily.n@acme.com', role:'Viewer', department:'Quality', status:'inactive', initials:'EN', color:'#7C3AED' },
+      { id:4, name:'James Wilson', email:'j.wilson@acme.com', role:'Editor', department:'Safety', status:'active', initials:'JW', color:'#0D9488' },
+    ],
+  };
+
+  /* ─── Icon Definitions ─── */
+  get ICONS() {
+    return {
+      dashboard:`<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>`,
+      forms:`<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><line x1="10" y1="9" x2="8" y2="9"/>`,
+      users:`<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>`,
+      building:`<path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18Z"/><path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/><path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>`,
+      factory:`<path d="M2 20a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8l-7 5V8l-7 5V4a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M17 18h1"/><path d="M12 18h1"/><path d="M7 18h1"/>`,
+      layers:`<polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>`,
+      usersround:`<path d="M18 21a8 8 0 0 0-16 0"/><circle cx="10" cy="8" r="5"/><path d="M22 20c0-3.37-2-6.5-4-8a5 5 0 0 0-.45-8.3"/>`,
+      shield:`<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>`,
+      key:`<circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/>`,
+      settings:`<path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/>`,
+      help:`<circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/>`,
+      plus:`<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>`,
+      search:`<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>`,
+      grip:`<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>`,
+      trash:`<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/>`,
+      copy:`<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>`,
+      back:`<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>`,
+      send:`<line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>`,
+      more:`<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>`,
+      panelleft:`<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="9" y1="3" x2="9" y2="21"/>`,
+      check:`<polyline points="20 6 9 17 4 12"/>`,
+      x:`<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>`,
+      zap:`<polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>`,
+      sliders:`<line x1="4" y1="21" x2="4" y2="14"/><line x1="4" y1="10" x2="4" y2="3"/><line x1="12" y1="21" x2="12" y2="12"/><line x1="12" y1="8" x2="12" y2="3"/><line x1="20" y1="21" x2="20" y2="16"/><line x1="20" y1="12" x2="20" y2="3"/><line x1="1" y1="14" x2="7" y2="14"/><line x1="9" y1="8" x2="15" y2="8"/><line x1="17" y1="16" x2="23" y2="16"/>`,
+      lock:`<rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>`,
+      eye:`<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>`,
+      eyeoff:`<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`,
+      info:`<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>`,
+      moon:`<path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>`,
+      // Field type icons
+      textbox:`<rect x="3" y="8" width="18" height="8" rx="2"/><path d="M8 8V6m8 2V6"/>`,
+      textarea:`<rect x="3" y="3" width="18" height="18" rx="2"/><line x1="7" y1="8" x2="17" y2="8"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="7" y1="16" x2="12" y2="16"/>`,
+      richtext:`<path d="M4 7V4h16v3"/><path d="M9 20h6"/><path d="M12 4v16"/><path d="M4 13h4"/>`,
+      number:`<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>`,
+      currency:`<line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>`,
+      percent:`<line x1="19" y1="5" x2="5" y2="19"/><circle cx="6.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="17.5" r="2.5"/>`,
+      date:`<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>`,
+      time:`<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>`,
+      datetime:`<rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="17" cy="17" r="3"/>`,
+      dropdown:`<path d="M3 6h18M3 12h12M3 18h6"/><path d="M18 12l3 3-3 3"/>`,
+      multiselect:`<rect x="3" y="5" width="18" height="14" rx="2"/><path d="m9 12 2 2 4-4"/>`,
+      checkbox:`<polyline points="9 11 12 14 22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/>`,
+      radio:`<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3" fill="currentColor"/>`,
+      toggle:`<rect x="1" y="5" width="22" height="14" rx="7" ry="7"/><circle cx="8" cy="12" r="3" fill="currentColor"/>`,
+      lookup:`<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/><line x1="11" y1="8" x2="11" y2="14"/>`,
+      formula:`<path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/><path d="M9 12h6m-3-3v6"/>`,
+      image:`<rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>`,
+      camera:`<path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/>`,
+      video:`<polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>`,
+      audio:`<path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/>`,
+      upload:`<polyline points="16 16 12 12 8 16"/><line x1="12" y1="12" x2="12" y2="21"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>`,
+      signature:`<path d="M3 17c3.333-3.333 5-6 5-9a4 4 0 0 0-8 0"/><path d="m7 17 2.1-5.1"/><path d="M12 17c1-3.3 2-6 4.5-9"/><path d="M20 8c-2 3.3-3 5.7-3 9"/><path d="m3 21 18-18"/>`,
+      gps:`<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>`,
+      qr:`<rect x="3" y="3" width="5" height="5"/><rect x="16" y="3" width="5" height="5"/><rect x="3" y="16" width="5" height="5"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/>`,
+      barcode:`<path d="M3 5v14m5-14v6m4-6v14m5-14v6m4-6v14M8 14v5m9-5v5"/>`,
+      email:`<path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/>`,
+      phone:`<path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13a19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 3.59 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L7.91 9.91a16 16 0 0 0 6.18 6.18l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/>`,
+      url:`<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>`,
+      rating:`<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>`,
+      color:`<circle cx="13.5" cy="6.5" r=".5" fill="currentColor"/><circle cx="17.5" cy="10.5" r=".5" fill="currentColor"/><circle cx="8.5" cy="7.5" r=".5" fill="currentColor"/><circle cx="6.5" cy="12.5" r=".5" fill="currentColor"/><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z"/>`,
+      hidden:`<path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/>`,
+      system:`<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/>`,
+      ai:`<path d="m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z"/>`,
+      book:`<path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 0 3-3h7z"/>`,
+      shieldon:`<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/>`,
+      plant:`<path d="M12 22V12"/><path d="M5 3a7 7 0 0 0 7 7 7 7 0 0 0 7-7"/>`,
+      globe:`<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>`,
+    };
+  }
+
+  /* ─── Icon Renderer ─── */
+  I(name, size=14) {
+    const d = this.ICONS[name] || `<circle cx="12" cy="12" r="4"/>`;
+    return React.createElement('span', {
+      style:{display:'inline-flex',alignItems:'center',flexShrink:0},
+      dangerouslySetInnerHTML:{__html:`<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">${d}</svg>`}
+    });
+  }
+
+  /* ─── Navigation ─── */
+  goto(screen) { this.setState({nav:screen}); }
+
+  /* ─── Auth ─── */
+  setAuthMode(m){ this.setState({authMode:m, authError:''}); }
+  setAuthField(key,val){ this.setState({[key]:val, authError:''}); }
+  submitAuth(ev){
+    if(ev) ev.preventDefault();
+    const {authMode, authEmail, authPassword} = this.state;
+    if(!authEmail.trim() || !authPassword.trim()){
+      this.setState({authError:'Please enter both email and password.'});
+      return;
+    }
+    if(authPassword.length<6){
+      this.setState({authError:'Password must be at least 6 characters.'});
+      return;
+    }
+    this.setState({isAuthed:true, authError:''});
+  }
+  logout(){ this.setState({isAuthed:false, authEmail:'', authPassword:'', authMode:'login'}); }
+
+  /* ─── Form Operations ─── */
+  addField(type) {
+    const LABELS={textbox:'Text Field',textarea:'Text Area',richtext:'Rich Text',number:'Number',currency:'Currency',percent:'Percentage',date:'Date',time:'Time',datetime:'Date & Time',dropdown:'Dropdown',multiselect:'Multi Select',checkbox:'Checkbox',radio:'Radio',toggle:'Toggle',lookup:'Lookup',formula:'Formula',image:'Image',camera:'Camera',video:'Video',audio:'Audio',upload:'File Upload',signature:'Signature',gps:'GPS Location',qr:'QR Code',barcode:'Barcode',email:'Email',phone:'Phone',url:'URL',rating:'Rating',color:'Color Picker',hidden:'Hidden Field',system:'System Field',ai:'AI Field'};
+    this.setState(s=>{
+      const id='f'+(s.fieldCounter+1);
+      const hasOpts=['dropdown','multiselect','radio','checkbox'].includes(type);
+      return {
+        fields:[...s.fields,{id,type,label:LABELS[type]||type,placeholder:'',helpText:'',defaultValue:'',required:false,readOnly:false,hidden:false,searchable:false,indexed:false,options:hasOpts?['Option 1','Option 2','Option 3']:[],validation:{min:'',max:'',pattern:'',message:''},logic:[]}],
+        selectedId:id,fieldCounter:s.fieldCounter+1
+      };
+    });
+  }
+
+  selectField(id){this.setState({selectedId:id});}
+
+  updateField(id,key,value){
+    this.setState(s=>({fields:s.fields.map(f=>f.id===id?{...f,[key]:value}:f)}));
+  }
+
+  updateValidation(id,key,value){
+    this.setState(s=>({fields:s.fields.map(f=>f.id===id?{...f,validation:{...f.validation,[key]:value}}:f)}));
+  }
+
+  deleteField(id){
+    this.setState(s=>({fields:s.fields.filter(f=>f.id!==id),selectedId:s.selectedId===id?null:s.selectedId}));
+  }
+
+  duplicateField(id){
+    this.setState(s=>{
+      const idx=s.fields.findIndex(f=>f.id===id);if(idx===-1)return{};
+      const orig=s.fields[idx];
+      const nf={...orig,id:'f'+(s.fieldCounter+1),label:orig.label+' (Copy)',options:orig.options?[...orig.options]:[]};
+      const nfields=[...s.fields];nfields.splice(idx+1,0,nf);
+      return{fields:nfields,fieldCounter:s.fieldCounter+1,selectedId:nf.id};
+    });
+  }
+
+  /* ─── UI Controls ─── */
+  toggleDark(){this.setState(s=>({dark:!s.dark}));}
+  toggleSidebar(){this.setState(s=>({sidebarOpen:!s.sidebarOpen}));}
+  setAccent(c){this.setState({accent:c});}
+  setBuilderTab(t){this.setState({builderTab:t});}
+  setFieldPropTab(t){this.setState({fieldPropTab:t});}
+
+  /* ─── Status Badge ─── */
+  badge(status){
+    const map={published:{label:'Published',bg:'#DCFCE7',color:'#15803D'},draft:{label:'Draft',bg:'#F3F4F6',color:'#6B7280'},review:{label:'In Review',bg:'#FEF3C7',color:'#92400E'},active:{label:'Active',bg:'#DCFCE7',color:'#15803D'},inactive:{label:'Inactive',bg:'#F3F4F6',color:'#6B7280'}};
+    const v=map[status]||map.draft;const e=React.createElement;
+    return e('span',{style:{display:'inline-flex',alignItems:'center',gap:4,padding:'3px 8px',borderRadius:20,background:v.bg,color:v.color,fontSize:11,fontWeight:600}},
+      e('span',{style:{width:6,height:6,borderRadius:'50%',background:v.color,display:'inline-block'}}),v.label);
+  }
+
+  /* ─── Field Preview ─── */
+  fieldPreview(field){
+    const e=React.createElement;const dark=this.state.dark;const accent=this.state.accent;
+    const inp={width:'100%',padding:'8px 11px',border:`1px solid ${dark?'#303036':'#E4E4E7'}`,borderRadius:7,fontSize:12,color:dark?'#52525B':'#A1A1AA',background:dark?'#1C1C1E':'#FAFAFA',outline:'none',fontFamily:'inherit'};
+    const ghost=dark?'#303036':'#E4E4E7';
+    switch(field.type){
+      case 'textbox': return e('input',{style:inp,placeholder:field.placeholder||'Enter text…',readOnly:true});
+      case 'textarea': return e('textarea',{style:{...inp,height:72,resize:'none'},placeholder:field.placeholder||'Enter text…',readOnly:true});
+      case 'richtext': return e('div',{style:{...inp,minHeight:72}},
+        e('div',{style:{display:'flex',gap:6,marginBottom:6,paddingBottom:6,borderBottom:`1px solid ${ghost}`}},
+          ...['B','I','U'].map(b=>e('span',{key:b,style:{fontSize:11,padding:'1px 5px',border:`1px solid ${ghost}`,borderRadius:4,cursor:'pointer',fontWeight:b==='B'?700:400,fontStyle:b==='I'?'italic':'normal',textDecoration:b==='U'?'underline':'none'}},b))
+        ),
+        e('span',{style:{fontSize:12,color:dark?'#52525B':'#A1A1AA'}},'Rich text content…')
+      );
+      case 'number': return e('input',{type:'number',style:inp,placeholder:'0',readOnly:true});
+      case 'currency': return e('div',{style:{display:'flex',border:`1px solid ${ghost}`,borderRadius:7,overflow:'hidden'}},
+        e('span',{style:{padding:'8px 10px',background:dark?'#28282C':'#F4F4F5',color:dark?'#71717A':'#9CA3AF',fontSize:12,borderRight:`1px solid ${ghost}`}},'$'),
+        e('input',{type:'number',style:{...inp,border:'none',borderRadius:0},placeholder:'0.00',readOnly:true})
+      );
+      case 'percent': return e('div',{style:{display:'flex',border:`1px solid ${ghost}`,borderRadius:7,overflow:'hidden'}},
+        e('input',{type:'number',style:{...inp,border:'none',borderRadius:0},placeholder:'0',readOnly:true}),
+        e('span',{style:{padding:'8px 10px',background:dark?'#28282C':'#F4F4F5',color:dark?'#71717A':'#9CA3AF',fontSize:12,borderLeft:`1px solid ${ghost}`}},'%')
+      );
+      case 'date': return e('input',{type:'date',style:inp,readOnly:true});
+      case 'time': return e('input',{type:'time',style:inp,readOnly:true});
+      case 'datetime': return e('input',{type:'datetime-local',style:inp,readOnly:true});
+      case 'dropdown': return e('select',{style:{...inp,cursor:'pointer'},disabled:true},
+        e('option',null,'Select an option…'),
+        ...(field.options||[]).map((o,i)=>e('option',{key:i},o))
+      );
+      case 'multiselect': return e('div',{style:{display:'flex',flexWrap:'wrap',gap:5,padding:'6px 10px',border:`1px solid ${ghost}`,borderRadius:7,minHeight:38,background:dark?'#1C1C1E':'#FAFAFA'}},
+        (field.options||[]).slice(0,2).map((o,i)=>e('span',{key:i,style:{padding:'2px 8px',background:dark?'#28282C':'#F4F4F5',borderRadius:20,fontSize:11,color:dark?'#A1A1AA':'#374151'}},o)),
+        e('span',{style:{fontSize:11,color:dark?'#52525B':'#A1A1AA',padding:'2px 0'}},'+ add…')
+      );
+      case 'checkbox': return e('div',{style:{display:'flex',flexDirection:'column',gap:7}},
+        (field.options||['Option 1','Option 2','Option 3']).map((o,i)=>
+          e('label',{key:i,style:{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}},
+            e('input',{type:'checkbox',style:{accentColor:accent}}),
+            e('span',{style:{fontSize:12,color:dark?'#A1A1AA':'#374151'}},o)
+          )
+        )
+      );
+      case 'radio': return e('div',{style:{display:'flex',flexDirection:'column',gap:7}},
+        (field.options||['Option 1','Option 2','Option 3']).map((o,i)=>
+          e('label',{key:i,style:{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}},
+            e('input',{type:'radio',name:field.id,style:{accentColor:accent}}),
+            e('span',{style:{fontSize:12,color:dark?'#A1A1AA':'#374151'}},o)
+          )
+        )
+      );
+      case 'toggle': return e('label',{style:{display:'inline-flex',alignItems:'center',gap:10,cursor:'pointer'}},
+        e('div',{style:{width:38,height:21,borderRadius:11,background:dark?'#303036':'#E4E4E7',padding:2,display:'flex',alignItems:'center'}},
+          e('div',{style:{width:17,height:17,borderRadius:'50%',background:'#fff',boxShadow:'0 1px 3px rgba(0,0,0,.25)'}})
+        ),
+        e('span',{style:{fontSize:12,color:dark?'#A1A1AA':'#374151'}},'Disabled')
+      );
+      case 'rating': return e('div',{style:{display:'flex',gap:3}},
+        [1,2,3,4,5].map(i=>e('span',{key:i,style:{fontSize:22,color:dark?'#303036':'#D1D5DB',lineHeight:1}},'★'))
+      );
+      case 'color': return e('div',{style:{display:'flex',gap:7,flexWrap:'wrap'}},
+        ['#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6','#EC4899','#6B7280','#1C1C1E'].map(c=>
+          e('div',{key:c,style:{width:26,height:26,borderRadius:'50%',background:c,border:`2px solid ${c===accent?accent:'transparent'}`}})
+        )
+      );
+      case 'signature': return e('div',{style:{height:72,border:`1px dashed ${ghost}`,borderRadius:7,display:'flex',alignItems:'center',justifyContent:'center',background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:12,gap:8}},
+        this.I('signature',16),'Sign here');
+      case 'image': return e('div',{style:{height:72,border:`1px dashed ${ghost}`,borderRadius:7,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:11}},
+        this.I('image',18),'Click to upload image');
+      case 'camera': return e('div',{style:{height:72,border:`1px dashed ${ghost}`,borderRadius:7,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:11}},
+        this.I('camera',18),'Take a photo');
+      case 'video': return e('div',{style:{height:72,border:`1px dashed ${ghost}`,borderRadius:7,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:11}},
+        this.I('video',18),'Record video');
+      case 'audio': return e('div',{style:{height:72,border:`1px dashed ${ghost}`,borderRadius:7,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:11}},
+        this.I('audio',18),'Record audio');
+      case 'upload': return e('div',{style:{height:72,border:`1px dashed ${ghost}`,borderRadius:7,display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',gap:5,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:11}},
+        this.I('upload',18),'Drop files here or click to browse');
+      case 'gps': return e('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'9px 11px',border:`1px solid ${ghost}`,borderRadius:7,background:dark?'#1C1C1E':'#FAFAFA'}},
+        this.I('gps',15),
+        e('span',{style:{fontSize:12,color:dark?'#52525B':'#A1A1AA',flex:1}},'Capture GPS location'),
+        e('button',{style:{padding:'4px 10px',background:accent,color:'#fff',border:'none',borderRadius:5,fontSize:11,cursor:'pointer'}},'Capture')
+      );
+      case 'qr': return e('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'9px 11px',border:`1px solid ${ghost}`,borderRadius:7,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:12}},
+        this.I('qr',15),'Tap to scan QR code');
+      case 'barcode': return e('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'9px 11px',border:`1px solid ${ghost}`,borderRadius:7,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:12}},
+        this.I('barcode',15),'Tap to scan barcode');
+      case 'email': return e('input',{type:'email',style:inp,placeholder:field.placeholder||'email@example.com',readOnly:true});
+      case 'phone': return e('input',{type:'tel',style:inp,placeholder:field.placeholder||'+1 (000) 000-0000',readOnly:true});
+      case 'url': return e('input',{type:'url',style:inp,placeholder:field.placeholder||'https://',readOnly:true});
+      case 'lookup': return e('div',{style:{display:'flex',gap:6}},
+        e('input',{style:{...inp,flex:1},placeholder:'Search records…',readOnly:true}),
+        e('button',{style:{padding:'0 11px',border:`1px solid ${ghost}`,borderRadius:7,background:dark?'#28282C':'#F4F4F5',cursor:'pointer',color:dark?'#71717A':'#9CA3AF'}},this.I('search',14))
+      );
+      case 'formula': return e('div',{style:{...inp,display:'flex',alignItems:'center',gap:6,color:dark?'#52525B':'#A1A1AA'}},
+        e('span',{style:{fontFamily:'monospace',fontSize:11,fontWeight:700}},'fx'),
+        e('span',{style:{fontSize:12}},'= SUM(Field1, Field2)')
+      );
+      case 'hidden': return e('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',border:`1px dashed ${ghost}`,borderRadius:7,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:12}},
+        this.I('eyeoff',14),'Hidden — not visible to respondents');
+      case 'system': return e('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',border:`1px dashed ${ghost}`,borderRadius:7,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:12}},
+        this.I('system',14),'Auto-populated by system');
+      case 'ai': return e('div',{style:{display:'flex',alignItems:'center',gap:8,padding:'8px 11px',border:`1px dashed ${ghost}`,borderRadius:7,background:dark?'#1C1C1E':'#FAFAFA',color:dark?'#52525B':'#A1A1AA',fontSize:12}},
+        this.I('ai',14),'AI-generated field value');
+      default: return e('input',{style:inp,placeholder:'Enter value…',readOnly:true});
+    }
+  }
+
+  /* ─── Properties Panel ─── */
+  renderProps(field){
+    if(!field) return this.renderEmptyProps();
+    const e=React.createElement;const s=this.state;const dark=s.dark;const accent=s.accent;const tab=s.fieldPropTab;
+    const ghost=dark?'#303036':'#E4E4E7';
+    const inp={width:'100%',padding:'7px 10px',border:`1px solid ${ghost}`,borderRadius:7,fontSize:12,color:dark?'#F9FAFB':'#111827',background:dark?'#1C1C1E':'#FFFFFF',outline:'none',fontFamily:'inherit'};
+    const lbl={fontSize:10,fontWeight:700,color:dark?'#71717A':'#9CA3AF',marginBottom:4,display:'block',textTransform:'uppercase',letterSpacing:'0.6px'};
+    const LABELS={textbox:'Text',textarea:'Textarea',richtext:'Rich Text',number:'Number',currency:'Currency',percent:'Percentage',date:'Date',time:'Time',datetime:'DateTime',dropdown:'Dropdown',multiselect:'Multi-Select',checkbox:'Checkbox',radio:'Radio',toggle:'Toggle',lookup:'Lookup',formula:'Formula',image:'Image',camera:'Camera',video:'Video',audio:'Audio',upload:'File Upload',signature:'Signature',gps:'GPS',qr:'QR Code',barcode:'Barcode',email:'Email',phone:'Phone',url:'URL',rating:'Rating',color:'Color',hidden:'Hidden',system:'System',ai:'AI Field'};
+
+    const Tog=(label,key)=>e('div',{key:label,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 0',borderTop:`1px solid ${dark?'#242426':'#F4F4F5'}`}},
+      e('span',{style:{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151'}},label),
+      e('div',{onClick:()=>this.updateField(field.id,key,!field[key]),style:{width:34,height:19,borderRadius:10,background:field[key]?accent:(dark?'#303036':'#D1D5DB'),padding:2,cursor:'pointer',transition:'background 0.2s',display:'flex',alignItems:'center'}},
+        e('div',{style:{width:15,height:15,borderRadius:'50%',background:'#fff',transform:field[key]?'translateX(15px)':'translateX(0)',transition:'transform 0.2s',boxShadow:'0 1px 3px rgba(0,0,0,.25)'}})
+      )
+    );
+
+    const Inp=(label,key,type='text',ph='')=>e('div',{key:label,style:{marginBottom:11}},
+      e('label',{style:lbl},label),
+      e('input',{type,value:field[key]||'',onChange:ev=>this.updateField(field.id,key,ev.target.value),style:inp,placeholder:ph})
+    );
+
+    const hasPlaceholder=['textbox','textarea','number','currency','percent','email','phone','url','lookup'].includes(field.type);
+    const hasOptions=['dropdown','multiselect','radio','checkbox'].includes(field.type);
+
+    const tabBtn=(label,val)=>e('button',{onClick:()=>this.setFieldPropTab(val),style:{flex:1,padding:'8px 4px',fontSize:11,fontWeight:600,background:'transparent',border:'none',borderBottom:`2px solid ${tab===val?accent:'transparent'}`,color:tab===val?accent:(dark?'#71717A':'#9CA3AF'),cursor:'pointer',transition:'all 0.15s'}},label);
+
+    return e('div',{style:{height:'100%',display:'flex',flexDirection:'column'}},
+      // Header
+      e('div',{style:{padding:'13px 15px',borderBottom:`1px solid ${ghost}`,flexShrink:0}},
+        e('div',{style:{fontSize:9.5,fontWeight:700,textTransform:'uppercase',letterSpacing:'0.8px',color:dark?'#52525B':'#A1A1AA',marginBottom:5}},'Field Properties'),
+        e('div',{style:{display:'flex',alignItems:'center',gap:7}},
+          e('span',{style:{fontSize:13,fontWeight:600,color:dark?'#F9FAFB':'#111827'}},field.label),
+          e('span',{style:{fontSize:9,fontWeight:700,padding:'2px 6px',borderRadius:4,background:dark?'#28282C':'#F3F4F6',color:dark?'#9CA3AF':'#6B7280',textTransform:'uppercase',letterSpacing:'0.5px'}},LABELS[field.type]||field.type)
+        )
+      ),
+      // Tabs
+      e('div',{style:{display:'flex',borderBottom:`1px solid ${ghost}`,flexShrink:0}},
+        tabBtn('Properties','props'),tabBtn('Validation','validation'),tabBtn('Logic','logic')
+      ),
+      // Body
+      e('div',{style:{flex:1,overflow:'auto',padding:'14px 15px'}},
+        tab==='props'&&e('div',null,
+          Inp('Label','label','text','Field label'),
+          hasPlaceholder&&Inp('Placeholder','placeholder','text','Placeholder text'),
+          Inp('Help Text','helpText','text','Hint shown below the field'),
+          Inp('Default Value','defaultValue','text','Pre-filled value'),
+          hasOptions&&e('div',{style:{marginBottom:12}},
+            e('label',{style:lbl},'Options'),
+            ...(field.options||[]).map((opt,i)=>
+              e('div',{key:i,style:{display:'flex',gap:5,marginBottom:4}},
+                e('input',{value:opt,onChange:ev=>{const o=[...field.options];o[i]=ev.target.value;this.updateField(field.id,'options',o);},style:{...inp,flex:1},placeholder:`Option ${i+1}`}),
+                e('button',{onClick:()=>{const o=field.options.filter((_,j)=>j!==i);this.updateField(field.id,'options',o);},style:{padding:'4px 7px',background:'transparent',border:`1px solid ${ghost}`,borderRadius:6,cursor:'pointer',color:dark?'#71717A':'#9CA3AF',display:'flex',alignItems:'center'}},this.I('x',11))
+              )
+            ),
+            e('button',{onClick:()=>this.updateField(field.id,'options',[...(field.options||[]),`Option ${(field.options||[]).length+1}`]),style:{fontSize:11,color:accent,background:'transparent',border:`1px dashed ${accent}44`,borderRadius:6,padding:'5px 10px',cursor:'pointer',width:'100%',display:'flex',alignItems:'center',justifyContent:'center',gap:4}},this.I('plus',11),' Add Option')
+          ),
+          e('div',{style:{paddingTop:4}},
+            Tog('Required','required'),
+            Tog('Read Only','readOnly'),
+            Tog('Hidden','hidden'),
+            Tog('Searchable','searchable'),
+            Tog('Indexed','indexed')
+          )
+        ),
+        tab==='validation'&&e('div',null,
+          e('div',{style:{marginBottom:11}},e('label',{style:lbl},'Min Length / Value'),e('input',{type:'number',value:field.validation.min||'',onChange:ev=>this.updateValidation(field.id,'min',ev.target.value),style:inp,placeholder:'0'})),
+          e('div',{style:{marginBottom:11}},e('label',{style:lbl},'Max Length / Value'),e('input',{type:'number',value:field.validation.max||'',onChange:ev=>this.updateValidation(field.id,'max',ev.target.value),style:inp,placeholder:'255'})),
+          e('div',{style:{marginBottom:11}},e('label',{style:lbl},'Pattern (RegEx)'),e('input',{type:'text',value:field.validation.pattern||'',onChange:ev=>this.updateValidation(field.id,'pattern',ev.target.value),style:{...inp,fontFamily:'monospace',fontSize:11},placeholder:'^[a-zA-Z0-9]+$'})),
+          e('div',{style:{marginBottom:11}},e('label',{style:lbl},'Custom Error Message'),e('input',{type:'text',value:field.validation.message||'',onChange:ev=>this.updateValidation(field.id,'message',ev.target.value),style:inp,placeholder:'This field is required'}))
+        ),
+        tab==='logic'&&e('div',{style:{textAlign:'center',padding:'28px 0',color:dark?'#52525B':'#A1A1AA'}},
+          this.I('zap',32),
+          e('div',{style:{fontSize:13,fontWeight:600,marginTop:12,color:dark?'#E5E7EB':'#374151'}},'Conditional Logic'),
+          e('div',{style:{fontSize:11,marginTop:6,lineHeight:1.6}},'Show, hide, or require this field based on other field values'),
+          e('button',{style:{marginTop:14,padding:'7px 16px',background:accent,color:'#fff',border:'none',borderRadius:7,fontSize:12,fontWeight:600,cursor:'pointer'}},this.I('plus',12),' Add Condition')
+        )
+      ),
+      // Delete
+      e('div',{style:{padding:'12px 15px',borderTop:`1px solid ${ghost}`,flexShrink:0}},
+        e('button',{onClick:()=>this.deleteField(field.id),style:{width:'100%',padding:'7px',background:'transparent',border:`1px solid #EF4444`,borderRadius:7,color:'#EF4444',fontSize:12,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:6}},
+          this.I('trash',13),'Delete Field')
+      )
+    );
+  }
+
+  renderEmptyProps(){
+    const e=React.createElement;const dark=this.state.dark;
+    return e('div',{style:{height:'100%',display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',padding:24,textAlign:'center',color:dark?'#52525B':'#9CA3AF'}},
+      this.I('sliders',32),
+      e('div',{style:{fontSize:13,fontWeight:600,marginTop:12,color:dark?'#71717A':'#6B7280'}},'No field selected'),
+      e('div',{style:{fontSize:12,marginTop:5,lineHeight:1.5}},'Click a field in the canvas to edit its properties')
+    );
+  }
+
+  /* ─── Nav Sections ─── */
+  navData(){
+    const s=this.state;const {nav,accent:rawAccent,dark,sidebarOpen}=s;
+    const accent=this.legibleAccent(rawAccent,dark);
+    const item=(id,label,icon,screen)=>{
+      const active=nav===screen;
+      return{id,label,icon:this.I(icon,15),screen,
+        onClick:()=>this.goto(screen),
+        style:{display:'flex',alignItems:'center',gap:10,padding:sidebarOpen?'7px 14px':'9px 0',justifyContent:sidebarOpen?'flex-start':'center',margin:'1px 8px',borderRadius:7,cursor:'pointer',background:active?(dark?`${accent}25`:`${accent}15`):'transparent',color:active?accent:(dark?'#9CA3AF':'#6B7280'),fontWeight:active?600:400,transition:'all 0.15s',userSelect:'none'}
+      };
+    };
+    return[
+      {label:'Platform',items:[item('d','Dashboard','dashboard','dashboard'),item('f','Forms','forms','forms'),item('pk','Templates','book','packs'),item('rs','Responses','check','responses'),item('rp','Reports','upload','reports'),item('u','Users','users','users'),item('co','Companies','building','companies')]},
+      {label:'Structure',items:[item('pl','Plants','factory','plants'),item('dp','Departments','layers','departments'),item('tm','Teams','usersround','teams'),item('ro','Roles','shield','roles'),item('pe','Permissions','key','permissions')]},
+      {label:'System',items:[item('st','Settings','settings','settings'),item('hl','Help','help','help')]},
+    ];
+  }
+
+  /* ─── Field Categories ─── */
+  fieldCats(fieldBtnStyle){
+    const ft=(type,label,icon)=>({type,label,icon:this.I(icon,15),onClick:()=>this.addField(type)});
+    return[
+      {label:'Text & Content',fields:[ft('textbox','Text','textbox'),ft('textarea','Textarea','textarea'),ft('richtext','Rich Text','richtext'),ft('email','Email','email')]},
+      {label:'Numbers',fields:[ft('number','Number','number'),ft('currency','Currency','currency'),ft('percent','Percent','percent'),ft('rating','Rating','rating')]},
+      {label:'Date & Time',fields:[ft('date','Date','date'),ft('time','Time','time'),ft('datetime','DateTime','datetime')]},
+      {label:'Choice',fields:[ft('dropdown','Dropdown','dropdown'),ft('multiselect','Multi-Sel','multiselect'),ft('checkbox','Checkbox','checkbox'),ft('radio','Radio','radio'),ft('toggle','Toggle','toggle')]},
+      {label:'Reference',fields:[ft('lookup','Lookup','lookup'),ft('formula','Formula','formula')]},
+      {label:'Media',fields:[ft('image','Image','image'),ft('camera','Camera','camera'),ft('video','Video','video'),ft('audio','Audio','audio'),ft('upload','File','upload')]},
+      {label:'Capture',fields:[ft('signature','Signature','signature'),ft('gps','GPS','gps'),ft('qr','QR Code','qr'),ft('barcode','Barcode','barcode')]},
+      {label:'Contact',fields:[ft('phone','Phone','phone'),ft('url','URL','url')]},
+      {label:'Advanced',fields:[ft('color','Color','color'),ft('hidden','Hidden','hidden'),ft('system','System','system'),ft('ai','AI Field','ai')]},
+    ].map(c=>({...c,fieldBtnStyle}));
+  }
+
+  /* ─── Type Label ─── */
+  typeLabel(type){
+    return{textbox:'Text',textarea:'Textarea',richtext:'Rich Text',number:'Number',currency:'Currency',percent:'Percent',date:'Date',time:'Time',datetime:'DateTime',dropdown:'Dropdown',multiselect:'Multi-Sel',checkbox:'Checkbox',radio:'Radio',toggle:'Toggle',lookup:'Lookup',formula:'Formula',image:'Image',camera:'Camera',video:'Video',audio:'Audio',upload:'File',signature:'Signature',gps:'GPS',qr:'QR',barcode:'Barcode',email:'Email',phone:'Phone',url:'URL',rating:'Rating',color:'Color',hidden:'Hidden',system:'System',ai:'AI'}[type]||type;
+  }
+
+  /* ─── Logic Panel ─── */
+  buildLogicPanel(){
+    const e=React.createElement;const dark=this.state.dark;const accent=this.state.accent;
+    const ghost=dark?'#303036':'#E4E4E7';
+    return e('div',{style:{marginTop:24,background:dark?'#1C1C1E':'#FFFFFF',border:`1px solid ${ghost}`,borderRadius:12,padding:24,width:'100%',maxWidth:560}},
+      e('div',{style:{fontSize:14,fontWeight:600,color:dark?'#F9FAFB':'#111827',marginBottom:4}},'Form Rules'),
+      e('div',{style:{fontSize:12,color:dark?'#71717A':'#9CA3AF',marginBottom:16}},'Drag fields and set conditions to control form flow'),
+      ...this.state.fields.slice(0,3).map(f=>
+        e('div',{key:f.id,style:{display:'flex',alignItems:'center',gap:10,padding:'10px 12px',background:dark?'#242426':'#F9FAFB',border:`1px solid ${ghost}`,borderRadius:8,marginBottom:6}},
+          this.I(f.type in this.ICONS?f.type:'textbox',13),
+          e('span',{style:{fontSize:12,fontWeight:500,color:dark?'#E5E7EB':'#374151',flex:1}},f.label),
+          e('select',{style:{fontSize:11,padding:'4px 8px',border:`1px solid ${ghost}`,borderRadius:6,background:dark?'#1C1C1E':'#FFFFFF',color:dark?'#E5E7EB':'#374151'}},
+            e('option',null,'Always show'),e('option',null,'Show if…'),e('option',null,'Hide if…')
+          )
+        )
+      ),
+      e('button',{style:{marginTop:8,padding:'8px 14px',background:'transparent',border:`1px dashed ${accent}44`,borderRadius:7,color:accent,fontSize:12,fontWeight:600,cursor:'pointer',display:'flex',alignItems:'center',gap:5}},
+        this.I('plus',12),' Add Rule')
+    );
+  }
+
+  componentDidMount() {
+    if (window.innerWidth < 720) this.setState({ sidebarOpen: false, winWidth: window.innerWidth });
+    this._onResize = () => this.setState({ winWidth: window.innerWidth });
+    window.addEventListener('resize', this._onResize);
+  }
+  componentWillUnmount() {
+    if (this._onResize) window.removeEventListener('resize', this._onResize);
+  }
+
+  /* ─── Knowledge Packs Data ─── */
+  getPacks() {
+    const f = (type, label, o = {}) => ({
+      id: 'tp_' + Math.random().toString(36).slice(2, 8),
+      type, label,
+      placeholder: o.ph || '', helpText: o.help || '', defaultValue: o.def || '',
+      required: o.req || false, readOnly: o.ro || false,
+      hidden: false, searchable: o.search || false, indexed: o.idx || false,
+      options: o.opts || [],
+      validation: { min: o.min || '', max: o.max || '', pattern: '', message: o.err || '' },
+      logic: [],
+    });
+    return [
+      {
+        id: 'tn-factory-act', name: 'Tamil Nadu Factory Act Compliance Checklist',
+        description: 'Complete inspection checklist aligned with the Tamil Nadu Factories Act, 1948. Covers worker welfare, health & safety provisions, and statutory compliance requirements.',
+        domain: 'Legal & Compliance', tag: 'TN Factories Act 1948', color: '#2563EB',
+        chips: ['Worker Safety', 'Welfare', 'Health', 'Fire Safety', 'Legal'],
+        fields: [
+          f('system','Inspection Reference No.',{req:true,ro:true,idx:true,help:'Auto-generated by system'}),
+          f('date','Date of Inspection',{req:true}),
+          f('textbox','Factory / Establishment Name',{req:true,ph:'Enter factory name',idx:true}),
+          f('textbox','Factory Registration Number',{req:true,ph:'TN-FACT-XXXXX',idx:true}),
+          f('textbox','License Number (Form No. 4)',{ph:'License number as per Act'}),
+          f('textarea','Factory Address',{req:true,ph:'Full postal address with PIN'}),
+          f('dropdown','Type of Manufacturing',{req:true,opts:['General Manufacturing','Chemical / Hazardous Process','Food Processing & Packaging','Textile & Garments','Automotive Components','Electronics & Semiconductors','Pharmaceutical','Power Generation']}),
+          f('number','Total Sanctioned Worker Strength',{req:true,min:'1'}),
+          f('number','Workers Present — Male',{req:true,min:'0'}),
+          f('number','Workers Present — Female',{min:'0'}),
+          f('number','Contract / Outsourced Workers',{min:'0',help:'Under Contract Labour (Regulation) Act'}),
+          f('number','Working Hours per Day',{req:true,min:'1',max:'9',help:'Section 51 — max 9 hours/day',err:'Must not exceed 9 hours as per Factories Act'}),
+          f('dropdown','Weekly Off Day',{req:true,opts:['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday']}),
+          f('toggle','Overtime in Compliance (Sec. 64)',{help:'Max 50 hours overtime per quarter'}),
+          f('toggle','Leave Records Maintained (Sec. 79)',{}),
+          f('checkbox','Welfare Provisions Available (Chapter V)',{opts:['Canteen (if >250 workers)','Crèche (if >30 women workers)','Restrooms & Lunchrooms','First Aid Boxes Stocked','Ambulance Room (if >500 workers)','Welfare Officer Appointed']}),
+          f('checkbox','Health Provisions (Chapter III)',{opts:['Cleanliness Maintained','Proper Drainage','Adequate Ventilation','Temperature Control','Dust & Fume Control','Adequate Lighting','Drinking Water Points','Sufficient Latrines & Urinals']}),
+          f('checkbox','Safety Provisions (Chapter IV)',{opts:['All Machinery Fenced','Safety Devices Operational','Hoists & Lifts Tested','Pressure Vessels Certified','Eye Protection Provided','PPE Issued','Safety Signage Displayed']}),
+          f('checkbox','Fire Safety Measures',{opts:['Extinguishers Serviced & Tagged','Emergency Exit Signs Lit','Assembly Point Marked','Mock Drill Records Available','Sprinkler System Operational']}),
+          f('toggle','Safety Officer Appointed (Rule 68-A)',{help:'Mandatory for factories >1000 workers or hazardous process'}),
+          f('toggle','Safety Committee Constituted & Active',{}),
+          f('rating','Overall Compliance Rating',{help:'1 = Non-compliant  ·  5 = Fully compliant'}),
+          f('textarea','Inspector Remarks & Observations',{ph:'Detailed observations, violations, and recommendations'}),
+          f('gps','Factory GPS Location',{req:true,help:'Captured at time of inspection'}),
+          f('signature','Inspector Signature',{req:true}),
+        ],
+      },
+      {
+        id: 'iso-9001', name: 'ISO 9001 Quality Management System Audit',
+        description: 'Internal audit checklist for ISO 9001:2015 covering all major clauses: context, leadership, planning, support, operation, and performance evaluation.',
+        domain: 'Quality Management', tag: 'ISO 9001:2015', color: '#059669',
+        chips: ['Quality', 'ISO', 'Audit', 'CAPA', 'Process'],
+        fields: [
+          f('system','Audit Reference ID',{req:true,ro:true,idx:true}),
+          f('date','Audit Date',{req:true}),
+          f('textbox','Lead Auditor Name',{req:true}),
+          f('dropdown','Department / Area Audited',{req:true,opts:['Production','Quality Control','Procurement','Warehouse','HR','Finance','Customer Service','Engineering']}),
+          f('textbox','Process Being Audited',{req:true,ph:'e.g. Incoming Inspection'}),
+          f('checkbox','Clause 4 — Context',{opts:['Internal/External Issues Identified','Interested Parties Determined','QMS Scope Documented','Process Map Available']}),
+          f('checkbox','Clause 5 — Leadership',{opts:['Quality Policy Communicated','Roles & Responsibilities Defined','Customer Focus Maintained']}),
+          f('checkbox','Clause 7 — Support',{opts:['Competence Records Available','Training Conducted','Documents Controlled','Infrastructure Adequate']}),
+          f('checkbox','Clause 8 — Operation',{opts:['Operational Planning in Place','Design & Development Controlled','Supplier Evaluation Done','Nonconforming Output Controlled']}),
+          f('checkbox','Clause 9 — Performance Evaluation',{opts:['Customer Satisfaction Measured','Internal Audits Scheduled','Management Review Conducted','KPIs Monitored']}),
+          f('toggle','CAPA System Operational',{help:'Corrective and Preventive Action process functioning'}),
+          f('toggle','Calibration Records Up-to-date',{}),
+          f('number','Non-Conformances Found',{min:'0',def:'0'}),
+          f('number','Observations Raised',{min:'0',def:'0'}),
+          f('rating','Process Maturity Rating',{help:'1 = Initial  ·  5 = Optimized'}),
+          f('textarea','Non-Conformance Details',{ph:'Describe each NC with clause reference'}),
+          f('textarea','Corrective Actions Required',{ph:'Agreed actions with due dates'}),
+          f('signature','Lead Auditor Signature',{req:true}),
+        ],
+      },
+      {
+        id: 'osha-safety', name: 'OSHA Workplace Safety Inspection',
+        description: 'General industry safety inspection based on OSHA 29 CFR 1910. Covers hazard communication, PPE, machine guarding, electrical safety, and emergency preparedness.',
+        domain: 'Health & Safety', tag: 'OSHA 29 CFR 1910', color: '#DC2626',
+        chips: ['Safety', 'OSHA', 'PPE', 'Hazard', 'Emergency'],
+        fields: [
+          f('system','Inspection ID',{req:true,ro:true,idx:true}),
+          f('date','Inspection Date',{req:true}),
+          f('textbox','Safety Officer / Inspector',{req:true}),
+          f('textbox','Work Area / Zone',{req:true}),
+          f('checkbox','Hazard Communication (1910.1200)',{opts:['SDS Available for All Chemicals','Containers Properly Labeled','Employee HazCom Training on File','Written HazCom Program Updated']}),
+          f('checkbox','Personal Protective Equipment (1910.132)',{opts:['PPE Hazard Assessment Done','Correct PPE Available & Used','PPE in Good Condition','Training Documented']}),
+          f('checkbox','Machine Guarding (1910.212)',{opts:['All Guards in Place','No Bypassing Guards','LOTO Procedures Posted','LOTO Training Records']}),
+          f('checkbox','Emergency Action Plan (1910.38)',{opts:['Written EAP Available','Exit Routes Unobstructed','Emergency Contacts Posted','Evacuation Drills Conducted']}),
+          f('checkbox','Fire Protection (1910.157)',{opts:['Extinguishers Inspected Monthly','Sprinkler Functional','Hot Work Permits in Use']}),
+          f('checkbox','Electrical Safety (1910.303)',{opts:['Panels Accessible & Labeled','No Exposed Wiring','GFCIs in Wet Areas','Temp Wiring Compliant']}),
+          f('toggle','Injury & Illness Recordkeeping Current (1904)',{}),
+          f('toggle','First Aid Supplies Adequate',{}),
+          f('number','Hazards Identified',{min:'0',def:'0'}),
+          f('rating','Overall Safety Score',{help:'1 = Critical  ·  5 = Excellent'}),
+          f('textarea','Hazard Descriptions & Corrective Actions',{ph:'List each hazard, severity, and required action'}),
+          f('signature','Safety Inspector Signature',{req:true}),
+        ],
+      },
+      {
+        id: 'preventive-maint', name: 'Preventive Maintenance Work Order',
+        description: 'Structured PM checklist for planned maintenance of plant equipment and machinery. Supports asset history tracking, spare parts logging, and downtime recording.',
+        domain: 'Maintenance', tag: 'PM Work Order', color: '#F59E0B',
+        chips: ['Maintenance', 'PM', 'Equipment', 'Asset', 'Downtime'],
+        fields: [
+          f('system','Work Order Number',{req:true,ro:true,idx:true}),
+          f('date','Scheduled Date',{req:true}),
+          f('textbox','Equipment / Asset Name',{req:true,idx:true}),
+          f('textbox','Asset Tag / Equipment ID',{req:true,idx:true}),
+          f('dropdown','Maintenance Type',{req:true,opts:['Preventive','Predictive','Condition-Based','Statutory','Breakdown']}),
+          f('textbox','Assigned Technician',{req:true}),
+          f('checkbox','Tasks Performed',{opts:['Lubrication','Filter Replacement','Belt/Chain Inspection','Calibration','Electrical Connection Check','Safety Device Test','Cleaning','Fluid Level Check','Bearing Inspection','Alignment Check']}),
+          f('number','Downtime Duration (minutes)',{min:'0',def:'0'}),
+          f('dropdown','Equipment Condition After PM',{req:true,opts:['Fully Operational','Operational with Minor Issues','Requires Follow-up','Taken Out of Service']}),
+          f('toggle','Spare Parts Used',{help:'Mark if any spare parts were consumed'}),
+          f('textbox','Parts Used (if any)',{ph:'Part name, part number, quantity'}),
+          f('rating','Equipment Health Rating',{help:'1 = Critical  ·  5 = Like new'}),
+          f('textarea','Observations & Recommendations',{ph:'Abnormalities, wear patterns, upcoming replacements'}),
+          f('signature','Technician Sign-off',{req:true}),
+        ],
+      },
+      {
+        id: 'visitor-log', name: 'Visitor Entry & Exit Register',
+        description: 'Digital gate register for tracking visitor entries and exits. Captures ID details, purpose, host employee, and vehicle information for security compliance.',
+        domain: 'Security', tag: 'Gate Management', color: '#7C3AED',
+        chips: ['Security', 'Gate', 'Visitor', 'ID', 'Compliance'],
+        fields: [
+          f('system','Visit ID',{req:true,ro:true,idx:true}),
+          f('textbox','Visitor Full Name',{req:true,ph:'As per government ID',idx:true}),
+          f('dropdown','ID Type',{req:true,opts:['Aadhaar Card','PAN Card','Passport','Driving Licence','Voter ID','Company ID']}),
+          f('textbox','ID Number',{req:true}),
+          f('textbox','Representing Company',{ph:'Visitor\'s employer or organisation'}),
+          f('textbox','Person to Meet (Host)',{req:true,ph:'Employee name and department'}),
+          f('dropdown','Purpose of Visit',{req:true,opts:['Business Meeting','Vendor / Supplier Visit','Maintenance Work','Delivery','Interview','Government Official','Audit / Inspection','Other']}),
+          f('datetime','Entry Date & Time',{req:true}),
+          f('datetime','Exit Date & Time',{}),
+          f('gps','Gate Entry GPS',{help:'Captured at security gate'}),
+        ],
+      },
+      {
+        id: 'incident-report', name: 'Workplace Incident & Accident Report',
+        description: 'Comprehensive incident reporting for accidents, near misses, and unsafe conditions. Supports root cause analysis, CAPA tracking, and regulatory reporting.',
+        domain: 'Health & Safety', tag: 'Incident Management', color: '#DC2626',
+        chips: ['Safety', 'Incident', 'RCA', 'CAPA', 'Reporting'],
+        fields: [
+          f('system','Incident Report No.',{req:true,ro:true,idx:true}),
+          f('datetime','Date & Time of Incident',{req:true}),
+          f('textbox','Location / Area',{req:true}),
+          f('dropdown','Incident Type',{req:true,opts:['Lost Time Injury (LTI)','First Aid Case','Near Miss','Unsafe Act','Unsafe Condition','Property Damage','Environmental Release','Fire / Explosion']}),
+          f('textbox','Name of Injured Person',{}),
+          f('textbox','Reporting Supervisor',{req:true}),
+          f('textarea','Description of Incident',{req:true,ph:'Describe exactly what happened, sequence of events'}),
+          f('textarea','Immediate Actions Taken',{req:true,ph:'First aid, evacuation, equipment shutdown, etc.'}),
+          f('dropdown','Injury Severity',{opts:['No Injury','Minor (First Aid)','Moderate (Medical Treatment)','Serious (Hospitalisation)','Fatal','Property Damage Only']}),
+          f('checkbox','Probable Root Causes',{opts:['Lack of Training','Unsafe Behaviour / Violation','Equipment Failure','Design Deficiency','Housekeeping Issue','Inadequate Supervision','Fatigue','Environmental Condition']}),
+          f('image','Incident Site Photo',{}),
+          f('textarea','Corrective Actions (Immediate)',{ph:'Actions to prevent immediate recurrence'}),
+          f('textarea','Preventive Actions (Long-term)',{ph:'Systemic changes to prevent similar incidents'}),
+          f('date','Expected Closure Date',{}),
+          f('rating','Severity Risk Rating',{help:'1 = Low  ·  5 = Critical (consequence × likelihood)'}),
+          f('signature','Supervisor Signature',{req:true}),
+        ],
+      },
+      {
+        id: 'employee-onboarding', name: 'Employee Onboarding & Joining Form',
+        description: 'Complete employee onboarding data collection — personal details, document submission, bank details, emergency contacts, and joining formalities.',
+        domain: 'Human Resources', tag: 'HR Onboarding', color: '#0D9488',
+        chips: ['HR', 'Onboarding', 'Employee', 'Documents', 'Joining'],
+        fields: [
+          f('textbox','Full Name (as per documents)',{req:true,idx:true}),
+          f('textbox','Employee ID',{req:true,ro:true,idx:true}),
+          f('date','Date of Joining',{req:true}),
+          f('dropdown','Department',{req:true,opts:['Engineering','Production','Quality','Maintenance','Safety','HR','Finance','IT','Admin','Procurement']}),
+          f('textbox','Designation / Job Title',{req:true}),
+          f('dropdown','Employment Type',{req:true,opts:['Permanent','Contract','Trainee / Apprentice','Part-time','Intern']}),
+          f('date','Date of Birth',{req:true}),
+          f('dropdown','Gender',{opts:['Male','Female','Non-binary','Prefer not to say']}),
+          f('dropdown','Blood Group',{opts:['A+','A-','B+','B-','AB+','AB-','O+','O-','Unknown']}),
+          f('email','Personal Email Address',{req:true,idx:true,ph:'personal@email.com'}),
+          f('phone','Mobile Number',{req:true,ph:'+91 XXXXX XXXXX'}),
+          f('textarea','Permanent Address',{req:true}),
+          f('textbox','Emergency Contact Name',{req:true}),
+          f('phone','Emergency Contact Number',{req:true}),
+          f('textbox','Bank Account Number',{ph:'For salary credit'}),
+          f('textbox','IFSC Code',{ph:'Bank IFSC code'}),
+          f('checkbox','Documents Submitted',{opts:['Aadhaar Card','PAN Card','Educational Certificates','Previous Employment Letter','Experience Certificates','Passport Photo','Bank Passbook Copy','Medical Certificate']}),
+          f('toggle','Background Verification Consent',{req:true}),
+          f('textarea','Additional Notes',{ph:'Any other relevant information'}),
+          f('signature','Employee Signature',{req:true}),
+        ],
+      },
+      {
+        id: 'env-compliance', name: 'Environmental Compliance Monitoring',
+        description: 'Monitors emissions, effluent discharge, waste management, and green belt compliance for factories under CPCB/TNPCB environmental regulations.',
+        domain: 'Environment', tag: 'CPCB / TNPCB Compliance', color: '#059669',
+        chips: ['Environment', 'Pollution', 'TNPCB', 'Waste', 'Emissions'],
+        fields: [
+          f('system','Monitoring Record ID',{req:true,ro:true,idx:true}),
+          f('date','Monitoring Date',{req:true}),
+          f('textbox','Factory / Unit Name',{req:true,idx:true}),
+          f('dropdown','Consent Category',{req:true,opts:['Red (High Pollution)','Orange (Medium Pollution)','Green (Low Pollution)','White (No Pollution)']}),
+          f('checkbox','Air Emission Compliance',{opts:['Stack Emission within Limits','CEMS Operational','Stack Height Adequate','Dust Collectors Functional']}),
+          f('checkbox','Water & Effluent Compliance',{opts:['ETP Operational','Treated Effluent within TNPCB Norms','Zero Liquid Discharge Maintained','Water Meters Installed & Read']}),
+          f('checkbox','Waste Management',{opts:['Hazardous Waste Manifest Records Maintained','Waste Storage Secured & Labelled','Authorised TSDF Used','E-waste Channelized']}),
+          f('toggle','Valid TNPCB Consent to Operate',{req:true}),
+          f('toggle','Environment Officer Designated',{}),
+          f('number','Stack Emission Reading (mg/Nm³)',{min:'0'}),
+          f('rating','Environmental Compliance Level',{help:'1 = Multiple Violations  ·  5 = Full Compliance'}),
+          f('textarea','Observations & Action Required',{ph:'Non-compliances, corrective actions, deadlines'}),
+        ],
+      },
+      {
+        id: 'maharashtra-shops', name: 'Maharashtra Shops & Establishments Compliance',
+        description: 'Statutory compliance checklist under the Maharashtra Shops and Establishments (Regulation of Employment and Conditions of Service) Act, 2017.',
+        domain: 'Legal & Compliance', tag: 'Maharashtra Shops Act 2017', color: '#2563EB',
+        chips: ['Maharashtra', 'Registration', 'Working Hours', 'Legal'],
+        fields: [
+          f('system','Registration Reference No.',{req:true,ro:true,idx:true}),
+          f('date','Date of Inspection',{req:true}),
+          f('textbox','Establishment Name',{req:true,idx:true}),
+          f('textbox','Registration Certificate Number',{req:true,idx:true}),
+          f('dropdown','Nature of Establishment',{req:true,opts:['Shop','Commercial Establishment','Residential Hotel','Restaurant / Eating House','Theatre / Public Amusement']}),
+          f('number','Total Employees',{req:true,min:'0'}),
+          f('number','Working Hours per Day',{req:true,max:'9',help:'Max 9 hours/day, 48 hours/week'}),
+          f('toggle','Weekly Holiday Provided',{req:true}),
+          f('toggle','Registration Displayed at Premises',{}),
+          f('checkbox','Welfare Compliance',{opts:['Clean Drinking Water','First Aid Box','Adequate Lighting & Ventilation','Separate Washrooms']}),
+          f('toggle','Employee Register Maintained (Muster Roll)',{req:true}),
+          f('rating','Compliance Rating',{help:'1 = Non-compliant · 5 = Fully compliant'}),
+          f('textarea','Inspector Remarks',{}),
+          f('signature','Inspector Signature',{req:true}),
+        ],
+      },
+      {
+        id: 'karnataka-factories', name: 'Karnataka Factories Rules Compliance',
+        description: 'Inspection checklist under the Karnataka Factories Rules, 1969 read with the Factories Act, 1948 — state-specific provisions for registration, licensing and welfare.',
+        domain: 'Legal & Compliance', tag: 'Karnataka Factories Rules 1969', color: '#2563EB',
+        chips: ['Karnataka', 'Licensing', 'Welfare', 'Legal'],
+        fields: [
+          f('system','Inspection Reference No.',{req:true,ro:true,idx:true}),
+          f('date','Date of Inspection',{req:true}),
+          f('textbox','Factory Name',{req:true,idx:true}),
+          f('textbox','KFR License Number',{req:true,idx:true}),
+          f('date','License Renewal Due Date',{req:true}),
+          f('number','Sanctioned Worker Strength',{req:true,min:'1'}),
+          f('checkbox','Statutory Registers Maintained',{opts:['Form 3 — Register of Workers','Form 12 — Muster Roll','Form 14 — Register of Accidents','Form 20 — Register of Leave with Wages']}),
+          f('toggle','Factory Medical Officer Appointed',{help:'Mandatory if >500 workers'}),
+          f('toggle','Ambulance Room Available',{help:'Mandatory if >500 workers'}),
+          f('checkbox','Karnataka-specific Welfare',{opts:['Canteen Subsidy Records','Crèche Facility','Rest Shelters','Spittoons Provided']}),
+          f('rating','Compliance Rating',{help:'1 = Non-compliant · 5 = Fully compliant'}),
+          f('textarea','Inspector Remarks',{}),
+          f('gps','Factory GPS Location',{}),
+          f('signature','Inspector Signature',{req:true}),
+        ],
+      },
+      {
+        id: 'central-labour-codes', name: 'Central Labour Codes Compliance Checklist',
+        description: 'Consolidated checklist covering the four central Labour Codes: Wages, Industrial Relations, Social Security, and Occupational Safety, Health & Working Conditions.',
+        domain: 'Legal & Compliance', tag: 'Labour Codes 2020', color: '#2563EB',
+        chips: ['Central Codes', 'Wages', 'Social Security', 'OSH'],
+        fields: [
+          f('system','Compliance Reference No.',{req:true,ro:true,idx:true}),
+          f('date','Assessment Date',{req:true}),
+          f('textbox','Establishment Name',{req:true,idx:true}),
+          f('number','Total Employees Covered',{req:true,min:'0'}),
+          f('checkbox','Code on Wages, 2019',{opts:['Minimum Wage Notified & Paid','Equal Remuneration Ensured','Wage Slips Issued Monthly','Bonus Payments Compliant']}),
+          f('checkbox','Industrial Relations Code, 2020',{opts:['Standing Orders Certified','Grievance Redressal Committee Active','Layoff/Retrenchment Notices Compliant']}),
+          f('checkbox','Social Security Code, 2020',{opts:['EPF Registered & Contributing','ESI Registered & Contributing','Gratuity Provision Maintained','Maternity Benefit Compliant']}),
+          f('checkbox','OSH & Working Conditions Code, 2020',{opts:['Appointment Letters Issued','Annual Health Check-ups Conducted','Working Hours within Limits','Welfare Facilities Provided','Contract Labour Records Maintained']}),
+          f('toggle','Registered Establishment (Single Registration)',{req:true}),
+          f('rating','Overall Compliance Rating',{help:'1 = Non-compliant · 5 = Fully compliant'}),
+          f('textarea','Gaps Identified & Action Plan',{}),
+          f('signature','Compliance Officer Signature',{req:true}),
+        ],
+      },
+    ].concat(this.state.customPacks || []);
+  }
+
+  saveAsTemplate() {
+    const { saveTemplateName, saveTemplateDomain, fields } = this.state;
+    if (!saveTemplateName.trim() || fields.length === 0) return;
+    const pack = {
+      id: 'custom_' + Math.random().toString(36).slice(2, 8),
+      name: saveTemplateName.trim(),
+      description: 'Custom template created from "' + this.state.currentFormName + '"',
+      domain: saveTemplateDomain, tag: 'Custom Template', color: '#2563EB',
+      chips: ['Custom'],
+      fields: fields.map(f => ({ ...f })),
+      isCustom: true,
+    };
+    this.setState(s => ({ customPacks: [pack, ...s.customPacks], showSaveTemplateModal: false, saveTemplateName: '' }));
+  }
+
+  deleteCustomPack(id, ev) {
+    if (ev) ev.stopPropagation();
+    this.setState(s => ({ customPacks: s.customPacks.filter(p => p.id !== id) }));
+  }
+
+  setPermRole(key) { this.setState({ selectedPermRole: key }); }
+
+  togglePermission(roleKey, moduleId, action) {
+    this.setState(s => ({
+      permissionsByRole: {
+        ...s.permissionsByRole,
+        [roleKey]: s.permissionsByRole[roleKey].map(row => row.id === moduleId ? { ...row, [action]: !row[action] } : row)
+      }
+    }));
+  }
+
+  /* Ensures a color reads clearly as TEXT/ICON against the current surface.
+     Dark themes (Charcoal Black, Navy, etc.) chosen as the accent would otherwise
+     render near-invisible text on the already-dark app background. */
+  legibleAccent(hex, dark) {
+    if (!hex || hex[0] !== '#' || hex.length < 7) return hex;
+    const r = parseInt(hex.substr(1,2),16), g = parseInt(hex.substr(3,2),16), b = parseInt(hex.substr(5,2),16);
+    const lum = (0.299*r + 0.587*g + 0.114*b) / 255; // 0 (black) .. 1 (white)
+    const mix = (c, target, amt) => Math.round(c + (target - c) * amt);
+    if (dark && lum < 0.4) {
+      // too dark for a dark background — lighten toward white
+      const amt = 0.6;
+      return '#' + [mix(r,255,amt), mix(g,255,amt), mix(b,255,amt)].map(v=>v.toString(16).padStart(2,'0')).join('');
+    }
+    if (!dark && lum > 0.82) {
+      // too light for a white/paper background — darken toward black
+      const amt = 0.55;
+      return '#' + [mix(r,0,amt), mix(g,0,amt), mix(b,0,amt)].map(v=>v.toString(16).padStart(2,'0')).join('');
+    }
+    return hex;
+  }
+
+  /* ─── CSV / Excel Export ─── */
+  toCSV(headers, rows) {
+    const esc = v => {
+      const s = (v === null || v === undefined) ? '' : String(v);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+    };
+    return [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\r\n');
+  }
+
+  downloadCSV(filename, csv) {
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  mockFieldValue(f) {
+    switch (f.type) {
+      case 'toggle': return Math.random() > 0.3 ? 'Yes' : 'No';
+      case 'checkbox': return (f.options || []).filter(() => Math.random() > 0.4).join('; ');
+      case 'dropdown': case 'radio': return (f.options || [])[0] || '';
+      case 'rating': return String(Math.ceil(Math.random() * 5));
+      case 'number': case 'currency': case 'percent': return String(Math.floor(Math.random() * 100));
+      case 'date': return '2026-06-30';
+      case 'gps': return '13.0827° N, 80.2707° E';
+      case 'signature': return '[Signed]';
+      default: return f.defaultValue || '—';
+    }
+  }
+
+  downloadResponseExcel(resp) {
+    const pack = this.getPacks().find(p => p.id === resp.packId);
+    const headers = ['Submitted By', 'Plant', 'Date', 'Status'];
+    const row = [resp.submittedBy, resp.plant, resp.date, resp.status];
+    if (pack) {
+      pack.fields.forEach(f => { headers.push(f.label); row.push(this.mockFieldValue(f)); });
+    }
+    const csv = this.toCSV(headers, [row]);
+    this.downloadCSV(resp.form.replace(/[^a-z0-9]+/gi, '_') + '_' + resp.id + '.csv', csv);
+  }
+
+  downloadAllResponsesExcel() {
+    const headers = ['Form', 'Submitted By', 'Plant', 'Date', 'Status'];
+    const rows = this.state.responses.map(r => [r.form, r.submittedBy, r.plant, r.date, r.status]);
+    const csv = this.toCSV(headers, rows);
+    this.downloadCSV('All_Responses_Report.csv', csv);
+  }
+
+  activatePack(packId) {
+    const pack = this.getPacks().find(p => p.id === packId);
+    if (!pack) return;
+    const fields = pack.fields.map((f, i) => ({ ...f, id: 'f' + (i + 1) }));
+    this.setState({
+      fields, selectedId: null,
+      currentFormName: pack.name,
+      currentFormDesc: pack.description,
+      activePackId: packId,
+      fieldCounter: fields.length,
+      builderTab: 'build',
+      nav: 'builder',
+      previewPackId: null,
+    });
+  }
+
+  previewPack(packId) { this.setState({ previewPackId: packId }); }
+  closePreview() { this.setState({ previewPackId: null }); }
+
+  buildKnowledgePacksUI(accent, dark, ghost) {
+    const taccent = this.legibleAccent(accent, dark);
+    const activeId = this.state.activePackId;
+    const search = (this.state.packSearch || '').toLowerCase();
+    const domainFilter = this.state.packDomainFilter;
+    const ICON_MAP = { 'Legal & Compliance': 'shield', 'Quality Management': 'check', 'Health & Safety': 'shieldon', 'Maintenance': 'settings', 'Security': 'lock', 'Human Resources': 'users', 'Environment': 'globe', 'Custom': 'ai' };
+    let packs = this.getPacks();
+    if (domainFilter !== 'All') packs = packs.filter(p => p.domain === domainFilter);
+    if (search) packs = packs.filter(p => p.name.toLowerCase().includes(search) || p.tag.toLowerCase().includes(search) || (p.chips||[]).some(c => c.toLowerCase().includes(search)));
+    return packs.map(pack => {
+      const isActive = activeId === pack.id;
+      const icon = ICON_MAP[pack.domain] || 'forms';
+      return {
+        ...pack,
+        fieldCount: pack.fields.length,
+        cardStyle: { background: dark ? '#1C1C1E' : '#FFFFFF', border: `1px solid ${isActive ? accent : ghost}`, borderRadius: 12, overflow: 'hidden', boxShadow: isActive ? `0 0 0 3px ${accent}22` : '0 1px 3px rgba(0,0,0,.04)', transition: 'all 0.15s', cursor: 'default' },
+        iconBoxStyle: { width: 36, height: 36, borderRadius: 8, background: taccent + '18', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: taccent },
+        icon: this.I(icon, 16),
+        tagStyle: { display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: taccent + '18', color: taccent, whiteSpace: 'nowrap', letterSpacing: '0.3px' },
+        isActive,
+        isCustom: !!pack.isCustom,
+        activeBadgeStyle: { display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#DCFCE7', color: '#15803D', whiteSpace: 'nowrap', flexShrink: 0 },
+        chips: pack.chips.map(label => ({ label, style: { fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 20, background: dark ? '#28282C' : '#F4F4F5', color: dark ? '#9CA3AF' : '#6B7280' } })),
+        onActivate: () => this.activatePack(pack.id),
+        onPreview: () => this.previewPack(pack.id),
+        onDelete: (ev) => this.deleteCustomPack(pack.id, ev),
+        activateBtnStyle: isActive
+          ? { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 14px', fontSize: 12, fontWeight: 700, background: '#DCFCE7', color: '#15803D', border: '1px solid #86EFAC', borderRadius: 7, cursor: 'pointer' }
+          : { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 14px', fontSize: 12, fontWeight: 600, background: accent, color: '#fff', border: 'none', borderRadius: 7, cursor: 'pointer' },
+        previewBtnStyle: { display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', fontSize: 12, fontWeight: 500, background: dark ? '#28282C' : '#FFFFFF', color: dark ? '#E5E7EB' : '#374151', border: `1px solid ${ghost}`, borderRadius: 7, cursor: 'pointer' },
+        deleteBtnStyle: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 7, background: 'transparent', border: `1px solid ${ghost}`, borderRadius: 7, cursor: 'pointer', color: '#EF4444' },
+        activateLabel: isActive ? '✓ Activated' : 'Use This Pack',
+      };
+    });
+  }
+
+  getPackDomains() {
+    const packs = this.getPacks();
+    const set = new Set(packs.map(p => p.domain));
+    return ['All', ...Array.from(set)];
+  }
+
+  buildPreviewPanel(dark, accent, ghost) {
+    const previewId = this.state.previewPackId;
+    if (!previewId) return null;
+    const pack = this.getPacks().find(p => p.id === previewId);
+    if (!pack) return null;
+    const e = React.createElement;
+    return e('div', { style: { width: 340, flexShrink: 0, borderLeft: `1px solid ${ghost}`, background: dark ? '#161618' : '#FAFAF8', display: 'flex', flexDirection: 'column', overflow: 'hidden' } },
+      e('div', { style: { padding: '16px 18px', borderBottom: `1px solid ${ghost}`, display: 'flex', alignItems: 'flex-start', gap: 10 } },
+        e('div', { style: { flex: 1, minWidth: 0 } },
+          e('div', { style: { fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.8px', color: dark ? '#52525B' : '#A1A1AA', marginBottom: 5 } }, 'Pack Preview'),
+          e('div', { style: { fontSize: 13, fontWeight: 600, color: dark ? '#F9FAFB' : '#111827', lineHeight: 1.3 } }, pack.name),
+          e('div', { style: { display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 } },
+            e('span', { style: { fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: pack.color + '18', color: pack.color } }, pack.tag),
+            e('span', { style: { fontSize: 11, color: dark ? '#71717A' : '#9CA3AF' } }, pack.fields.length + ' fields'),
+          )
+        ),
+        e('button', { onClick: () => this.closePreview(), style: { padding: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: dark ? '#71717A' : '#9CA3AF', display: 'flex', alignItems: 'center' } }, this.I('x', 16))
+      ),
+      e('div', { style: { flex: 1, overflowY: 'auto', padding: '8px 0' } },
+        ...pack.fields.map((f, i) =>
+          e('div', { key: i, style: { display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 18px', borderBottom: `1px solid ${dark ? '#1C1C1E' : '#F4F4F5'}` } },
+            e('div', { style: { width: 24, height: 24, borderRadius: 6, background: dark ? '#242426' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: dark ? '#71717A' : '#9CA3AF', marginTop: 1 } },
+              this.I(f.type in this.ICONS ? f.type : 'textbox', 12)
+            ),
+            e('div', { style: { flex: 1, minWidth: 0 } },
+              e('div', { style: { fontSize: 12, fontWeight: 500, color: dark ? '#E5E7EB' : '#374151', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }, f.label),
+              e('div', { style: { fontSize: 10, color: dark ? '#52525B' : '#A1A1AA', marginTop: 2 } }, this.typeLabel(f.type) + (f.required ? ' · Required' : ''))
+            )
+          )
+        )
+      ),
+      e('div', { style: { padding: '14px 18px', borderTop: `1px solid ${ghost}`, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 } },
+        e('div', { style: { fontSize: 11, color: dark ? '#71717A' : '#9CA3AF', lineHeight: 1.5, marginBottom: 2 } }, 'Activating this pack will load all ' + pack.fields.length + ' fields into the Form Builder. You can add, edit, or remove any field.'),
+        e('button', { onClick: () => this.activatePack(pack.id), style: { width: '100%', padding: '10px', background: pack.color, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 } },
+          this.I('zap', 14), 'Activate This Pack'
+        )
+      )
+    );
+  }
+
+  /* ─── Auth Screen ─── */
+  buildAuthScreen(dark, accent){
+    const e=React.createElement;const s=this.state;const taccent=this.legibleAccent(accent,dark);
+    const isSignup=s.authMode==='signup';
+    const bg=dark?'#111113':'#FAFAF8';
+    const surface=dark?'#1C1C1E':'#FFFFFF';
+    const ghost=dark?'#303036':'#E4E4E7';
+    const text=dark?'#F9FAFB':'#09090B';
+    const muted=dark?'#71717A':'#71717A';
+    const inputStyle={width:'100%',padding:'11px 13px',border:`1px solid ${ghost}`,borderRadius:8,fontSize:14,color:text,background:dark?'#242426':'#FFFFFF',outline:'none',fontFamily:'inherit'};
+    const labelStyle={fontSize:12,fontWeight:600,color:dark?'#D4D4D8':'#374151',marginBottom:6,display:'block'};
+
+    return e('div',{style:{minHeight:'100vh',width:'100%',display:'flex',alignItems:'center',justifyContent:'center',background:bg,fontFamily:"'Inter',system-ui,sans-serif",padding:20}},
+      e('div',{style:{width:'100%',maxWidth:400}},
+        e('div',{style:{display:'flex',flexDirection:'column',alignItems:'center',marginBottom:28}},
+          e('div',{style:{width:44,height:44,borderRadius:11,background:accent,display:'flex',alignItems:'center',justifyContent:'center',marginBottom:14}},
+            e('span',{style:{color:'#fff',fontSize:20,fontWeight:800,letterSpacing:'-0.5px'}},'F')
+          ),
+          e('div',{style:{fontSize:20,fontWeight:700,color:text,letterSpacing:'-0.4px'}},'FormOS'),
+          e('div',{style:{fontSize:13,color:muted,marginTop:2}},'No-Code Form Engine')
+        ),
+        e('div',{style:{background:surface,border:`1px solid ${ghost}`,borderRadius:14,padding:'32px 28px',boxShadow:dark?'none':'0 1px 3px rgba(0,0,0,.05)'}},
+          e('div',{style:{fontSize:18,fontWeight:700,color:text,marginBottom:4}}, isSignup?'Create your account':'Welcome back'),
+          e('div',{style:{fontSize:13,color:muted,marginBottom:24}}, isSignup?'Set up your organization workspace':'Sign in to continue to your workspace'),
+          e('form',{onSubmit:ev=>this.submitAuth(ev)},
+            isSignup && e('div',{style:{marginBottom:16}},
+              e('label',{style:labelStyle},'Full Name'),
+              e('input',{type:'text',style:inputStyle,placeholder:'Sarah Chen'})
+            ),
+            e('div',{style:{marginBottom:16}},
+              e('label',{style:labelStyle},'Work Email'),
+              e('input',{type:'email',value:s.authEmail,onChange:ev=>this.setAuthField('authEmail',ev.target.value),style:inputStyle,placeholder:'you@company.com'})
+            ),
+            e('div',{style:{marginBottom:isSignup?16:10}},
+              e('label',{style:labelStyle},'Password'),
+              e('input',{type:'password',value:s.authPassword,onChange:ev=>this.setAuthField('authPassword',ev.target.value),style:inputStyle,placeholder:'••••••••'})
+            ),
+            isSignup && e('div',{style:{marginBottom:16}},
+              e('label',{style:labelStyle},'Confirm Password'),
+              e('input',{type:'password',style:inputStyle,placeholder:'••••••••'})
+            ),
+            !isSignup && e('div',{style:{display:'flex',justifyContent:'flex-end',marginBottom:18}},
+              e('a',{href:'#',style:{fontSize:12,color:taccent,textDecoration:'none',fontWeight:500}},'Forgot password?')
+            ),
+            s.authError && e('div',{style:{display:'flex',alignItems:'center',gap:7,padding:'9px 12px',background:dark?'#3F1D1D':'#FEF2F2',border:`1px solid ${dark?'#7F1D1D':'#FECACA'}`,borderRadius:8,marginBottom:16,marginTop:isSignup?0:0}},
+              this.I('info',14),
+              e('span',{style:{fontSize:12,color:dark?'#FCA5A5':'#B91C1C'}}, s.authError)
+            ),
+            e('button',{type:'submit',style:{width:'100%',padding:'11px',background:accent,color:'#fff',border:'none',borderRadius:8,fontSize:14,fontWeight:600,cursor:'pointer',marginTop:isSignup?4:0}}, isSignup?'Create Account':'Sign In'),
+            e('div',{style:{display:'flex',alignItems:'center',gap:10,margin:'20px 0'}},
+              e('div',{style:{flex:1,height:1,background:ghost}}),
+              e('span',{style:{fontSize:11,color:muted}},'OR'),
+              e('div',{style:{flex:1,height:1,background:ghost}})
+            ),
+            e('button',{type:'button',style:{width:'100%',padding:'10px',background:'transparent',color:text,border:`1px solid ${ghost}`,borderRadius:8,fontSize:13,fontWeight:500,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}},
+              this.I('shield',14),'Continue with SSO'
+            )
+          )
+        ),
+        e('div',{style:{textAlign:'center',marginTop:20,fontSize:13,color:muted}},
+          isSignup?'Already have an account? ':"Don't have an account? ",
+          e('a',{href:'#',onClick:ev=>{ev.preventDefault(); this.setAuthMode(isSignup?'login':'signup');},style:{color:taccent,fontWeight:600,textDecoration:'none',cursor:'pointer'}}, isSignup?'Sign in':'Sign up')
+        )
+      )
+    );
+  }
+
+  /* ─── Generic Entity Table Screen ─── */
+  buildEntityScreen(cfg){
+    const e=React.createElement;const {dark,accent,ghost,thStyle,tdStyle,primaryBtnStyle,title,subtitle,addLabel,columns,rows,searchPlaceholder}=cfg;
+    return e('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
+      e('div',{style:{padding:'24px 32px',flexShrink:0,borderBottom:`1px solid ${ghost}`,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
+        e('div',{style:{flex:1,minWidth:200}},
+          e('h1',{style:{fontSize:21,fontWeight:700,color:dark?'#F9FAFB':'#09090B',letterSpacing:'-0.5px'}},title),
+          e('p',{style:{fontSize:13,color:dark?'#71717A':'#71717A',marginTop:3}},subtitle)
+        ),
+        e('div',{style:{display:'flex',alignItems:'center',gap:8,background:dark?'#1C1C1E':'#FFFFFF',border:`1px solid ${ghost}`,borderRadius:8,padding:'7px 12px'}},
+          this.I('search',13),
+          e('input',{style:{border:'none',background:'transparent',color:dark?'#F9FAFB':'#09090B',fontSize:13,width:170,outline:'none'},placeholder:searchPlaceholder||'Search…'})
+        ),
+        addLabel && e('button',{style:primaryBtnStyle},this.I('plus',14),' ',addLabel)
+      ),
+      e('div',{style:{flex:1,overflow:'auto',padding:'24px 32px'}},
+        e('div',{style:{background:dark?'#1C1C1E':'#FFFFFF',border:`1px solid ${ghost}`,borderRadius:12,overflow:'hidden'}},
+          e('table',{style:{width:'100%',borderCollapse:'collapse'}},
+            e('thead',null,e('tr',{style:{background:dark?'#242426':'#F4F4F5'}},
+              ...columns.map(c=>e('th',{key:c.key,style:thStyle},c.label))
+            )),
+            e('tbody',null,
+              ...rows.map((row,i)=>e('tr',{key:i,style:{borderBottom:`1px solid ${ghost}`}},
+                ...columns.map(c=>e('td',{key:c.key,style:tdStyle},c.render?c.render(row):row[c.key]))
+              ))
+            )
+          )
+        )
+      )
+    );
+  }
+
+  /* ─── Main Render ─── */
+  renderVals(){
+    const s=this.state;const {nav,accent,dark,sidebarOpen,fields,selectedId,builderTab,forms,users,winWidth}=s;
+    const isMobile=winWidth<720;
+    const isTablet=winWidth>=720&&winWidth<1080;
+    const effectiveSidebarOpen=isMobile?false:sidebarOpen;
+    const e0=React.createElement;
+    const taccent=this.legibleAccent(accent,dark); // accent color safe to use as TEXT/ICON on current surfaces
+
+    const vars={'--accent':accent,'--bg':dark?'#111113':'#FAFAF8','--surface':dark?'#1C1C1E':'#FFFFFF','--surface2':dark?'#242426':'#F4F4F5','--border':dark?'#303036':'#E4E4E7','--text':dark?'#F9FAFB':'#09090B','--muted':dark?'#71717A':'#71717A','--muted2':dark?'#52525B':'#A1A1AA'};
+
+    const ghost=dark?'#303036':'#E4E4E7';
+
+    /* Shared Styles */
+    const primaryBtnStyle={display:'inline-flex',alignItems:'center',gap:6,padding:'8px 16px',background:accent,color:'#fff',border:'none',borderRadius:8,fontSize:13,fontWeight:600,cursor:'pointer'};
+    const secBtnStyle={display:'inline-flex',alignItems:'center',gap:6,padding:'7px 14px',background:dark?'#28282C':'#FFFFFF',color:dark?'#E5E7EB':'#374151',border:`1px solid ${ghost}`,borderRadius:8,fontSize:13,fontWeight:500,cursor:'pointer'};
+    const smSecBtnStyle={...secBtnStyle,padding:'5px 12px',fontSize:12};
+    const iconBtnStyle={display:'inline-flex',alignItems:'center',justifyContent:'center',padding:6,background:'transparent',color:dark?'#71717A':'#6B7280',border:'none',borderRadius:6,cursor:'pointer'};
+    const iconBtnSmStyle={...iconBtnStyle,padding:4};
+    const linkBtnStyle={background:'none',border:'none',fontSize:12,color:taccent,cursor:'pointer',fontWeight:500};
+    const thStyle={padding:'10px 16px',textAlign:'left',fontSize:11,fontWeight:600,color:dark?'#71717A':'#6B7280',borderBottom:`1px solid ${ghost}`,whiteSpace:'nowrap'};
+    const tdStyle={padding:'12px 16px',fontSize:13,verticalAlign:'middle'};
+    const fieldBtnStyle={display:'flex',flexDirection:'column',alignItems:'center',padding:'7px 4px',background:dark?'#1C1C1E':'#FFFFFF',border:`1px solid ${ghost}`,borderRadius:7,cursor:'pointer',gap:3,transition:'all 0.12s'};
+
+    /* Builder Tabs */
+    const tabStyle=(active)=>({padding:'6px 14px',fontSize:12,fontWeight:600,background:active?(dark?'#1C1C1E':'#FFFFFF'):'transparent',border:'none',borderRadius:6,color:active?(dark?'#F9FAFB':'#111827'):(dark?'#71717A':'#9CA3AF'),cursor:'pointer'});
+    const tabGroupStyle={display:'flex',background:'var(--surface2)',border:`1px solid ${ghost}`,borderRadius:8,padding:3,gap:2};
+
+    /* Form canvas fields */
+    const formFields=fields.map((f,idx)=>({
+      ...f,idx,
+      typeIcon:this.I(f.type in this.ICONS?f.type:'textbox',13),
+      typeLabel:this.typeLabel(f.type),
+      typeBadgeStyle:{fontSize:9.5,fontWeight:700,padding:'2px 6px',borderRadius:4,background:dark?'#28282C':'#F3F4F6',color:dark?'#9CA3AF':'#6B7280',whiteSpace:'nowrap'},
+      preview:this.fieldPreview(f),
+      cardStyle:{background:dark?'#1C1C1E':'#FFFFFF',border:`1px solid ${f.id===selectedId?accent:ghost}`,borderRadius:10,marginBottom:10,cursor:'pointer',boxShadow:f.id===selectedId?`0 0 0 3px ${accent}22`:'0 1px 2px rgba(0,0,0,.04)',transition:'all 0.15s'},
+      delBtnStyle:{...iconBtnSmStyle,color:'#EF4444'},
+      onSelect:()=>this.selectField(f.id),
+      onDelete:(ev)=>{ev.stopPropagation();this.deleteField(f.id);},
+      onDuplicate:(ev)=>{ev.stopPropagation();this.duplicateField(f.id);},
+      onDragStart:(ev)=>{ev.dataTransfer.setData('text/plain',String(idx));this.setState({dragSrcIdx:idx});},
+      onDragOver:(ev)=>{ev.preventDefault();},
+      onDrop:(ev)=>{
+        ev.preventDefault();
+        const from=s.dragSrcIdx;if(from===null||from===idx)return;
+        const nf=[...s.fields];const[item]=nf.splice(from,1);nf.splice(idx,0,item);
+        this.setState({fields:nf,dragSrcIdx:null});
+      },
+    }));
+
+    /* Forms table rows */
+    const formsRows=forms.map(f=>({...f,statusBadge:this.badge(f.status),onEdit:()=>this.goto('builder')}));
+
+    /* Users table rows */
+    const usersRows=users.map(u=>({...u,
+      statusBadge:this.badge(u.status),
+      avatarStyle:{width:28,height:28,borderRadius:'50%',background:u.color,color:'#fff',display:'flex',alignItems:'center',justifyContent:'center',fontSize:10,fontWeight:700,flexShrink:0}
+    }));
+
+    const dashGridStyle={display:'grid',gridTemplateColumns:isMobile?'1fr 1fr':(isTablet?'repeat(2,1fr)':'repeat(4,1fr)'),gap:16,padding:'0 32px 24px',flexShrink:0};
+
+    /* Dashboard stats */
+    const dashStats=[
+      {label:'Total Forms',value:forms.length,change:`+${forms.length} created`,icon:this.I('forms',15),iconBg:{padding:8,background:`${taccent}18`,borderRadius:8,color:taccent}},
+      {label:'Active Users',value:users.filter(u=>u.status==='active').length,change:'All active today',icon:this.I('users',15),iconBg:{padding:8,background:'#05966918',borderRadius:8,color:'#059669'}},
+      {label:'Total Responses',value:forms.reduce((a,f)=>a+f.responses,0),change:'+12 this week',icon:this.I('check',15),iconBg:{padding:8,background:'#8B5CF618',borderRadius:8,color:'#8B5CF6'}},
+      {label:'Published',value:forms.filter(f=>f.status==='published').length,change:`of ${forms.length} forms`,icon:this.I('send',15),iconBg:{padding:8,background:'#F59E0B18',borderRadius:8,color:'#F59E0B'}},
+    ];
+
+    /* Theme options */
+    const themes=[{name:'Royal Blue',color:'#2563EB'},{name:'Emerald',color:'#059669'},{name:'Deep Purple',color:'#7C3AED'},{name:'Teal',color:'#0D9488'},{name:'Navy',color:'#1E3A5F'},{name:'Slate',color:'#64748B'},{name:'Silver',color:'#94A3B8'},{name:'Charcoal',color:'#1C1C1E'}];
+    const themeOptions=themes.map(t=>({...t,onClick:()=>this.setAccent(t.color),btnStyle:{display:'flex',flexDirection:'column',alignItems:'center',gap:6,padding:12,borderRadius:10,cursor:'pointer',border:`2px solid ${t.color===accent?accent:ghost}`,background:t.color===accent?`${accent}10`:(dark?'#1C1C1E':'#FFFFFF'),transition:'all 0.15s'},swatchStyle:{width:30,height:30,borderRadius:'50%',background:t.color}}));
+
+    /* Screen flags */
+    const PLACEHOLDER=['help'];
+    const TITLES={help:'Help Center'};
+
+    /* Org / entity screens */
+    const entityBase={dark,accent,ghost,thStyle,tdStyle,primaryBtnStyle};
+    const companiesScreen=this.buildEntityScreen({...entityBase,title:'Companies',subtitle:s.companies.length+' companies in your organization',addLabel:'New Company',searchPlaceholder:'Search companies…',rows:s.companies,columns:[
+      {key:'name',label:'Company',render:r=>e0('div',{style:{fontWeight:500}},r.name)},
+      {key:'code',label:'Code'},{key:'type',label:'Type'},{key:'plants',label:'Plants'},{key:'employees',label:'Employees'},
+      {key:'status',label:'Status',render:r=>this.badge(r.status)},
+    ]});
+    const plantsScreen=this.buildEntityScreen({...entityBase,title:'Plants',subtitle:s.plants.length+' plants across all companies',addLabel:'New Plant',searchPlaceholder:'Search plants…',rows:s.plants,columns:[
+      {key:'name',label:'Plant',render:r=>e0('div',{style:{fontWeight:500}},r.name)},
+      {key:'code',label:'Code'},{key:'company',label:'Company'},{key:'location',label:'Location'},{key:'capacity',label:'Capacity'},
+      {key:'status',label:'Status',render:r=>this.badge(r.status)},
+    ]});
+    const departmentsScreen=this.buildEntityScreen({...entityBase,title:'Departments',subtitle:s.departments.length+' departments configured',addLabel:'New Department',searchPlaceholder:'Search departments…',rows:s.departments,columns:[
+      {key:'name',label:'Department',render:r=>e0('div',{style:{fontWeight:500}},r.name)},
+      {key:'plant',label:'Plant'},{key:'head',label:'Department Head'},{key:'headcount',label:'Headcount'},
+      {key:'status',label:'Status',render:r=>this.badge(r.status)},
+    ]});
+    const teamsScreen=this.buildEntityScreen({...entityBase,title:'Teams',subtitle:s.teams.length+' teams configured',addLabel:'New Team',searchPlaceholder:'Search teams…',rows:s.teams,columns:[
+      {key:'name',label:'Team',render:r=>e0('div',{style:{fontWeight:500}},r.name)},
+      {key:'department',label:'Department'},{key:'lead',label:'Team Lead'},{key:'members',label:'Members'},
+      {key:'status',label:'Status',render:r=>this.badge(r.status)},
+    ]});
+    const rolesScreen=this.buildEntityScreen({...entityBase,title:'Roles',subtitle:s.roles.length+' roles defined',addLabel:'New Role',searchPlaceholder:'Search roles…',rows:s.roles,columns:[
+      {key:'name',label:'Role',render:r=>e0('div',{style:{fontWeight:500}},r.name)},
+      {key:'description',label:'Description',render:r=>e0('span',{style:{color:dark?'#9CA3AF':'#6B7280'}},r.description)},
+      {key:'users',label:'Users'},{key:'permissions',label:'Key Permissions',render:r=>e0('span',{style:{fontSize:12,color:dark?'#71717A':'#9CA3AF'}},r.permissions)},
+      {key:'status',label:'Status',render:r=>this.badge(r.status)},
+    ]});
+    const permCell=(val,onClick)=>e0('button',{onClick,title:val?'Click to revoke':'Click to grant',style:{display:'inline-flex',alignItems:'center',justifyContent:'center',width:24,height:24,borderRadius:6,background:val?(taccent+'18'):(dark?'#28282C':'#F4F4F5'),color:val?taccent:(dark?'#52525B':'#C4C4C8'),border:'none',cursor:'pointer',padding:0}},this.I(val?'check':'x',12));
+    const permRoleTabs=e0('div',{style:{display:'flex',gap:8,flexWrap:'wrap',marginBottom:16}},
+      ...s.roles.map(r=>e0('button',{key:r.permKey,onClick:()=>this.setPermRole(r.permKey),style:{padding:'7px 14px',fontSize:12,fontWeight:600,borderRadius:20,cursor:'pointer',background:s.selectedPermRole===r.permKey?accent:(dark?'#1C1C1E':'#FFFFFF'),color:s.selectedPermRole===r.permKey?'#fff':(dark?'#9CA3AF':'#6B7280'),border:`1px solid ${s.selectedPermRole===r.permKey?accent:ghost}`}},r.name))
+    );
+    const activeRoleName=(s.roles.find(r=>r.permKey===s.selectedPermRole)||{}).name||'';
+    const selRoleKey=s.selectedPermRole;
+    const permissionsScreen=e0('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
+      e0('div',{style:{padding:'24px 32px',flexShrink:0,borderBottom:`1px solid ${ghost}`}},
+        e0('h1',{style:{fontSize:21,fontWeight:700,color:dark?'#F9FAFB':'#09090B',letterSpacing:'-0.5px'}},'Permissions'),
+        e0('p',{style:{fontSize:13,color:dark?'#71717A':'#71717A',marginTop:3,marginBottom:16}},'Select a role, then click any cell to grant or revoke that access — changes apply to the role immediately'),
+        permRoleTabs
+      ),
+      e0('div',{style:{flex:1,overflow:'auto',padding:'20px 32px'}},
+        e0('div',{style:{fontSize:12,color:dark?'#71717A':'#9CA3AF',marginBottom:10}},'Editing permissions for ',e0('strong',{style:{color:dark?'#E5E7EB':'#374151',fontWeight:600}},activeRoleName)),
+        e0('div',{style:{background:dark?'#1C1C1E':'#FFFFFF',border:`1px solid ${ghost}`,borderRadius:12,overflow:'hidden'}},
+          e0('table',{style:{width:'100%',borderCollapse:'collapse'}},
+            e0('thead',null,e0('tr',{style:{background:dark?'#242426':'#F4F4F5'}},
+              e0('th',{style:thStyle},'Module'),e0('th',{style:thStyle},'View'),e0('th',{style:thStyle},'Create'),e0('th',{style:thStyle},'Edit'),e0('th',{style:thStyle},'Delete')
+            )),
+            e0('tbody',null,
+              ...(s.permissionsByRole[selRoleKey]||[]).map(row=>e0('tr',{key:row.id,style:{borderBottom:`1px solid ${ghost}`}},
+                e0('td',{style:tdStyle},e0('div',{style:{fontWeight:500}},row.module)),
+                e0('td',{style:tdStyle},permCell(row.view,()=>this.togglePermission(selRoleKey,row.id,'view'))),
+                e0('td',{style:tdStyle},permCell(row.create,()=>this.togglePermission(selRoleKey,row.id,'create'))),
+                e0('td',{style:tdStyle},permCell(row.edit,()=>this.togglePermission(selRoleKey,row.id,'edit'))),
+                e0('td',{style:tdStyle},permCell(row.delete,()=>this.togglePermission(selRoleKey,row.id,'delete'))),
+              ))
+            )
+          )
+        )
+      )
+    );
+    const responsesScreen=this.buildEntityScreen({...entityBase,title:'Responses',subtitle:s.responses.length+' form submissions received',addLabel:null,searchPlaceholder:'Search responses…',rows:s.responses,columns:[
+      {key:'form',label:'Form',render:r=>e0('div',{style:{fontWeight:500}},r.form)},
+      {key:'submittedBy',label:'Submitted By'},{key:'plant',label:'Plant'},{key:'date',label:'Date'},
+      {key:'status',label:'Status',render:r=>this.badge(r.status)},
+      {key:'actions',label:'Actions',render:r=>e0('button',{onClick:()=>this.downloadResponseExcel(r),style:{display:'inline-flex',alignItems:'center',gap:5,padding:'5px 11px',fontSize:12,fontWeight:500,background:dark?'#28282C':'#FFFFFF',color:dark?'#E5E7EB':'#374151',border:`1px solid ${ghost}`,borderRadius:7,cursor:'pointer'}},this.I('upload',12),'Excel')},
+    ]});
+
+    /* Reports Engine screen */
+    const reportsScreen=e0('div',{style:{display:'flex',flexDirection:'column',height:'100%'}},
+      e0('div',{style:{padding:'24px 32px',flexShrink:0,borderBottom:`1px solid ${ghost}`,display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}},
+        e0('div',{style:{flex:1,minWidth:200}},
+          e0('h1',{style:{fontSize:21,fontWeight:700,color:dark?'#F9FAFB':'#09090B',letterSpacing:'-0.5px'}},'Reports'),
+          e0('p',{style:{fontSize:13,color:dark?'#71717A':'#71717A',marginTop:3}},'Export completed checklists and submissions as Excel-compatible reports')
+        ),
+        e0('button',{onClick:()=>this.downloadAllResponsesExcel(),style:primaryBtnStyle},this.I('upload',14),' Export All as Excel')
+      ),
+      e0('div',{style:{flex:1,overflow:'auto',padding:'24px 32px'}},
+        e0('div',{style:{background:dark?'#1C1C1E':'#FFFFFF',border:`1px solid ${ghost}`,borderRadius:12,overflow:'hidden'}},
+          e0('table',{style:{width:'100%',borderCollapse:'collapse'}},
+            e0('thead',null,e0('tr',{style:{background:dark?'#242426':'#F4F4F5'}},
+              e0('th',{style:thStyle},'Form / Checklist'),e0('th',{style:thStyle},'Submitted By'),e0('th',{style:thStyle},'Plant'),e0('th',{style:thStyle},'Date'),e0('th',{style:thStyle},'Fields'),e0('th',{style:thStyle},'Status'),e0('th',{style:thStyle},'Report')
+            )),
+            e0('tbody',null,
+              ...s.responses.map(r=>{
+                const pack=this.getPacks().find(p=>p.id===r.packId);
+                return e0('tr',{key:r.id,style:{borderBottom:`1px solid ${ghost}`}},
+                  e0('td',{style:tdStyle},e0('div',{style:{fontWeight:500}},r.form)),
+                  e0('td',{style:tdStyle},r.submittedBy),
+                  e0('td',{style:tdStyle},r.plant),
+                  e0('td',{style:tdStyle},r.date),
+                  e0('td',{style:tdStyle},pack?pack.fields.length:'—'),
+                  e0('td',{style:tdStyle},this.badge(r.status)),
+                  e0('td',{style:tdStyle},
+                    e0('button',{onClick:()=>this.downloadResponseExcel(r),style:{display:'inline-flex',alignItems:'center',gap:5,padding:'6px 12px',fontSize:12,fontWeight:600,background:accent,color:'#fff',border:'none',borderRadius:7,cursor:'pointer'}},this.I('upload',12),'Download')
+                  )
+                );
+              })
+            )
+          )
+        )
+      )
+    );
+
+    /* Save-as-template modal */
+    const saveTemplateModal = s.showSaveTemplateModal ? e0('div',{style:{position:'fixed',inset:0,background:'rgba(0,0,0,.45)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:100},onClick:()=>this.setState({showSaveTemplateModal:false})},
+      e0('div',{style:{background:dark?'#1C1C1E':'#FFFFFF',borderRadius:12,padding:24,width:380,border:`1px solid ${ghost}`},onClick:ev=>ev.stopPropagation()},
+        e0('div',{style:{fontSize:15,fontWeight:600,color:dark?'#F9FAFB':'#111827',marginBottom:4}},'Save as Template'),
+        e0('div',{style:{fontSize:12,color:dark?'#71717A':'#9CA3AF',marginBottom:16}},'Save the current form as a reusable template in your library.'),
+        e0('label',{style:{fontSize:10,fontWeight:700,color:dark?'#71717A':'#9CA3AF',textTransform:'uppercase',letterSpacing:'0.6px',marginBottom:4,display:'block'}},'Template Name'),
+        e0('input',{value:s.saveTemplateName,onChange:ev=>this.setState({saveTemplateName:ev.target.value}),style:{width:'100%',padding:'8px 11px',border:`1px solid ${ghost}`,borderRadius:7,fontSize:13,color:dark?'#F9FAFB':'#111827',background:dark?'#242426':'#FFFFFF',outline:'none',marginBottom:14,fontFamily:'inherit'},placeholder:'e.g. Fire Safety Audit Template'}),
+        e0('div',{style:{display:'flex',gap:8,justifyContent:'flex-end'}},
+          e0('button',{onClick:()=>this.setState({showSaveTemplateModal:false}),style:secBtnStyle},'Cancel'),
+          e0('button',{onClick:()=>this.saveAsTemplate(),style:primaryBtnStyle},'Save Template')
+        )
+      )
+    ) : null;
+
+    /* Form name editable React el */
+    const formNameInput=React.createElement('input',{
+      value:s.currentFormName,
+      onChange:ev=>this.setState({currentFormName:ev.target.value}),
+      style:{fontSize:14,fontWeight:600,color:dark?'#F9FAFB':'#111827',background:'transparent',border:'none',outline:'none',minWidth:160,fontFamily:'Inter,system-ui,sans-serif'}
+    });
+
+    /* Preferences rows */
+    const prefRows=React.createElement('div',null,
+      ...[['Language','English (US)'],['Timezone','UTC+0 (GMT)'],['Date Format','MM/DD/YYYY'],['Number Format','1,234.56']].map(([label,value])=>
+        React.createElement('div',{key:label,style:{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'9px 0',borderBottom:`1px solid ${dark?'#242426':'#F4F4F5'}`}},
+          React.createElement('span',{style:{fontSize:13,color:dark?'#E5E7EB':'#374151'}},label),
+          React.createElement('select',{style:{padding:'5px 10px',fontSize:12,border:`1px solid ${ghost}`,borderRadius:6,background:dark?'#28282C':'#FFFFFF',color:dark?'#E5E7EB':'#374151',cursor:'pointer'}},
+            React.createElement('option',null,value))
+        )
+      )
+    );
+
+    /* Preview form fields */
+    const previewFields=React.createElement('div',null,...fields.map((f,i)=>
+      React.createElement('div',{key:f.id,style:{marginBottom:18}},
+        React.createElement('label',{style:{display:'block',fontSize:13,fontWeight:600,color:dark?'#E5E7EB':'#374151',marginBottom:5}},
+          f.label,f.required&&React.createElement('span',{style:{color:'#EF4444',marginLeft:2}},'*')
+        ),
+        this.fieldPreview(f),
+        f.helpText&&React.createElement('div',{style:{fontSize:11,color:dark?'#71717A':'#9CA3AF',marginTop:4}},f.helpText)
+      )
+    ));
+
+    return {
+      isAuthed:s.isAuthed,
+      notAuthed:!s.isAuthed,
+      authScreen:this.buildAuthScreen(dark,accent),
+      logout:()=>this.logout(),
+      logoutIcon:this.I('back',13),
+      appStyle:{...vars,display:'flex',height:'100vh',fontFamily:"'Inter',system-ui,sans-serif",background:'var(--bg)',color:'var(--text)',overflow:'hidden',position:'relative'},
+      sidebarStyle:{width:sidebarOpen?220:(isMobile?0:54),background:dark?'#161618':'#FFFFFF',borderRight:isMobile&&!sidebarOpen?'none':`1px solid ${ghost}`,display:'flex',flexDirection:'column',transition:'width 0.2s ease',overflow:'hidden',flexShrink:0,position:isMobile?'absolute':'relative',zIndex:isMobile?50:1,height:'100%',boxShadow:isMobile&&sidebarOpen?'2px 0 12px rgba(0,0,0,.15)':'none'},
+
+      // Sidebar
+      navSections:this.navData(),
+      sidebarOpen,sidebarCollapsed:!sidebarOpen,isMobile,sidebarClosed:!sidebarOpen,
+      menuIcon:this.I('panelleft',16),
+      mobileMenuBtnStyle:{position:'absolute',top:14,left:14,zIndex:20,width:34,height:34,borderRadius:8,background:dark?'#1C1C1E':'#FFFFFF',border:`1px solid ${ghost}`,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:dark?'#E5E7EB':'#374151'},
+      brandIcon:React.createElement('div',{style:{width:28,height:28,borderRadius:8,background:accent,display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}},React.createElement('span',{style:{color:'#fff',fontSize:13,fontWeight:800,letterSpacing:'-0.5px'}},'F')),
+      searchIcon:this.I('search',13),searchSmIcon:this.I('search',12),
+      collapseIcon:this.I('panelleft',14),expandIcon:this.I('panelleft',14),
+      settingsSmIcon:this.I('settings',13),toggleSidebar:()=>this.toggleSidebar(),
+
+      // Screens
+      isDashboard:nav==='dashboard',isForms:nav==='forms',isBuilder:nav==='builder',isUsers:nav==='users',isSettings:nav==='settings',isKnowledgePacks:nav==='packs',isPlaceholder:PLACEHOLDER.includes(nav),
+      isCompanies:nav==='companies',isPlants:nav==='plants',isDepartments:nav==='departments',isTeams:nav==='teams',isRoles:nav==='roles',isPermissions:nav==='permissions',isResponses:nav==='responses',isReports:nav==='reports',
+      companiesScreen,plantsScreen,departmentsScreen,teamsScreen,rolesScreen,permissionsScreen,responsesScreen,reportsScreen,
+      knowledgePacks:this.buildKnowledgePacksUI(accent,dark,ghost),
+      previewPanel:this.buildPreviewPanel(dark,accent,ghost),
+      packDomainOptions:this.getPackDomains().map(d=>({label:d,active:d===s.packDomainFilter,onClick:()=>this.setState({packDomainFilter:d}),style:{padding:'6px 13px',fontSize:12,fontWeight:600,borderRadius:20,cursor:'pointer',background:d===s.packDomainFilter?accent:(dark?'#1C1C1E':'#FFFFFF'),color:d===s.packDomainFilter?'#fff':(dark?'#9CA3AF':'#6B7280'),border:`1px solid ${d===s.packDomainFilter?accent:ghost}`,whiteSpace:'nowrap'}})),
+      packSearchValue:s.packSearch,
+      onPackSearch:ev=>this.setState({packSearch:ev.target.value}),
+      openSaveTemplateModal:()=>this.setState({showSaveTemplateModal:true,saveTemplateName:s.currentFormName+' Template'}),
+      saveTemplateModal,
+      packsGridStyle:{display:'grid',gridTemplateColumns:isMobile?'1fr':(isTablet?'repeat(auto-fill,minmax(280px,1fr))':'repeat(auto-fill,minmax(320px,1fr))'),gap:16},
+      checkSmIcon:this.I('check',11),
+      placeholderTitle:TITLES[nav]||nav,
+
+      // Dashboard
+      dashStats,dashGridStyle,gotoForms:()=>this.goto('forms'),formsRows,formListIcon:this.I('forms',13),
+
+      // Forms list
+      formsCount:forms.length,gotoBuilder:()=>this.goto('builder'),
+
+      // Builder
+      formNameInput,currentFormName:s.currentFormName,currentFormDesc:s.currentFormDesc,
+      formFields,hasFields:fields.length>0,noFields:fields.length===0,
+      fieldCategories:this.fieldCats(fieldBtnStyle),
+      propertiesPanel:this.renderProps(fields.find(f=>f.id===selectedId)),
+      previewFields,addTextField:()=>this.addField('textbox'),
+      isBuildMode:builderTab==='build',isPreviewMode:builderTab==='preview',isLogicMode:builderTab==='logic',
+      setBuildTab:()=>this.setBuilderTab('build'),setLogicTab:()=>this.setBuilderTab('logic'),setPreviewTab:()=>this.setBuilderTab('preview'),
+      buildTabStyle:tabStyle(builderTab==='build'),logicTabStyle:tabStyle(builderTab==='logic'),previewTabStyle:tabStyle(builderTab==='preview'),
+      tabGroupStyle,
+      logicPanel:this.buildLogicPanel(),
+
+      // Icons
+      gripIcon:this.I('grip',13),copySmIcon:this.I('copy',12),trashSmIcon:this.I('trash',12),
+      plusIcon:this.I('plus',14),plusSmIcon:this.I('plus',12),
+      moreIcon:this.I('more',14),backIcon:this.I('back',14),
+      publishIcon:this.I('send',13),
+      emptyIcon:this.I('forms',40),buildingIcon:this.I('factory',48),zapIcon:this.I('zap',40),
+
+      // Users
+      usersRows,
+
+      // Settings
+      themeOptions,
+      darkToggleStyle:{width:42,height:23,borderRadius:12,background:dark?accent:'#D1D5DB',padding:2,cursor:'pointer',display:'flex',alignItems:'center',transition:'background 0.2s',flexShrink:0},
+      darkKnobStyle:{width:19,height:19,borderRadius:'50%',background:'#fff',boxShadow:'0 1px 3px rgba(0,0,0,.25)',transform:dark?'translateX(19px)':'translateX(0)',transition:'transform 0.2s'},
+      toggleDark:()=>this.toggleDark(),
+      prefRows,
+
+      // Shared styles
+      primaryBtnStyle,secBtnStyle,smSecBtnStyle,iconBtnStyle,iconBtnSmStyle,linkBtnStyle,thStyle,tdStyle,fieldBtnStyle,
+    };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body, #root { height: 100%; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: rgba(0,0,0,.12); border-radius: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+input, select, textarea, button { font-family: inherit; }
+button { cursor: pointer; }
+[draggable=true] { -webkit-user-drag: element; }
+
+/* Mobile responsive overrides */
+@media (max-width: 720px) {
+  /* Reduce padding on all screen containers */
+  .screen-content {
+    padding: 16px !important;
+  }
+
+  /* Make tables horizontally scrollable */
+  table {
+    min-width: 600px;
+  }
+
+  /* Stack header layouts */
+  .screen-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+
+  .screen-header-actions {
+    flex-wrap: wrap !important;
+  }
+
+  /* Full-width search inputs */
+  .screen-header input[type="text"],
+  .screen-header input[placeholder*="Search"] {
+    width: 100% !important;
+    min-width: unset !important;
+  }
+}

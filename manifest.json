@@ -1,0 +1,16 @@
+{
+  "name": "FormOS — No-Code Form Engine",
+  "short_name": "FormOS",
+  "description": "Enterprise no-code form builder and workflow automation platform",
+  "start_url": "./Form Engine.dc.html",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#FAFAF8",
+  "theme_color": "#2563EB",
+  "icons": [
+    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='40' fill='%232563EB'/%3E%3Ctext x='96' y='130' text-anchor='middle' font-family='system-ui' font-size='110' font-weight='800' fill='white'%3EF%3C/text%3E%3C/svg%3E", "sizes": "192x192", "type": "image/svg+xml" },
+    { "src": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='100' fill='%232563EB'/%3E%3Ctext x='256' y='360' text-anchor='middle' font-family='system-ui' font-size='300' font-weight='800' fill='white'%3EF%3C/text%3E%3C/svg%3E", "sizes": "512x512", "type": "image/svg+xml" }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "screenshots": []
+}
