@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowLeft, Send, Star, CheckSquare, Camera, Upload, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField } from '../../store/types';
 
