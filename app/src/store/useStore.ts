@@ -4,6 +4,8 @@ import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, R
 interface AppState {
   // Auth
   isAuthed: boolean;
+  currentUserId: number | null;
+  currentUserRole: string;
   authMode: 'login' | 'signup';
   authEmail: string;
   authPassword: string;
@@ -116,7 +118,12 @@ interface AppState {
   openNewForm: () => void;
   editForm: (id: number) => void;
   saveDraft: () => void;
-  publishForm: () => void;
+  publishForm: (assignedUserIds?: number[]) => void;
+  showAssignModal: boolean;
+  assignModalUserIds: number[];
+  setShowAssignModal: (show: boolean) => void;
+  toggleAssignUser: (userId: number) => void;
+  setAssignModalUserIds: (ids: number[]) => void;
   fillingFormId: number | null;
   fillForm: (id: number) => void;
   submitResponse: (formId: number, values: Record<string, string>) => void;
@@ -136,10 +143,14 @@ const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox'];
 
 export const useStore = create<AppState>((set) => ({
   isAuthed: false,
+  currentUserId: null,
+  currentUserRole: '',
   authMode: 'login',
   authEmail: '',
   authPassword: '',
   authError: '',
+  showAssignModal: false,
+  assignModalUserIds: [],
   nav: 'dashboard',
   accent: '#2563EB',
   dark: false,
@@ -256,11 +267,17 @@ export const useStore = create<AppState>((set) => ({
     { id: 5, formId: 0, form: 'Visitor Entry & Exit Register', packId: 'visitor-log', submittedBy: 'Security Desk', plant: 'Chennai Manufacturing Plant', date: 'Jun 26, 2026', status: 'draft' },
   ],
 
-  setAuth: (isAuthed) => set({ isAuthed }),
+  setAuth: (isAuthed) => set((s) => {
+    if (isAuthed) {
+      const user = s.users.find(u => u.email === s.authEmail);
+      return { isAuthed, currentUserId: user?.id || 1, currentUserRole: user?.role || 'Admin' };
+    }
+    return { isAuthed, currentUserId: null, currentUserRole: '' };
+  }),
   setAuthMode: (authMode) => set({ authMode, authError: '' }),
   setAuthField: (key, val) => set({ [key]: val, authError: '' }),
   setAuthError: (authError) => set({ authError }),
-  logout: () => set({ isAuthed: false, authEmail: '', authPassword: '', authMode: 'login' }),
+  logout: () => set({ isAuthed: false, currentUserId: null, currentUserRole: '', authEmail: '', authPassword: '', authMode: 'login' }),
 
   setNav: (nav) => set({ nav }),
   setAccent: (accent) => set({ accent }),
@@ -458,17 +475,26 @@ export const useStore = create<AppState>((set) => ({
     return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'draft', updated: now, category: 'Custom' }] };
   }),
 
-  publishForm: () => set((s) => {
+  setShowAssignModal: (showAssignModal) => set({ showAssignModal }),
+  toggleAssignUser: (userId) => set((s) => ({
+    assignModalUserIds: s.assignModalUserIds.includes(userId)
+      ? s.assignModalUserIds.filter(id => id !== userId)
+      : [...s.assignModalUserIds, userId],
+  })),
+  setAssignModalUserIds: (assignModalUserIds) => set({ assignModalUserIds }),
+
+  publishForm: (assignedUserIds) => set((s) => {
     const name = s.currentFormName || 'Untitled Form';
     const desc = s.currentFormDesc;
     const defs = [...s.fields];
     const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const ids = assignedUserIds || s.assignModalUserIds;
     const existing = s.forms.find(f => f.name === name);
     if (existing) {
-      return { forms: s.forms.map(f => f.id === existing.id ? { ...f, fields: defs.length, fieldDefs: defs, description: desc, status: 'published', updated: now } : f), nav: 'forms' };
+      return { forms: s.forms.map(f => f.id === existing.id ? { ...f, fields: defs.length, fieldDefs: defs, description: desc, status: 'published', updated: now, assignedUserIds: ids.length > 0 ? ids : undefined } : f), nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
     }
     const newId = Math.max(0, ...s.forms.map(f => f.id)) + 1;
-    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'published', updated: now, category: 'Custom' }], nav: 'forms' };
+    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'published', updated: now, category: 'Custom', assignedUserIds: ids.length > 0 ? ids : undefined }], nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
   }),
 
   fillingFormId: null as number | null,

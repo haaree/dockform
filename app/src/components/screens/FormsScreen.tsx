@@ -13,6 +13,8 @@ export default function FormsScreen() {
   const deleteForm = useStore((s) => s.deleteForm);
   const fillForm = useStore((s) => s.fillForm);
   const winWidth = useStore((s) => s.winWidth);
+  const currentUserId = useStore((s) => s.currentUserId);
+  const currentUserRole = useStore((s) => s.currentUserRole);
   const [search, setSearch] = useState('');
   const [menuId, setMenuId] = useState<number | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
@@ -42,7 +44,11 @@ export default function FormsScreen() {
   const accentText = legibleAccent(accent, dark);
   const isMobile = winWidth < 720;
   const pad = isMobile ? '16px' : '24px 32px';
-  const filtered = forms.filter((f) =>
+  const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
+  const visibleForms = isAdmin ? forms : forms.filter(f =>
+    !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId))
+  );
+  const filtered = visibleForms.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||
     f.category.toLowerCase().includes(search.toLowerCase())
   );
@@ -54,7 +60,7 @@ export default function FormsScreen() {
       <div style={{ padding: pad, flexShrink: 0, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
           <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--text)' }}>Forms</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>{forms.length} forms in your workspace</p>
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>{visibleForms.length} forms in your workspace</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px' }}>
           <Search size={13} color="var(--muted)" />

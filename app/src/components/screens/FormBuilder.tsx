@@ -198,7 +198,7 @@ function BuilderToolbar() {
   const accent = useStore((s) => s.accent);
   const setShowSaveTemplateModal = useStore((s) => s.setShowSaveTemplateModal);
   const saveDraft = useStore((s) => s.saveDraft);
-  const publishForm = useStore((s) => s.publishForm);
+  const setShowAssignModal = useStore((s) => s.setShowAssignModal);
 
   const tabs: { key: 'build' | 'logic' | 'preview'; label: string }[] = [
     { key: 'build', label: 'Build' },
@@ -301,7 +301,7 @@ function BuilderToolbar() {
 
       <button
         type="button"
-        onClick={publishForm}
+        onClick={() => setShowAssignModal(true)}
         style={{
           height: 32,
           padding: '0 14px',

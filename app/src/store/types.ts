@@ -25,6 +25,7 @@ export interface FormItem {
   category: string;
   description?: string;
   fieldDefs?: FormField[];
+  assignedUserIds?: number[];
 }
 
 export interface UserItem {
