@@ -123,7 +123,7 @@ function App() {
       style={{
         ...themeVars,
         display: 'flex',
-        height: '100vh',
+        height: '100dvh',
         fontFamily: "'Inter', system-ui, sans-serif",
         background: 'var(--bg)',
         color: 'var(--text)',
