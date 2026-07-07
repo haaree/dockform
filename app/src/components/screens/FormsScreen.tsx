@@ -44,8 +44,10 @@ export default function FormsScreen() {
   const accentText = legibleAccent(accent, dark);
   const isMobile = winWidth < 720;
   const pad = isMobile ? '16px' : '24px 32px';
+  const activeCompanyId = useStore((s) => s.activeCompanyId);
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
-  const visibleForms = isAdmin ? forms : forms.filter(f =>
+  const companyForms = activeCompanyId ? forms.filter(f => !f.companyId || f.companyId === activeCompanyId) : forms;
+  const visibleForms = isAdmin ? companyForms : companyForms.filter(f =>
     !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId))
   );
   const filtered = visibleForms.filter((f) =>

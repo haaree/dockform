@@ -23,8 +23,10 @@ function exportExcel(formId: number) {
 }
 
 export default function ResponsesScreen() {
-  const responses = useStore((s) => s.responses);
+  const allResponses = useStore((s) => s.responses);
+  const activeCompanyId = useStore((s) => s.activeCompanyId);
   const viewFormResponses = useStore((s) => s.viewFormResponses);
+  const responses = activeCompanyId ? allResponses.filter(r => !r.companyId || r.companyId === activeCompanyId) : allResponses;
   const [search, setSearch] = useState('');
   const [menuId, setMenuId] = useState<number | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });

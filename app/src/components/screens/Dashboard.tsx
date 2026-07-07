@@ -45,14 +45,17 @@ function StatCard({
 }
 
 export default function Dashboard() {
-  const forms = useStore((s) => s.forms);
-  const users = useStore((s) => s.users);
+  const allForms = useStore((s) => s.forms);
+  const allUsers = useStore((s) => s.users);
+  const activeCompanyId = useStore((s) => s.activeCompanyId);
   const accent = useStore((s) => s.accent);
   const dark = useStore((s) => s.dark);
   const setNav = useStore((s) => s.setNav);
   const editForm = useStore((s) => s.editForm);
   const winWidth = useStore((s) => s.winWidth);
 
+  const forms = activeCompanyId ? allForms.filter(f => !f.companyId || f.companyId === activeCompanyId) : allForms;
+  const users = activeCompanyId ? allUsers.filter(u => !u.companyId || u.companyId === activeCompanyId) : allUsers;
   const accentText = legibleAccent(accent, dark);
   const activeUsers = users.filter((u) => u.status === 'active').length;
   const totalResponses = forms.reduce((sum, f) => sum + f.responses, 0);

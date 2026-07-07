@@ -41,6 +41,7 @@ export interface FormItem {
   fieldDefs?: FormField[];
   assignedUserIds?: number[];
   schedule?: FormSchedule;
+  companyId?: number;
 }
 
 export interface UserItem {
@@ -52,6 +53,7 @@ export interface UserItem {
   status: string;
   initials: string;
   color: string;
+  companyId?: number;
 }
 
 export interface Company {
@@ -121,6 +123,7 @@ export interface ResponseItem {
   date: string;
   status: string;
   values?: Record<string, string>;
+  companyId?: number;
 }
 
 export interface TemplatePack {

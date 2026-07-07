@@ -5,8 +5,9 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { Modal, ModalField, ModalButtons } from '../ui/Modal';
 
 export default function PlantsScreen() {
-  const plants = useStore((s) => s.plants);
+  const allPlants = useStore((s) => s.plants);
   const companies = useStore((s) => s.companies);
+  const activeCompanyId = useStore((s) => s.activeCompanyId);
   const accent = useStore((s) => s.accent);
   const addPlant = useStore((s) => s.addPlant);
   const winWidth = useStore((s) => s.winWidth);
@@ -14,6 +15,9 @@ export default function PlantsScreen() {
   const [showAdd, setShowAdd] = useState(false);
   const [form, setForm] = useState({ name: '', code: '', company: '', location: '', capacity: '' });
 
+  const plants = activeCompanyId
+    ? allPlants.filter(p => { const co = companies.find(c => c.name === p.company); return co && co.id === activeCompanyId; })
+    : allPlants;
   const isMobile = winWidth < 720;
   const pad = isMobile ? '16px' : '24px 32px';
   const filtered = plants.filter((p) => { const q = search.toLowerCase(); return !q || p.name.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || p.company.toLowerCase().includes(q); });

@@ -17,8 +17,10 @@ export default function UsersScreen() {
   const [editId, setEditId] = useState<number | null>(null);
   const [form, setForm] = useState({ name: '', email: '', role: '', department: '' });
 
+  const activeCompanyId = useStore((s) => s.activeCompanyId);
   const isMobile = winWidth < 720;
-  const filtered = users.filter((u) =>
+  const companyUsers = activeCompanyId ? users.filter(u => !u.companyId || u.companyId === activeCompanyId) : users;
+  const filtered = companyUsers.filter((u) =>
     u.name.toLowerCase().includes(search.toLowerCase()) ||
     u.email.toLowerCase().includes(search.toLowerCase()) ||
     u.role.toLowerCase().includes(search.toLowerCase()) ||
@@ -41,11 +43,11 @@ export default function UsersScreen() {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 14 : 20 }}>
-      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: isMobile ? 10 : 16, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
-        <div>
-          <h1 style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--text)' }}>Users</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{users.length} users in your workspace</p>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+      <div style={{ padding: isMobile ? 16 : '24px 32px', flexShrink: 0, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: isMobile ? 10 : 16, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--text)' }}>Users</h1>
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{companyUsers.length} users in your workspace</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ position: 'relative' }}>
@@ -60,6 +62,7 @@ export default function UsersScreen() {
         </div>
       </div>
 
+      <div style={{ flex: 1, overflow: 'auto', padding: isMobile ? 16 : '24px 32px' }}>
       <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -115,6 +118,7 @@ export default function UsersScreen() {
             </tbody>
           </table>
         </div>
+      </div>
       </div>
 
       {(showAdd || editId !== null) && (

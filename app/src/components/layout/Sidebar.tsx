@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import {
   PanelLeft, Search, LayoutDashboard, FileText, BookOpen, CheckCircle,
   Upload, Users, Building2, Factory, Layers, UsersRound, Shield, Key,
-  Settings, HelpCircle, ArrowLeft,
+  Settings, HelpCircle, ArrowLeft, ChevronDown,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars, legibleAccent } from '../../lib/theme';
@@ -62,8 +62,13 @@ export function Sidebar() {
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setNav = useStore((s) => s.setNav);
   const logout = useStore((s) => s.logout);
+  const companies = useStore((s) => s.companies);
+  const activeCompanyId = useStore((s) => s.activeCompanyId);
+  const setActiveCompany = useStore((s) => s.setActiveCompany);
 
   const [search, setSearch] = useState('');
+  const [showCompanyPicker, setShowCompanyPicker] = useState(false);
+  const activeCompany = companies.find(c => c.id === activeCompanyId);
 
   const isMobile = winWidth < 720;
   const collapsed = !isMobile && !sidebarOpen;
@@ -211,6 +216,59 @@ export function Sidebar() {
             >
               <PanelLeft size={16} />
             </button>
+          </div>
+        )}
+
+        {/* Company switcher */}
+        {!collapsed && (
+          <div style={{ padding: '8px 12px 0', position: 'relative' }}>
+            <button
+              type="button"
+              onClick={() => setShowCompanyPicker(!showCompanyPicker)}
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 8,
+                padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)',
+                background: 'var(--surface2)', cursor: 'pointer', color: 'var(--text)',
+              }}
+            >
+              <Building2 size={14} color={accent} />
+              <span style={{ flex: 1, fontSize: 12, fontWeight: 600, textAlign: 'left', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {activeCompany?.name || 'All Companies'}
+              </span>
+              <ChevronDown size={12} color="var(--muted)" />
+            </button>
+            {showCompanyPicker && (
+              <div style={{
+                position: 'absolute', left: 12, right: 12, top: 44, background: 'var(--surface)',
+                border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.18)',
+                zIndex: 100, overflow: 'hidden',
+              }}>
+                <button
+                  onClick={() => { setActiveCompany(null); setShowCompanyPicker(false); }}
+                  style={{
+                    width: '100%', padding: '9px 12px', background: activeCompanyId === null ? `${accent}15` : 'none',
+                    border: 'none', fontSize: 12, fontWeight: activeCompanyId === null ? 700 : 500,
+                    color: activeCompanyId === null ? accent : 'var(--text)', cursor: 'pointer', textAlign: 'left',
+                    borderBottom: '1px solid var(--border)',
+                  }}
+                >
+                  All Companies
+                </button>
+                {companies.filter(c => c.status === 'active').map(c => (
+                  <button key={c.id}
+                    onClick={() => { setActiveCompany(c.id); setShowCompanyPicker(false); }}
+                    style={{
+                      width: '100%', padding: '9px 12px', background: activeCompanyId === c.id ? `${accent}15` : 'none',
+                      border: 'none', borderBottom: '1px solid var(--border)', fontSize: 12,
+                      fontWeight: activeCompanyId === c.id ? 700 : 500,
+                      color: activeCompanyId === c.id ? accent : 'var(--text)', cursor: 'pointer', textAlign: 'left',
+                    }}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 

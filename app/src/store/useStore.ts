@@ -6,6 +6,7 @@ interface AppState {
   isAuthed: boolean;
   currentUserId: number | null;
   currentUserRole: string;
+  activeCompanyId: number | null;
   authMode: 'login' | 'signup';
   authEmail: string;
   authPassword: string;
@@ -64,6 +65,7 @@ interface AppState {
   setAuthField: (key: 'authEmail' | 'authPassword', val: string) => void;
   setAuthError: (err: string) => void;
   logout: () => void;
+  setActiveCompany: (id: number | null) => void;
 
   setNav: (nav: string) => void;
   setAccent: (c: string) => void;
@@ -148,6 +150,7 @@ export const useStore = create<AppState>((set) => ({
   isAuthed: false,
   currentUserId: null,
   currentUserRole: '',
+  activeCompanyId: 1,
   authMode: 'login',
   authEmail: '',
   authPassword: '',
@@ -251,16 +254,16 @@ export const useStore = create<AppState>((set) => ({
     { id: 4, name: 'Viewer', permKey: 'viewer', description: 'Read-only access to dashboards and reports', users: 47, permissions: 'View Only', status: 'active' },
   ],
   users: [
-    { id: 1, name: 'Sarah Chen', email: 'sarah@acme.com', role: 'Admin', department: 'Engineering', status: 'active', initials: 'SC', color: '#2563EB' },
-    { id: 2, name: 'Michael Torres', email: 'm.torres@acme.com', role: 'Editor', department: 'Operations', status: 'active', initials: 'MT', color: '#059669' },
-    { id: 3, name: 'Emily Nakamura', email: 'emily.n@acme.com', role: 'Viewer', department: 'Quality', status: 'inactive', initials: 'EN', color: '#7C3AED' },
-    { id: 4, name: 'James Wilson', email: 'j.wilson@acme.com', role: 'Editor', department: 'Safety', status: 'active', initials: 'JW', color: '#0D9488' },
+    { id: 1, name: 'Sarah Chen', email: 'sarah@acme.com', role: 'Admin', department: 'Engineering', status: 'active', initials: 'SC', color: '#2563EB', companyId: 1 },
+    { id: 2, name: 'Michael Torres', email: 'm.torres@acme.com', role: 'Editor', department: 'Operations', status: 'active', initials: 'MT', color: '#059669', companyId: 1 },
+    { id: 3, name: 'Emily Nakamura', email: 'emily.n@acme.com', role: 'Viewer', department: 'Quality', status: 'inactive', initials: 'EN', color: '#7C3AED', companyId: 2 },
+    { id: 4, name: 'James Wilson', email: 'j.wilson@acme.com', role: 'Editor', department: 'Safety', status: 'active', initials: 'JW', color: '#0D9488', companyId: 1 },
   ],
   forms: [
-    { id: 1, name: 'Employee Onboarding', fields: 12, responses: 47, status: 'published', updated: 'Jun 28', category: 'HR' },
-    { id: 2, name: 'Plant Safety Checklist', fields: 8, responses: 0, status: 'draft', updated: 'Jun 30', category: 'Safety' },
-    { id: 3, name: 'Equipment Inspection Report', fields: 15, responses: 23, status: 'published', updated: 'Jun 25', category: 'Maintenance' },
-    { id: 4, name: 'Supplier Quality Audit', fields: 20, responses: 5, status: 'review', updated: 'Jun 29', category: 'Quality' },
+    { id: 1, name: 'Employee Onboarding', fields: 12, responses: 47, status: 'published', updated: 'Jun 28', category: 'HR', companyId: 1 },
+    { id: 2, name: 'Plant Safety Checklist', fields: 8, responses: 0, status: 'draft', updated: 'Jun 30', category: 'Safety', companyId: 1 },
+    { id: 3, name: 'Equipment Inspection Report', fields: 15, responses: 23, status: 'published', updated: 'Jun 25', category: 'Maintenance', companyId: 2 },
+    { id: 4, name: 'Supplier Quality Audit', fields: 20, responses: 5, status: 'review', updated: 'Jun 29', category: 'Quality', companyId: 1 },
   ],
   responses: [
     { id: 1, formId: 0, form: 'Tamil Nadu Factory Act Compliance Checklist', packId: 'tn-factory-act', submittedBy: 'Ravi Kumar', plant: 'Chennai Manufacturing Plant', date: 'Jun 30, 2026', status: 'published' },
@@ -280,7 +283,8 @@ export const useStore = create<AppState>((set) => ({
   setAuthMode: (authMode) => set({ authMode, authError: '' }),
   setAuthField: (key, val) => set({ [key]: val, authError: '' }),
   setAuthError: (authError) => set({ authError }),
-  logout: () => set({ isAuthed: false, currentUserId: null, currentUserRole: '', authEmail: '', authPassword: '', authMode: 'login' }),
+  logout: () => set({ isAuthed: false, currentUserId: null, currentUserRole: '', activeCompanyId: null, authEmail: '', authPassword: '', authMode: 'login' }),
+  setActiveCompany: (activeCompanyId) => set({ activeCompanyId }),
 
   setNav: (nav) => set({ nav }),
   setAccent: (accent) => set({ accent }),
@@ -496,7 +500,7 @@ export const useStore = create<AppState>((set) => ({
       return { forms: s.forms.map(f => f.id === existing.id ? { ...f, fields: defs.length, fieldDefs: defs, description: desc, status: 'draft', updated: now } : f) };
     }
     const newId = Math.max(0, ...s.forms.map(f => f.id)) + 1;
-    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'draft', updated: now, category: 'Custom' }] };
+    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'draft', updated: now, category: 'Custom', companyId: s.activeCompanyId || undefined }] };
   }),
 
   setShowAssignModal: (showAssignModal) => set({ showAssignModal }),
@@ -518,7 +522,7 @@ export const useStore = create<AppState>((set) => ({
       return { forms: s.forms.map(f => f.id === existing.id ? { ...f, fields: defs.length, fieldDefs: defs, description: desc, status: 'published', updated: now, assignedUserIds: ids.length > 0 ? ids : undefined, schedule } : f), nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
     }
     const newId = Math.max(0, ...s.forms.map(f => f.id)) + 1;
-    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'published', updated: now, category: 'Custom', assignedUserIds: ids.length > 0 ? ids : undefined, schedule }], nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
+    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'published', updated: now, category: 'Custom', assignedUserIds: ids.length > 0 ? ids : undefined, schedule, companyId: s.activeCompanyId || undefined }], nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
   }),
 
   fillingFormId: null as number | null,
@@ -539,6 +543,7 @@ export const useStore = create<AppState>((set) => ({
       date: now,
       status: 'published',
       values,
+      companyId: s.activeCompanyId || undefined,
     };
     return {
       responses: [...s.responses, newResponse],
