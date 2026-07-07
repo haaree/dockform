@@ -22,6 +22,7 @@ import RolesScreen from './components/screens/RolesScreen';
 import PermissionsScreen from './components/screens/PermissionsScreen';
 import SettingsScreen from './components/screens/SettingsScreen';
 import PlaceholderScreen from './components/screens/PlaceholderScreen';
+import OnboardingWizard from './components/screens/OnboardingWizard';
 
 function SaveTemplateModal() {
   const show = useStore((s) => s.showSaveTemplateModal);
@@ -263,6 +264,7 @@ function AssignUsersModal() {
 
 function App() {
   const isAuthed = useStore((s) => s.isAuthed);
+  const onboardingComplete = useStore((s) => s.onboardingComplete);
   const accent = useStore((s) => s.accent);
   const dark = useStore((s) => s.dark);
   const winWidth = useStore((s) => s.winWidth);
@@ -281,6 +283,10 @@ function App() {
 
   if (!isAuthed) {
     return <AuthScreen />;
+  }
+
+  if (!onboardingComplete) {
+    return <OnboardingWizard />;
   }
 
   return (

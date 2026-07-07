@@ -56,6 +56,9 @@ export function AuthScreen() {
     }
     setAuthError('');
     setAuth(true);
+    if (isSignup) {
+      useStore.setState({ onboardingComplete: false, onboardingStep: 0 });
+    }
   };
 
   return (

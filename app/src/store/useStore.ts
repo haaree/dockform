@@ -7,6 +7,8 @@ interface AppState {
   currentUserId: number | null;
   currentUserRole: string;
   activeCompanyId: number | null;
+  onboardingComplete: boolean;
+  onboardingStep: number;
   authMode: 'login' | 'signup';
   authEmail: string;
   authPassword: string;
@@ -66,6 +68,8 @@ interface AppState {
   setAuthError: (err: string) => void;
   logout: () => void;
   setActiveCompany: (id: number | null) => void;
+  setOnboardingStep: (step: number) => void;
+  completeOnboarding: () => void;
 
   setNav: (nav: string) => void;
   setAccent: (c: string) => void;
@@ -151,6 +155,8 @@ export const useStore = create<AppState>((set) => ({
   currentUserId: null,
   currentUserRole: '',
   activeCompanyId: 1,
+  onboardingComplete: true,
+  onboardingStep: 0,
   authMode: 'login',
   authEmail: '',
   authPassword: '',
@@ -283,8 +289,10 @@ export const useStore = create<AppState>((set) => ({
   setAuthMode: (authMode) => set({ authMode, authError: '' }),
   setAuthField: (key, val) => set({ [key]: val, authError: '' }),
   setAuthError: (authError) => set({ authError }),
-  logout: () => set({ isAuthed: false, currentUserId: null, currentUserRole: '', activeCompanyId: null, authEmail: '', authPassword: '', authMode: 'login' }),
+  logout: () => set({ isAuthed: false, currentUserId: null, currentUserRole: '', activeCompanyId: null, onboardingComplete: true, onboardingStep: 0, authEmail: '', authPassword: '', authMode: 'login' }),
   setActiveCompany: (activeCompanyId) => set({ activeCompanyId }),
+  setOnboardingStep: (onboardingStep) => set({ onboardingStep }),
+  completeOnboarding: () => set({ onboardingComplete: true, nav: 'dashboard' }),
 
   setNav: (nav) => set({ nav }),
   setAccent: (accent) => set({ accent }),
