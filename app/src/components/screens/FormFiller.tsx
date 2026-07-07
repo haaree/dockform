@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import type { FormField } from '../../store/types';
+import type { FormField, LogicRule } from '../../store/types';
 
 function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v: string) => void; accent: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -267,6 +267,38 @@ export default function FormFiller() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
 
+  const evaluateRule = (rule: LogicRule): boolean => {
+    const sourceVal = values[rule.sourceFieldId] || '';
+    switch (rule.operator) {
+      case 'equals': return sourceVal === rule.value;
+      case 'not_equals': return sourceVal !== rule.value;
+      case 'contains': return sourceVal.toLowerCase().includes(rule.value.toLowerCase());
+      case 'not_empty': return sourceVal.trim() !== '';
+      case 'empty': return sourceVal.trim() === '';
+      case 'greater_than': return parseFloat(sourceVal) > parseFloat(rule.value);
+      case 'less_than': return parseFloat(sourceVal) < parseFloat(rule.value);
+      default: return false;
+    }
+  };
+
+  const isFieldVisible = (field: FormField): boolean => {
+    if (field.hidden) return false;
+    const rules = (field.logic || []) as LogicRule[];
+    if (rules.length === 0) return true;
+    const showRules = rules.filter(r => r.action === 'show' && r.sourceFieldId);
+    const hideRules = rules.filter(r => r.action === 'hide' && r.sourceFieldId);
+    if (showRules.length > 0 && !showRules.some(evaluateRule)) return false;
+    if (hideRules.length > 0 && hideRules.some(evaluateRule)) return false;
+    return true;
+  };
+
+  const isFieldRequired = (field: FormField): boolean => {
+    if (field.required) return true;
+    const rules = (field.logic || []) as LogicRule[];
+    const requireRules = rules.filter(r => r.action === 'require' && r.sourceFieldId);
+    return requireRules.some(evaluateRule);
+  };
+
   const setValue = useCallback((id: string, v: string) => {
     setValues(prev => ({ ...prev, [id]: v }));
   }, []);
@@ -304,7 +336,8 @@ export default function FormFiller() {
     );
   }
 
-  const missingRequired = fields.filter(f => f.required && !values[f.id]?.trim());
+  const visibleFields = fields.filter(f => isFieldVisible(f));
+  const missingRequired = visibleFields.filter(f => isFieldRequired(f) && !values[f.id]?.trim());
 
   const handleSubmit = () => {
     if (missingRequired.length > 0) return;
@@ -344,16 +377,19 @@ export default function FormFiller() {
             </div>
           </div>
 
-          {fields.filter(f => !f.hidden).map((field) => (
+          {visibleFields.map((field) => {
+            const required = isFieldRequired(field);
+            return (
             <div key={field.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 12 }}>
               <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
                 {field.label}
-                {field.required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
+                {required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
               </label>
               {field.helpText && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{field.helpText}</div>}
               <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={(v) => setValue(field.id, v)} />
             </div>
-          ))}
+            );
+          })}
 
           <div style={{ padding: '16px 0' }}>
             <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}

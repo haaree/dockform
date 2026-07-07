@@ -7,7 +7,7 @@ import {
   Sliders, Zap, Plus, type LucideIcon,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import type { FormField } from '../../store/types';
+import type { FormField, LogicRule } from '../../store/types';
 
 const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox'];
 
@@ -1035,22 +1035,84 @@ function ValidationTab({ field }: { field: FormField }) {
 }
 
 function FieldLogicTab() {
+  const selectedId = useStore((s) => s.selectedId);
+  const fields = useStore((s) => s.fields);
+  const addLogicRule = useStore((s) => s.addLogicRule);
+  const updateLogicRule = useStore((s) => s.updateLogicRule);
+  const deleteLogicRule = useStore((s) => s.deleteLogicRule);
+
+  const field = fields.find(f => f.id === selectedId);
+  if (!field) return null;
+
+  const otherFields = fields.filter(f => f.id !== field.id);
+  const rules = (field.logic || []) as LogicRule[];
+
+  const selectStyle: React.CSSProperties = {
+    height: 30, borderRadius: 6, border: '1px solid var(--border)',
+    background: 'var(--surface2)', color: 'var(--text)', fontSize: 11.5, padding: '0 6px', flex: 1, minWidth: 0,
+  };
+  const inputStyle: React.CSSProperties = {
+    height: 30, borderRadius: 6, border: '1px solid var(--border)',
+    background: 'var(--surface2)', color: 'var(--text)', fontSize: 11.5, padding: '0 8px', flex: 1, minWidth: 0,
+  };
+
   return (
-    <div
-      style={{
-        padding: 24,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 10,
-        textAlign: 'center',
-        color: 'var(--muted)',
-      }}
-    >
-      <Zap size={26} style={{ opacity: 0.5 }} />
-      <div style={{ fontSize: 12.5 }}>No conditions yet.</div>
-      <SecondaryButton>
+    <div style={{ padding: 16 }}>
+      {rules.length === 0 ? (
+        <div style={{ textAlign: 'center', color: 'var(--muted)', padding: '16px 0' }}>
+          <Zap size={20} style={{ opacity: 0.5, marginBottom: 6 }} />
+          <div style={{ fontSize: 12 }}>No conditions yet</div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 12 }}>
+          {rules.map((rule) => {
+            const sourceField = otherFields.find(f => f.id === rule.sourceFieldId);
+            const showValueInput = rule.operator !== 'not_empty' && rule.operator !== 'empty';
+            const sourceHasOptions = sourceField && ['dropdown', 'multiselect', 'radio', 'checkbox'].includes(sourceField.type);
+            return (
+              <div key={rule.id} style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 8, padding: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                  <select value={rule.action} onChange={e => updateLogicRule(field.id, rule.id, { action: e.target.value as 'show' | 'hide' | 'require' })} style={selectStyle}>
+                    <option value="show">Show this field</option>
+                    <option value="hide">Hide this field</option>
+                    <option value="require">Require this field</option>
+                  </select>
+                  <button onClick={() => deleteLogicRule(field.id, rule.id)} style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 4 }}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>WHEN</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <select value={rule.sourceFieldId} onChange={e => updateLogicRule(field.id, rule.id, { sourceFieldId: e.target.value, value: '' })} style={selectStyle}>
+                    <option value="">Select field…</option>
+                    {otherFields.map(f => <option key={f.id} value={f.id}>{f.label}</option>)}
+                  </select>
+                  <select value={rule.operator} onChange={e => updateLogicRule(field.id, rule.id, { operator: e.target.value as LogicRule['operator'] })} style={selectStyle}>
+                    <option value="equals">Equals</option>
+                    <option value="not_equals">Not equals</option>
+                    <option value="contains">Contains</option>
+                    <option value="not_empty">Is not empty</option>
+                    <option value="empty">Is empty</option>
+                    <option value="greater_than">Greater than</option>
+                    <option value="less_than">Less than</option>
+                  </select>
+                  {showValueInput && (
+                    sourceHasOptions ? (
+                      <select value={rule.value} onChange={e => updateLogicRule(field.id, rule.id, { value: e.target.value })} style={selectStyle}>
+                        <option value="">Select value…</option>
+                        {sourceField.options.map(o => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : (
+                      <input value={rule.value} onChange={e => updateLogicRule(field.id, rule.id, { value: e.target.value })} placeholder="Value…" style={inputStyle} />
+                    )
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+      <SecondaryButton onClick={() => addLogicRule(field.id)}>
         <Plus size={13} /> Add Condition
       </SecondaryButton>
     </div>
@@ -1275,89 +1337,107 @@ function PreviewMode() {
 
 function LogicMode() {
   const fields = useStore((s) => s.fields);
+  const addLogicRule = useStore((s) => s.addLogicRule);
+  const updateLogicRule = useStore((s) => s.updateLogicRule);
+  const deleteLogicRule = useStore((s) => s.deleteLogicRule);
+  const accent = useStore((s) => s.accent);
+
 
   return (
     <div style={{ flex: 1, background: 'var(--surface2)', overflowY: 'auto' }}>
-      <div style={{ maxWidth: 680, margin: '0 auto', padding: 24 }}>
+      <div style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
         {fields.length === 0 ? (
-          <div
-            style={{
-              border: '2px dashed var(--border)',
-              borderRadius: 12,
-              padding: '56px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 8,
-              color: 'var(--muted)',
-              textAlign: 'center',
-            }}
-          >
+          <div style={{ border: '2px dashed var(--border)', borderRadius: 12, padding: '56px 20px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, color: 'var(--muted)', textAlign: 'center' }}>
             <Zap size={32} style={{ opacity: 0.5 }} />
             <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Conditional Logic Builder</div>
-            <div style={{ fontSize: 12.5, maxWidth: 340 }}>
-              Add fields to your form first, then define rules to show, hide, or require them based on other answers.
-            </div>
+            <div style={{ fontSize: 12.5, maxWidth: 340 }}>Add fields to your form first, then define rules to show, hide, or require them based on other answers.</div>
           </div>
         ) : (
           <>
             <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Conditional Logic Builder</div>
-            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 18 }}>
-              Control visibility of fields based on conditions.
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 18 }}>Define when fields should be shown, hidden, or required based on other field values.</div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {fields.map((f) => {
+                const rules = (f.logic || []) as LogicRule[];
+                const otherFields = fields.filter(of => of.id !== f.id);
+                const hasRules = rules.length > 0;
+
+                return (
+                  <div key={f.id} style={{ background: 'var(--surface)', border: `1px solid ${hasRules ? accent + '40' : 'var(--border)'}`, borderRadius: 10, overflow: 'hidden' }}>
+                    <div style={{ padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: hasRules ? '1px solid var(--border)' : 'none' }}>
+                      <TypeIcon type={f.type} size={14} style={{ color: hasRules ? accent : 'var(--muted)', flexShrink: 0 }} />
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{f.label}</span>
+                      {hasRules && (
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: `${accent}20`, color: accent }}>
+                          {rules.length} rule{rules.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                      <button onClick={() => addLogicRule(f.id)}
+                        style={{ height: 26, padding: '0 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface2)', color: 'var(--text)', fontSize: 11, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                        <Plus size={11} /> Rule
+                      </button>
+                    </div>
+
+                    {rules.map((rule) => {
+                      const sourceField = otherFields.find(sf => sf.id === rule.sourceFieldId);
+                      const showValueInput = rule.operator !== 'not_empty' && rule.operator !== 'empty';
+                      const sourceHasOptions = sourceField && ['dropdown', 'multiselect', 'radio', 'checkbox', 'toggle'].includes(sourceField.type);
+
+                      const selectStyle: React.CSSProperties = {
+                        height: 28, borderRadius: 5, border: '1px solid var(--border)',
+                        background: 'var(--surface2)', color: 'var(--text)', fontSize: 11.5, padding: '0 6px',
+                      };
+
+                      return (
+                        <div key={rule.id} style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)', background: 'var(--surface2)' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            <select value={rule.action} onChange={e => updateLogicRule(f.id, rule.id, { action: e.target.value as 'show' | 'hide' | 'require' })} style={{ ...selectStyle, fontWeight: 600 }}>
+                              <option value="show">Show</option>
+                              <option value="hide">Hide</option>
+                              <option value="require">Require</option>
+                            </select>
+                            <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>when</span>
+                            <select value={rule.sourceFieldId} onChange={e => updateLogicRule(f.id, rule.id, { sourceFieldId: e.target.value, value: '' })} style={selectStyle}>
+                              <option value="">Select field…</option>
+                              {otherFields.map(of => <option key={of.id} value={of.id}>{of.label}</option>)}
+                            </select>
+                            <select value={rule.operator} onChange={e => updateLogicRule(f.id, rule.id, { operator: e.target.value as LogicRule['operator'] })} style={selectStyle}>
+                              <option value="equals">equals</option>
+                              <option value="not_equals">not equals</option>
+                              <option value="contains">contains</option>
+                              <option value="not_empty">is not empty</option>
+                              <option value="empty">is empty</option>
+                              <option value="greater_than">greater than</option>
+                              <option value="less_than">less than</option>
+                            </select>
+                            {showValueInput && (
+                              sourceHasOptions ? (
+                                <select value={rule.value} onChange={e => updateLogicRule(f.id, rule.id, { value: e.target.value })} style={selectStyle}>
+                                  <option value="">Select…</option>
+                                  {sourceField.type === 'toggle' ? (
+                                    <><option value="true">Yes</option><option value="false">No</option></>
+                                  ) : (
+                                    sourceField.options.map(o => <option key={o} value={o}>{o}</option>)
+                                  )}
+                                </select>
+                              ) : (
+                                <input value={rule.value} onChange={e => updateLogicRule(f.id, rule.id, { value: e.target.value })} placeholder="Value…"
+                                  style={{ ...selectStyle, width: 90 }} />
+                              )
+                            )}
+                            <button onClick={() => deleteLogicRule(f.id, rule.id)}
+                              style={{ background: 'none', border: 'none', color: '#EF4444', cursor: 'pointer', padding: 3, flexShrink: 0 }}>
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {fields.map((f) => (
-                <div
-                  key={f.id}
-                  style={{
-                    background: 'var(--surface)',
-                    border: '1px solid var(--border)',
-                    borderRadius: 10,
-                    padding: '12px 14px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                  }}
-                >
-                  <TypeIcon type={f.type} size={14} style={{ color: 'var(--muted)' }} />
-                  <span style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text)', flex: 1 }}>{f.label}</span>
-                  <select
-                    style={{
-                      height: 30,
-                      borderRadius: 6,
-                      border: '1px solid var(--border)',
-                      background: 'var(--surface2)',
-                      color: 'var(--text)',
-                      fontSize: 12,
-                      padding: '0 8px',
-                    }}
-                  >
-                    <option>Always show</option>
-                    <option>Show if…</option>
-                    <option>Hide if…</option>
-                  </select>
-                </div>
-              ))}
-            </div>
-            <button
-              type="button"
-              style={{
-                marginTop: 14,
-                padding: '9px 16px',
-                borderRadius: 7,
-                border: '1px dashed var(--border)',
-                background: 'transparent',
-                color: 'var(--muted)',
-                fontSize: 12.5,
-                fontWeight: 600,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <Plus size={13} /> Add Rule
-            </button>
           </>
         )}
       </div>

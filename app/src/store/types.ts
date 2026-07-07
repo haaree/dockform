@@ -1,3 +1,11 @@
+export interface LogicRule {
+  id: string;
+  action: 'show' | 'hide' | 'require';
+  sourceFieldId: string;
+  operator: 'equals' | 'not_equals' | 'contains' | 'not_empty' | 'empty' | 'greater_than' | 'less_than';
+  value: string;
+}
+
 export interface FormField {
   id: string;
   type: string;
@@ -12,7 +20,7 @@ export interface FormField {
   indexed: boolean;
   options: string[];
   validation: { min: string; max: string; pattern: string; message: string };
-  logic: unknown[];
+  logic: LogicRule[];
 }
 
 export interface FormItem {

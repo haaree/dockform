@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, Role, PermissionRow, ResponseItem, TemplatePack } from './types';
+import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, Role, PermissionRow, ResponseItem, TemplatePack, LogicRule } from './types';
 
 interface AppState {
   // Auth
@@ -84,6 +84,9 @@ interface AppState {
   duplicateField: (id: string) => void;
   reorderFields: (from: number, to: number) => void;
   setDragSrcIdx: (idx: number | null) => void;
+  addLogicRule: (fieldId: string) => void;
+  updateLogicRule: (fieldId: string, ruleId: string, updates: Partial<LogicRule>) => void;
+  deleteLogicRule: (fieldId: string, ruleId: string) => void;
 
   activatePack: (pack: TemplatePack) => void;
   setPreviewPackId: (id: string | null) => void;
@@ -338,6 +341,27 @@ export const useStore = create<AppState>((set) => ({
   }),
 
   setDragSrcIdx: (dragSrcIdx) => set({ dragSrcIdx }),
+
+  addLogicRule: (fieldId) => set((s) => ({
+    fields: s.fields.map(f => f.id === fieldId ? {
+      ...f,
+      logic: [...f.logic, { id: 'lr' + Date.now(), action: 'show' as const, sourceFieldId: '', operator: 'equals' as const, value: '' }],
+    } : f),
+  })),
+
+  updateLogicRule: (fieldId, ruleId, updates) => set((s) => ({
+    fields: s.fields.map(f => f.id === fieldId ? {
+      ...f,
+      logic: f.logic.map((r: LogicRule) => r.id === ruleId ? { ...r, ...updates } : r),
+    } : f),
+  })),
+
+  deleteLogicRule: (fieldId, ruleId) => set((s) => ({
+    fields: s.fields.map(f => f.id === fieldId ? {
+      ...f,
+      logic: f.logic.filter((r: LogicRule) => r.id !== ruleId),
+    } : f),
+  })),
 
   activatePack: (pack) => {
     const fields = pack.fields.map((f, i) => ({ ...f, id: 'f' + (i + 1) })) as FormField[];
