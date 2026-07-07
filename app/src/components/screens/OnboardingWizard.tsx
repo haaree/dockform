@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import { Building2, Factory, Users, BookOpen, CheckCircle, ChevronRight, ChevronLeft, Plus, X, Briefcase } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars } from '../../lib/theme';
-import { TEMPLATE_PACKS } from '../../data/templatePacks';
+import { getBuiltInPacks } from '../../data/templatePacks';
 
 const STEPS = [
   { icon: Briefcase, label: 'Your Profile' },
@@ -34,7 +34,6 @@ export default function OnboardingWizard() {
   const addDepartment = useStore((s) => s.addDepartment);
   const addUser = useStore((s) => s.addUser);
   const setActiveCompany = useStore((s) => s.setActiveCompany);
-  const companies = useStore((s) => s.companies);
   const activatePack = useStore((s) => s.activatePack);
   const winWidth = useStore((s) => s.winWidth);
 
@@ -106,7 +105,7 @@ export default function OnboardingWizard() {
       if (newest) setActiveCompany(newest.id);
     }
     selectedTemplates.forEach(tid => {
-      const pack = TEMPLATE_PACKS.find(p => p.id === tid);
+      const pack = getBuiltInPacks().find(p => p.id === tid);
       if (pack) activatePack(pack);
     });
     completeOnboarding();
@@ -356,7 +355,7 @@ export default function OnboardingWizard() {
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
-              {TEMPLATE_PACKS.filter(p => !p.isCustom).slice(0, 8).map(pack => {
+              {getBuiltInPacks().filter(p => !p.isCustom).slice(0, 8).map(pack => {
                 const isSelected = selectedTemplates.includes(pack.id);
                 return (
                   <button key={pack.id}
