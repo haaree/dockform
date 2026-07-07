@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, Role, PermissionRow, ResponseItem, TemplatePack, LogicRule } from './types';
+import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, Role, PermissionRow, ResponseItem, TemplatePack, LogicRule, FormSchedule } from './types';
 
 interface AppState {
   // Auth
@@ -121,7 +121,7 @@ interface AppState {
   openNewForm: () => void;
   editForm: (id: number) => void;
   saveDraft: () => void;
-  publishForm: (assignedUserIds?: number[]) => void;
+  publishForm: (assignedUserIds?: number[], schedule?: FormSchedule) => void;
   showAssignModal: boolean;
   assignModalUserIds: number[];
   setShowAssignModal: (show: boolean) => void;
@@ -507,7 +507,7 @@ export const useStore = create<AppState>((set) => ({
   })),
   setAssignModalUserIds: (assignModalUserIds) => set({ assignModalUserIds }),
 
-  publishForm: (assignedUserIds) => set((s) => {
+  publishForm: (assignedUserIds, schedule) => set((s) => {
     const name = s.currentFormName || 'Untitled Form';
     const desc = s.currentFormDesc;
     const defs = [...s.fields];
@@ -515,10 +515,10 @@ export const useStore = create<AppState>((set) => ({
     const ids = assignedUserIds || s.assignModalUserIds;
     const existing = s.forms.find(f => f.name === name);
     if (existing) {
-      return { forms: s.forms.map(f => f.id === existing.id ? { ...f, fields: defs.length, fieldDefs: defs, description: desc, status: 'published', updated: now, assignedUserIds: ids.length > 0 ? ids : undefined } : f), nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
+      return { forms: s.forms.map(f => f.id === existing.id ? { ...f, fields: defs.length, fieldDefs: defs, description: desc, status: 'published', updated: now, assignedUserIds: ids.length > 0 ? ids : undefined, schedule } : f), nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
     }
     const newId = Math.max(0, ...s.forms.map(f => f.id)) + 1;
-    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'published', updated: now, category: 'Custom', assignedUserIds: ids.length > 0 ? ids : undefined }], nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
+    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'published', updated: now, category: 'Custom', assignedUserIds: ids.length > 0 ? ids : undefined, schedule }], nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
   }),
 
   fillingFormId: null as number | null,

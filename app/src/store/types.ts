@@ -23,6 +23,12 @@ export interface FormField {
   logic: LogicRule[];
 }
 
+export interface FormSchedule {
+  frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
+  startDate: string;
+  dueDay?: number;
+}
+
 export interface FormItem {
   id: number;
   name: string;
@@ -34,6 +40,7 @@ export interface FormItem {
   description?: string;
   fieldDefs?: FormField[];
   assignedUserIds?: number[];
+  schedule?: FormSchedule;
 }
 
 export interface UserItem {

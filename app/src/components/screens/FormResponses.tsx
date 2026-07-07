@@ -1,8 +1,83 @@
 import { useState } from 'react';
-import { ArrowLeft, Download, ChevronDown, ChevronUp, Image as ImageIcon, FileText } from 'lucide-react';
+import { ArrowLeft, Download, ChevronDown, ChevronUp, Image as ImageIcon, FileText, CalendarClock, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport } from '../../lib/exportExcel';
+
+const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+function getPeriodsForSchedule(schedule: { frequency: string; startDate: string }, responsesDates: string[]) {
+  const now = new Date();
+  const start = new Date(schedule.startDate);
+  const periods: { label: string; key: string; status: 'completed' | 'due' | 'upcoming' | 'overdue' }[] = [];
+
+  const parsedDates = responsesDates.map(d => new Date(d));
+
+  if (schedule.frequency === 'monthly') {
+    const startMonth = start.getFullYear() * 12 + start.getMonth();
+    const endMonth = now.getFullYear() * 12 + now.getMonth();
+    for (let m = startMonth; m <= endMonth + 2; m++) {
+      const year = Math.floor(m / 12);
+      const month = m % 12;
+      const key = `${year}-${String(month + 1).padStart(2, '0')}`;
+      const label = `${MONTH_NAMES[month]} ${year}`;
+      const hasResponse = parsedDates.some(d => d.getFullYear() === year && d.getMonth() === month);
+      const isPast = m < now.getFullYear() * 12 + now.getMonth();
+      const isCurrent = m === now.getFullYear() * 12 + now.getMonth();
+      const status = hasResponse ? 'completed' : isPast ? 'overdue' : isCurrent ? 'due' : 'upcoming';
+      periods.push({ label, key, status });
+    }
+  } else if (schedule.frequency === 'quarterly') {
+    const startQ = start.getFullYear() * 4 + Math.floor(start.getMonth() / 3);
+    const endQ = now.getFullYear() * 4 + Math.floor(now.getMonth() / 3);
+    for (let q = startQ; q <= endQ + 1; q++) {
+      const year = Math.floor(q / 4);
+      const quarter = q % 4;
+      const key = `${year}-Q${quarter + 1}`;
+      const label = `Q${quarter + 1} ${year}`;
+      const qMonths = [quarter * 3, quarter * 3 + 1, quarter * 3 + 2];
+      const hasResponse = parsedDates.some(d => d.getFullYear() === year && qMonths.includes(d.getMonth()));
+      const isPast = q < now.getFullYear() * 4 + Math.floor(now.getMonth() / 3);
+      const isCurrent = q === now.getFullYear() * 4 + Math.floor(now.getMonth() / 3);
+      const status = hasResponse ? 'completed' : isPast ? 'overdue' : isCurrent ? 'due' : 'upcoming';
+      periods.push({ label, key, status });
+    }
+  } else if (schedule.frequency === 'yearly') {
+    for (let y = start.getFullYear(); y <= now.getFullYear() + 1; y++) {
+      const key = `${y}`;
+      const label = `${y}`;
+      const hasResponse = parsedDates.some(d => d.getFullYear() === y);
+      const isPast = y < now.getFullYear();
+      const isCurrent = y === now.getFullYear();
+      const status = hasResponse ? 'completed' : isPast ? 'overdue' : isCurrent ? 'due' : 'upcoming';
+      periods.push({ label, key, status });
+    }
+  } else if (schedule.frequency === 'weekly') {
+    const getWeekKey = (d: Date) => {
+      const jan1 = new Date(d.getFullYear(), 0, 1);
+      const week = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7);
+      return `${d.getFullYear()}-W${week}`;
+    };
+    const current = new Date(start);
+    const limit = new Date(now);
+    limit.setDate(limit.getDate() + 14);
+    while (current <= limit) {
+      const key = getWeekKey(current);
+      const weekStart = new Date(current);
+      const weekEnd = new Date(current);
+      weekEnd.setDate(weekEnd.getDate() + 6);
+      const label = `${MONTH_NAMES[weekStart.getMonth()]} ${weekStart.getDate()} - ${weekEnd.getDate()}`;
+      const hasResponse = parsedDates.some(d => getWeekKey(d) === key);
+      const isPast = weekEnd < now;
+      const isCurrent = weekStart <= now && now <= weekEnd;
+      const status = hasResponse ? 'completed' : isPast ? 'overdue' : isCurrent ? 'due' : 'upcoming';
+      if (!periods.find(p => p.key === key)) periods.push({ label, key, status });
+      current.setDate(current.getDate() + 7);
+    }
+  }
+
+  return periods;
+}
 
 export default function FormResponses() {
   const viewingFormId = useStore((s) => s.viewingFormId);
@@ -16,9 +91,12 @@ export default function FormResponses() {
   const formResponses = responses.filter(r => r.formId === viewingFormId);
   const fieldDefs = form?.fieldDefs || [];
   const isMobile = winWidth < 720;
+  const isScheduled = form?.schedule && form.schedule.frequency !== 'once';
 
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [imageModal, setImageModal] = useState<string | null>(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
 
   if (!form) {
     return (
@@ -29,17 +107,38 @@ export default function FormResponses() {
     );
   }
 
-  const [showExportMenu, setShowExportMenu] = useState(false);
-
   const downloadReport = () => {
-    downloadHTMLReport(form.name, form.description || '', fieldDefs, formResponses);
+    downloadHTMLReport(form.name, form.description || '', fieldDefs, displayedResponses);
     setShowExportMenu(false);
   };
 
   const downloadExcel = () => {
-    downloadExcelReport(form.name, form.description || '', fieldDefs, formResponses);
+    downloadExcelReport(form.name, form.description || '', fieldDefs, displayedResponses);
     setShowExportMenu(false);
   };
+
+  const periods = isScheduled ? getPeriodsForSchedule(form.schedule!, formResponses.map(r => r.date)) : [];
+  const completedCount = periods.filter(p => p.status === 'completed').length;
+  const overdueCount = periods.filter(p => p.status === 'overdue').length;
+
+  const displayedResponses = selectedPeriod
+    ? formResponses.filter(r => {
+        const d = new Date(r.date);
+        if (selectedPeriod.includes('-Q')) {
+          const [y, q] = selectedPeriod.split('-Q');
+          const quarter = parseInt(q) - 1;
+          return d.getFullYear() === parseInt(y) && Math.floor(d.getMonth() / 3) === quarter;
+        }
+        if (selectedPeriod.includes('-W')) {
+          return true;
+        }
+        if (selectedPeriod.includes('-')) {
+          const [y, m] = selectedPeriod.split('-');
+          return d.getFullYear() === parseInt(y) && d.getMonth() === parseInt(m) - 1;
+        }
+        return d.getFullYear() === parseInt(selectedPeriod);
+      })
+    : formResponses;
 
   const renderValue = (fieldId: string, type: string) => {
     const val = expandedResponse?.values?.[fieldId] || '';
@@ -65,6 +164,13 @@ export default function FormResponses() {
 
   const expandedResponse = formResponses.find(r => r.id === expandedId);
 
+  const statusColors: Record<string, { bg: string; color: string; icon: typeof CheckCircle }> = {
+    completed: { bg: '#DCFCE7', color: '#15803D', icon: CheckCircle },
+    due: { bg: '#FEF3C7', color: '#92400E', icon: Clock },
+    overdue: { bg: '#FEE2E2', color: '#DC2626', icon: AlertCircle },
+    upcoming: { bg: '#F3F4F6', color: '#6B7280', icon: Clock },
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ height: 52, minHeight: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', background: 'var(--surface)' }}>
@@ -75,12 +181,15 @@ export default function FormResponses() {
         <div style={{ width: 1, height: 18, background: 'var(--border)' }} />
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{form.name}</div>
-          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{formResponses.length} responses</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+            {formResponses.length} responses
+            {isScheduled && <> · <CalendarClock size={10} style={{ verticalAlign: 'middle' }} /> {form.schedule!.frequency}</>}
+          </div>
         </div>
         <div style={{ position: 'relative' }}>
           <button type="button" onClick={() => setShowExportMenu(!showExportMenu)}
             style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <Download size={13} /> Export All
+            <Download size={13} /> Export{selectedPeriod ? ' Period' : ' All'}
           </button>
           {showExportMenu && (
             <div style={{ position: 'absolute', top: 38, right: 0, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.18)', zIndex: 999, minWidth: 200 }}>
@@ -98,11 +207,55 @@ export default function FormResponses() {
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 16 : 24 }}>
-        {formResponses.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)', fontSize: 14 }}>No responses yet.</div>
+        {isScheduled && periods.length > 0 && (
+          <div style={{ maxWidth: 800, margin: '0 auto 20px', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <CalendarClock size={15} color={accent} />
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Schedule Tracker</span>
+              </div>
+              <div style={{ display: 'flex', gap: 10, fontSize: 11, color: 'var(--muted)' }}>
+                <span><strong style={{ color: '#15803D' }}>{completedCount}</strong> completed</span>
+                {overdueCount > 0 && <span><strong style={{ color: '#DC2626' }}>{overdueCount}</strong> overdue</span>}
+                <span><strong style={{ color: 'var(--text)' }}>{periods.length}</strong> total</span>
+              </div>
+            </div>
+
+            {selectedPeriod && (
+              <button onClick={() => setSelectedPeriod(null)}
+                style={{ marginBottom: 10, fontSize: 11, color: accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                ← Show all responses
+              </button>
+            )}
+
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {periods.map(p => {
+                const sc = statusColors[p.status];
+                const Icon = sc.icon;
+                const isSelected = selectedPeriod === p.key;
+                return (
+                  <button key={p.key} onClick={() => setSelectedPeriod(isSelected ? null : p.key)}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 7,
+                      border: isSelected ? `2px solid ${accent}` : '1px solid var(--border)',
+                      background: isSelected ? `${accent}10` : sc.bg, color: sc.color,
+                      fontSize: 11, fontWeight: 600, cursor: 'pointer',
+                    }}>
+                    <Icon size={11} /> {p.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {displayedResponses.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)', fontSize: 14 }}>
+            {selectedPeriod ? 'No responses for this period.' : 'No responses yet.'}
+          </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 800, margin: '0 auto' }}>
-            {formResponses.map((r, idx) => {
+            {displayedResponses.map((r, idx) => {
               const isOpen = expandedId === r.id;
               return (
                 <div key={r.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>

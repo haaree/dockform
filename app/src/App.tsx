@@ -1,5 +1,6 @@
 import { useState, useEffect, type CSSProperties } from 'react';
-import { Menu, Search, Check, Users } from 'lucide-react';
+import { Menu, Search, Check, Users, CalendarClock } from 'lucide-react';
+import type { FormSchedule } from './store/types';
 import { useStore } from './store/useStore';
 import { getThemeVars } from './lib/theme';
 import { Sidebar } from './components/layout/Sidebar';
@@ -106,6 +107,10 @@ function AssignUsersModal() {
   const publishForm = useStore((s) => s.publishForm);
   const accent = useStore((s) => s.accent);
   const [search, setSearch] = useState('');
+  const [tab, setTab] = useState<'users' | 'schedule'>('users');
+  const [frequency, setFrequency] = useState<FormSchedule['frequency']>('once');
+  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
+  const [dueDay, setDueDay] = useState(28);
 
   if (!show) return null;
 
@@ -115,13 +120,16 @@ function AssignUsersModal() {
   );
 
   const handlePublish = () => {
-    publishForm(selectedIds);
+    const schedule: FormSchedule | undefined = frequency !== 'once' ? { frequency, startDate, dueDay } : undefined;
+    publishForm(selectedIds, schedule);
   };
 
   const handleClose = () => {
     setShowAssignModal(false);
     setAssignModalUserIds([]);
     setSearch('');
+    setTab('users');
+    setFrequency('once');
   };
 
   const selectAll = () => {
@@ -132,56 +140,120 @@ function AssignUsersModal() {
     }
   };
 
+  const freqLabel: Record<string, string> = { once: 'One-time', daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', quarterly: 'Quarterly', yearly: 'Yearly' };
+  const selectStyle: React.CSSProperties = { height: 34, borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 13, padding: '0 10px', width: '100%', outline: 'none' };
+  const inputStyle = selectStyle;
+
   return (
     <div onClick={handleClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 440, maxWidth: '92%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 480, maxWidth: '92%', maxHeight: '85vh', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
           <Users size={18} color={accent} />
-          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Assign Users & Publish</div>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>Select which users can access and fill out this form. Only assigned users will see it.</div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', marginBottom: 12 }}>
-          <Search size={13} color="var(--muted)" />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users…"
-            style={{ border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 13, width: '100%', outline: 'none' }} />
+          <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Publish Form</div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>{selectedIds.length} user{selectedIds.length !== 1 ? 's' : ''} selected</span>
-          <button onClick={selectAll} style={{ fontSize: 11, color: accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
-            {selectedIds.length === activeUsers.length ? 'Deselect All' : 'Select All'}
-          </button>
+        <div style={{ display: 'flex', gap: 0, marginBottom: 16, borderBottom: '1px solid var(--border)' }}>
+          {(['users', 'schedule'] as const).map(t => (
+            <button key={t} onClick={() => setTab(t)}
+              style={{ flex: 1, padding: '8px 0', background: 'none', border: 'none', borderBottom: tab === t ? `2px solid ${accent}` : '2px solid transparent', color: tab === t ? accent : 'var(--muted)', fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+              {t === 'users' ? <><Users size={13} /> Assign Users</> : <><CalendarClock size={13} /> Schedule</>}
+            </button>
+          ))}
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto', marginBottom: 16, border: '1px solid var(--border)', borderRadius: 8 }}>
-          {filtered.map(user => {
-            const selected = selectedIds.includes(user.id);
-            return (
-              <button key={user.id} onClick={() => toggleAssignUser(user.id)}
-                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: selected ? `${accent}10` : 'transparent', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left' }}>
-                <div style={{ width: 20, height: 20, borderRadius: 5, border: selected ? 'none' : '2px solid var(--border)', background: selected ? accent : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  {selected && <Check size={12} color="#fff" strokeWidth={3} />}
-                </div>
-                <div style={{ width: 30, height: 30, borderRadius: '50%', background: user.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                  {user.initials}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{user.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{user.email} · {user.role} · {user.department}</div>
-                </div>
+        {tab === 'users' && (
+          <>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Select which users can access and fill out this form.</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', marginBottom: 10 }}>
+              <Search size={13} color="var(--muted)" />
+              <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search users…"
+                style={{ border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 13, width: '100%', outline: 'none' }} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>{selectedIds.length} user{selectedIds.length !== 1 ? 's' : ''} selected</span>
+              <button onClick={selectAll} style={{ fontSize: 11, color: accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>
+                {selectedIds.length === activeUsers.length ? 'Deselect All' : 'Select All'}
               </button>
-            );
-          })}
-          {filtered.length === 0 && (
-            <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>No users found</div>
-          )}
-        </div>
+            </div>
+            <div style={{ flex: 1, overflowY: 'auto', marginBottom: 16, border: '1px solid var(--border)', borderRadius: 8, maxHeight: 260 }}>
+              {filtered.map(user => {
+                const selected = selectedIds.includes(user.id);
+                return (
+                  <button key={user.id} onClick={() => toggleAssignUser(user.id)}
+                    style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: selected ? `${accent}10` : 'transparent', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left' }}>
+                    <div style={{ width: 20, height: 20, borderRadius: 5, border: selected ? 'none' : '2px solid var(--border)', background: selected ? accent : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {selected && <Check size={12} color="#fff" strokeWidth={3} />}
+                    </div>
+                    <div style={{ width: 30, height: 30, borderRadius: '50%', background: user.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
+                      {user.initials}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{user.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{user.email} · {user.role} · {user.department}</div>
+                    </div>
+                  </button>
+                );
+              })}
+              {filtered.length === 0 && (
+                <div style={{ padding: 20, textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>No users found</div>
+              )}
+            </div>
+          </>
+        )}
 
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+        {tab === 'schedule' && (
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>Set up recurring schedules for audits, inspections, and compliance checks.</div>
+
+            <div style={{ marginBottom: 14 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }}>Frequency</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
+                {(['once', 'daily', 'weekly', 'monthly', 'quarterly', 'yearly'] as const).map(f => (
+                  <button key={f} onClick={() => setFrequency(f)}
+                    style={{ padding: '8px 0', borderRadius: 7, border: frequency === f ? `2px solid ${accent}` : '1px solid var(--border)', background: frequency === f ? `${accent}10` : 'var(--bg)', color: frequency === f ? accent : 'var(--text)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                    {freqLabel[f]}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {frequency !== 'once' && (
+              <>
+                <div style={{ marginBottom: 14 }}>
+                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }}>Start Date</label>
+                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={inputStyle} />
+                </div>
+
+                {(frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') && (
+                  <div style={{ marginBottom: 14 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }}>Due by day of month</label>
+                    <select value={dueDay} onChange={e => setDueDay(Number(e.target.value))} style={selectStyle}>
+                      {Array.from({ length: 28 }, (_, i) => i + 1).map(d => (
+                        <option key={d} value={d}>{d}{d === 1 ? 'st' : d === 2 ? 'nd' : d === 3 ? 'rd' : 'th'}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div style={{ background: `${accent}08`, border: `1px solid ${accent}30`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: accent, marginBottom: 4 }}>Schedule Summary</div>
+                  <div style={{ fontSize: 12, color: 'var(--text)' }}>
+                    This form will be due <strong>{frequency}</strong> starting from <strong>{new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+                    {(frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') && <>, due by the <strong>{dueDay}{dueDay === 1 ? 'st' : dueDay === 2 ? 'nd' : dueDay === 3 ? 'rd' : 'th'}</strong> of each period</>}.
+                    {selectedIds.length > 0 && <> Assigned to <strong>{selectedIds.length}</strong> user{selectedIds.length !== 1 ? 's' : ''}.</>}
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexShrink: 0 }}>
           <button onClick={handleClose} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
           <button onClick={handlePublish} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-            {selectedIds.length > 0 ? `Publish & Assign (${selectedIds.length})` : 'Publish to All'}
+            {frequency !== 'once'
+              ? `Publish & Schedule${selectedIds.length > 0 ? ` (${selectedIds.length})` : ''}`
+              : selectedIds.length > 0 ? `Publish & Assign (${selectedIds.length})` : 'Publish to All'}
           </button>
         </div>
       </div>

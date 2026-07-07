@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList } from 'lucide-react';
+import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -98,7 +98,16 @@ export default function FormsScreen() {
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.category}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.fields}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.responses}</td>
-                    <td style={{ padding: '12px 16px' }}><StatusBadge status={form.status} /></td>
+                    <td style={{ padding: '12px 16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <StatusBadge status={form.status} />
+                        {form.schedule && form.schedule.frequency !== 'once' && (
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EFF6FF', color: '#2563EB' }}>
+                            <CalendarClock size={10} /> {form.schedule.frequency}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.updated}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
