@@ -6,6 +6,7 @@ interface AppState {
   isAuthed: boolean;
   currentUserId: number | null;
   currentUserRole: string;
+  isDockformAdmin: boolean;
   activeCompanyId: number | null;
   onboardingComplete: boolean;
   onboardingStep: number;
@@ -161,6 +162,7 @@ export const useStore = create<AppState>((set) => ({
   isAuthed: false,
   currentUserId: null,
   currentUserRole: '',
+  isDockformAdmin: false,
   activeCompanyId: 1,
   onboardingComplete: true,
   onboardingStep: 0,
@@ -292,15 +294,21 @@ export const useStore = create<AppState>((set) => ({
 
   setAuth: (isAuthed) => set((s) => {
     if (isAuthed) {
+      const DOCKFORM_ADMIN_EMAILS = ['sarah@acme.com', 'admin@dockform.com'];
+      const isDockformAdmin = DOCKFORM_ADMIN_EMAILS.includes(s.authEmail.toLowerCase());
       const user = s.users.find(u => u.email === s.authEmail);
-      return { isAuthed, currentUserId: user?.id || 1, currentUserRole: user?.role || 'Admin' };
+      if (isDockformAdmin) {
+        return { isAuthed, isDockformAdmin: true, currentUserId: user?.id || 1, currentUserRole: 'Admin', activeCompanyId: null };
+      }
+      const activeCompanyId = user?.companyId || s.companies[0]?.id || null;
+      return { isAuthed, isDockformAdmin: false, currentUserId: user?.id || null, currentUserRole: user?.role || 'Viewer', activeCompanyId };
     }
-    return { isAuthed, currentUserId: null, currentUserRole: '' };
+    return { isAuthed, currentUserId: null, currentUserRole: '', isDockformAdmin: false };
   }),
   setAuthMode: (authMode) => set({ authMode, authError: '' }),
   setAuthField: (key, val) => set({ [key]: val, authError: '' }),
   setAuthError: (authError) => set({ authError }),
-  logout: () => set({ isAuthed: false, currentUserId: null, currentUserRole: '', activeCompanyId: null, onboardingComplete: true, onboardingStep: 0, authEmail: '', authPassword: '', authMode: 'login' }),
+  logout: () => set({ isAuthed: false, currentUserId: null, currentUserRole: '', isDockformAdmin: false, activeCompanyId: null, onboardingComplete: true, onboardingStep: 0, authEmail: '', authPassword: '', authMode: 'login' }),
   setActiveCompany: (activeCompanyId) => set({ activeCompanyId }),
   setOnboardingStep: (onboardingStep) => set({ onboardingStep }),
   completeOnboarding: () => set({ onboardingComplete: true, nav: 'dashboard' }),

@@ -63,6 +63,7 @@ export function Sidebar() {
   const toggleSidebar = useStore((s) => s.toggleSidebar);
   const setNav = useStore((s) => s.setNav);
   const logout = useStore((s) => s.logout);
+  const isDockformAdmin = useStore((s) => s.isDockformAdmin);
   const companies = useStore((s) => s.companies);
   const activeCompanyId = useStore((s) => s.activeCompanyId);
   const setActiveCompany = useStore((s) => s.setActiveCompany);
@@ -220,8 +221,23 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Company switcher */}
-        {!collapsed && (
+        {/* Company label for regular users */}
+        {!collapsed && !isDockformAdmin && activeCompany && (
+          <div style={{ padding: '8px 12px 0' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+              borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)',
+            }}>
+              <Building2 size={14} color={accent} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {activeCompany.name}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Company switcher — DockForm admin only */}
+        {!collapsed && isDockformAdmin && (
           <div style={{ padding: '8px 12px 0', position: 'relative' }}>
             <button
               type="button"
@@ -309,7 +325,7 @@ export function Sidebar() {
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
           {renderSection('Platform', PLATFORM)}
           {renderSection('Structure', STRUCTURE)}
-          {renderSection('System', SYSTEM)}
+          {renderSection('System', isDockformAdmin ? SYSTEM : SYSTEM.filter(s => s.key !== 'accounts'))}
         </div>
 
         {/* User profile footer */}
