@@ -1,5 +1,5 @@
 import { useState, type CSSProperties } from 'react';
-import { Building2, Factory, Users, BookOpen, CheckCircle, ChevronRight, ChevronLeft, Plus, X, Briefcase } from 'lucide-react';
+import { Building2, Factory, BookOpen, CheckCircle, ChevronRight, ChevronLeft, Plus, X, Briefcase } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars } from '../../lib/theme';
 import { getBuiltInPacks } from '../../data/templatePacks';
@@ -7,8 +7,7 @@ import { getBuiltInPacks } from '../../data/templatePacks';
 const STEPS = [
   { icon: Briefcase, label: 'Your Profile' },
   { icon: Building2, label: 'Add Company' },
-  { icon: Factory, label: 'Plants & Departments' },
-  { icon: Users, label: 'Invite Team' },
+  { icon: Factory, label: 'Add Plants' },
   { icon: BookOpen, label: 'Pick Templates' },
 ];
 
@@ -31,8 +30,7 @@ export default function OnboardingWizard() {
   const completeOnboarding = useStore((s) => s.completeOnboarding);
   const addCompany = useStore((s) => s.addCompany);
   const addPlant = useStore((s) => s.addPlant);
-  const addDepartment = useStore((s) => s.addDepartment);
-  const addUser = useStore((s) => s.addUser);
+  const addAccount = useStore((s) => s.addAccount);
   const setActiveCompany = useStore((s) => s.setActiveCompany);
   const activatePack = useStore((s) => s.activatePack);
   const winWidth = useStore((s) => s.winWidth);
@@ -42,8 +40,10 @@ export default function OnboardingWizard() {
 
   // Step 1: Profile
   const [profileName, setProfileName] = useState('');
-  const [profileRole, setProfileRole] = useState('Consultant');
+  const [profileRole, setProfileRole] = useState('');
+  const [profileOtherRole, setProfileOtherRole] = useState('');
   const [profilePhone, setProfilePhone] = useState('');
+  const [profileEmail, setProfileEmail] = useState('');
 
   // Step 2: Company
   const [companyName, setCompanyName] = useState('');
@@ -51,22 +51,13 @@ export default function OnboardingWizard() {
   const [companyType, setCompanyType] = useState('Client');
   const [addedCompanies, setAddedCompanies] = useState<{ name: string; code: string; type: string }[]>([]);
 
-  // Step 3: Plants & Depts
+  // Step 3: Plants
   const [plantName, setPlantName] = useState('');
   const [plantLocation, setPlantLocation] = useState('');
   const [plantCompany, setPlantCompany] = useState('');
-  const [deptName, setDeptName] = useState('');
-  const [deptPlant, setDeptPlant] = useState('');
   const [addedPlants, setAddedPlants] = useState<{ name: string; location: string; company: string }[]>([]);
-  const [addedDepts, setAddedDepts] = useState<{ name: string; plant: string }[]>([]);
 
-  // Step 4: Invite
-  const [inviteName, setInviteName] = useState('');
-  const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteRole, setInviteRole] = useState('Auditor');
-  const [invitedUsers, setInvitedUsers] = useState<{ name: string; email: string; role: string }[]>([]);
-
-  // Step 5: Templates
+  // Step 4: Templates
   const [selectedTemplates, setSelectedTemplates] = useState<string[]>([]);
 
   const handleAddCompany = () => {
@@ -82,23 +73,11 @@ export default function OnboardingWizard() {
     setPlantName(''); setPlantLocation('');
   };
 
-  const handleAddDept = () => {
-    if (!deptName.trim() || !deptPlant) return;
-    setAddedDepts([...addedDepts, { name: deptName.trim(), plant: deptPlant }]);
-    setDeptName('');
-  };
-
-  const handleAddUser = () => {
-    if (!inviteName.trim() || !inviteEmail.trim()) return;
-    setInvitedUsers([...invitedUsers, { name: inviteName.trim(), email: inviteEmail.trim(), role: inviteRole }]);
-    setInviteName(''); setInviteEmail(''); setInviteRole('Auditor');
-  };
+  const resolvedRole = profileRole === 'Other' ? profileOtherRole.trim() : profileRole;
 
   const handleFinish = () => {
     addedCompanies.forEach(c => addCompany(c.name, c.code, c.type));
     addedPlants.forEach(p => addPlant(p.name, '', p.company, p.location, ''));
-    addedDepts.forEach(d => addDepartment(d.name, d.plant));
-    invitedUsers.forEach(u => addUser(u.name, u.email, u.role, '—'));
     if (addedCompanies.length > 0) {
       const allCompanies = useStore.getState().companies;
       const newest = allCompanies[allCompanies.length - 1];
@@ -108,22 +87,39 @@ export default function OnboardingWizard() {
       const pack = getBuiltInPacks().find(p => p.id === tid);
       if (pack) activatePack(pack);
     });
+    addAccount({
+      name: profileName.trim(),
+      email: profileEmail.trim(),
+      role: resolvedRole || 'User',
+      phone: profilePhone.trim(),
+      status: 'pending',
+      createdAt: new Date().toISOString().slice(0, 10),
+      subscription: {
+        maxCompanies: 1,
+        maxPlantsPerCompany: 1,
+        freeUsersPerPlant: 4,
+        accountExpiry: '',
+        plan: 'trial',
+        multiCompany: false,
+        multiPlant: false,
+      },
+      companiesUsed: addedCompanies.length,
+      plantsUsed: addedPlants.length,
+    });
     completeOnboarding();
   };
 
   const canProceed = () => {
     switch (step) {
-      case 0: return profileName.trim().length > 0;
+      case 0: return profileName.trim().length > 0 && profileEmail.trim().length > 0;
       case 1: return addedCompanies.length > 0;
       case 2: return true;
       case 3: return true;
-      case 4: return true;
       default: return true;
     }
   };
 
   const allCompanyNames = addedCompanies.map(c => c.name);
-  const allPlantNames = addedPlants.map(p => p.name);
 
   const renderStep = () => {
     switch (step) {
@@ -136,19 +132,35 @@ export default function OnboardingWizard() {
             </div>
             <div>
               <label style={labelStyle}>Your Name *</label>
-              <input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Kumar Rajagopal" style={inputStyle} />
+              <input value={profileName} onChange={e => setProfileName(e.target.value)} placeholder="Enter your full name" style={inputStyle} autoFocus />
+            </div>
+            <div>
+              <label style={labelStyle}>Work Email *</label>
+              <input value={profileEmail} onChange={e => setProfileEmail(e.target.value)} placeholder="you@company.com" type="email" style={inputStyle} />
             </div>
             <div>
               <label style={labelStyle}>Your Role</label>
               <select value={profileRole} onChange={e => setProfileRole(e.target.value)}
                 style={{ ...inputStyle, cursor: 'pointer' }}>
+                <option value="">Select your role…</option>
                 <option value="Consultant">ISO Consultant / Auditor</option>
                 <option value="Admin">Factory Administrator</option>
                 <option value="Manager">Plant Manager</option>
                 <option value="Safety">Safety Officer</option>
                 <option value="Quality">Quality Manager</option>
+                <option value="Maintenance">Maintenance Head</option>
+                <option value="HR">HR Manager</option>
+                <option value="Production">Production Manager</option>
+                <option value="Environment">EHS Officer</option>
+                <option value="Other">Other</option>
               </select>
             </div>
+            {profileRole === 'Other' && (
+              <div>
+                <label style={labelStyle}>Specify Role</label>
+                <input value={profileOtherRole} onChange={e => setProfileOtherRole(e.target.value)} placeholder="Enter your role" style={inputStyle} />
+              </div>
+            )}
             <div>
               <label style={labelStyle}>Phone (Optional)</label>
               <input value={profilePhone} onChange={e => setProfilePhone(e.target.value)} placeholder="+91 98765 43210" style={inputStyle} />
@@ -185,12 +197,12 @@ export default function OnboardingWizard() {
             <div style={{ background: 'var(--surface2)', borderRadius: 10, border: '1px solid var(--border)', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={labelStyle}>Company Name *</label>
-                <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Asian Polymers Pvt Ltd" style={inputStyle} />
+                <input value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="Enter company name" style={inputStyle} />
               </div>
               <div style={{ display: 'flex', gap: 12 }}>
                 <div style={{ flex: 1 }}>
                   <label style={labelStyle}>Company Code</label>
-                  <input value={companyCode} onChange={e => setCompanyCode(e.target.value)} placeholder="ASN-001" style={inputStyle} />
+                  <input value={companyCode} onChange={e => setCompanyCode(e.target.value)} placeholder="e.g. ASN-001" style={inputStyle} />
                 </div>
                 <div style={{ flex: 1 }}>
                   <label style={labelStyle}>Type</label>
@@ -214,15 +226,15 @@ export default function OnboardingWizard() {
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Plants & Departments</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Add factory locations and departments. You can skip and add later.</div>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Add Plants / Locations</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Add factory locations for your companies. You can skip and add later.</div>
             </div>
 
             {addedPlants.length > 0 && (
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                 {addedPlants.map((p, i) => (
                   <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 20, background: '#DCFCE7', color: '#15803D', fontSize: 12, fontWeight: 600 }}>
-                    <Factory size={11} /> {p.name}
+                    <Factory size={11} /> {p.name} ({p.company})
                     <button onClick={() => setAddedPlants(addedPlants.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#15803D', padding: 0, marginLeft: 2 }}><X size={11} /></button>
                   </span>
                 ))}
@@ -230,15 +242,14 @@ export default function OnboardingWizard() {
             )}
 
             <div style={{ background: 'var(--surface2)', borderRadius: 10, border: '1px solid var(--border)', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Add Plant</div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
                 <div style={{ flex: 1, minWidth: 150 }}>
                   <label style={labelStyle}>Plant Name</label>
-                  <input value={plantName} onChange={e => setPlantName(e.target.value)} placeholder="Chennai Factory" style={inputStyle} />
+                  <input value={plantName} onChange={e => setPlantName(e.target.value)} placeholder="e.g. Chennai Factory" style={inputStyle} />
                 </div>
                 <div style={{ flex: 1, minWidth: 150 }}>
                   <label style={labelStyle}>Location</label>
-                  <input value={plantLocation} onChange={e => setPlantLocation(e.target.value)} placeholder="Chennai, Tamil Nadu" style={inputStyle} />
+                  <input value={plantLocation} onChange={e => setPlantLocation(e.target.value)} placeholder="e.g. Chennai, Tamil Nadu" style={inputStyle} />
                 </div>
               </div>
               <div>
@@ -254,39 +265,9 @@ export default function OnboardingWizard() {
               </button>
             </div>
 
-            {addedDepts.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {addedDepts.map((d, i) => (
-                  <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 20, background: '#EFF6FF', color: '#2563EB', fontSize: 12, fontWeight: 600 }}>
-                    {d.name}
-                    <button onClick={() => setAddedDepts(addedDepts.filter((_, j) => j !== i))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#2563EB', padding: 0, marginLeft: 2 }}><X size={11} /></button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            {addedPlants.length > 0 && (
-              <div style={{ background: 'var(--surface2)', borderRadius: 10, border: '1px solid var(--border)', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Add Department</div>
-                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: 150 }}>
-                    <label style={labelStyle}>Department Name</label>
-                    <input value={deptName} onChange={e => setDeptName(e.target.value)} placeholder="Quality Assurance" style={inputStyle} />
-                  </div>
-                  <div style={{ flex: 1, minWidth: 150 }}>
-                    <label style={labelStyle}>Plant</label>
-                    <select value={deptPlant} onChange={e => setDeptPlant(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                      <option value="">Select plant…</option>
-                      {allPlantNames.map(n => <option key={n} value={n}>{n}</option>)}
-                    </select>
-                  </div>
-                </div>
-                <button onClick={handleAddDept} disabled={!deptName.trim() || !deptPlant}
-                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: deptName.trim() && deptPlant ? accent : 'var(--muted)', fontWeight: 600, fontSize: 13, cursor: deptName.trim() && deptPlant ? 'pointer' : 'default' }}>
-                  <Plus size={14} /> Add Department
-                </button>
-              </div>
-            )}
+            <div style={{ padding: '10px 14px', background: '#EFF6FF', borderRadius: 8, fontSize: 12, color: '#2563EB', fontWeight: 500 }}>
+              Each plant includes 4 free users. Additional users can be added later.
+            </div>
           </div>
         );
 
@@ -294,64 +275,8 @@ export default function OnboardingWizard() {
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div>
-              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Invite Your Team</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Invite factory managers, auditors, and staff who'll fill forms. You can skip and invite later.</div>
-            </div>
-
-            {invitedUsers.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {invitedUsers.map((u, i) => (
-                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--surface2)', borderRadius: 8, border: '1px solid var(--border)' }}>
-                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: accent, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>
-                      {u.name.split(' ').map(w => w[0]).join('').toUpperCase().substring(0, 2)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{u.name}</div>
-                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{u.email} · {u.role}</div>
-                    </div>
-                    <button onClick={() => setInvitedUsers(invitedUsers.filter((_, j) => j !== i))}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', padding: 4 }}>
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div style={{ background: 'var(--surface2)', borderRadius: 10, border: '1px solid var(--border)', padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: 150 }}>
-                  <label style={labelStyle}>Name</label>
-                  <input value={inviteName} onChange={e => setInviteName(e.target.value)} placeholder="Ravi Kumar" style={inputStyle} />
-                </div>
-                <div style={{ flex: 1, minWidth: 150 }}>
-                  <label style={labelStyle}>Email</label>
-                  <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="ravi@factory.com" type="email" style={inputStyle} />
-                </div>
-              </div>
-              <div>
-                <label style={labelStyle}>Role</label>
-                <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                  <option value="Admin">Administrator</option>
-                  <option value="Editor">Form Editor</option>
-                  <option value="Auditor">Auditor</option>
-                  <option value="Viewer">Viewer</option>
-                </select>
-              </div>
-              <button onClick={handleAddUser} disabled={!inviteName.trim() || !inviteEmail.trim()}
-                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, padding: '8px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: inviteName.trim() && inviteEmail.trim() ? accent : 'var(--muted)', fontWeight: 600, fontSize: 13, cursor: inviteName.trim() && inviteEmail.trim() ? 'pointer' : 'default' }}>
-                <Plus size={14} /> Add Team Member
-              </button>
-            </div>
-          </div>
-        );
-
-      case 4:
-        return (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
               <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Pick Compliance Templates</div>
-              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Select industry templates to get started quickly. You can customize them later.</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)' }}>Select industry templates to get started. All templates are free during early access.</div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)', gap: 10 }}>
@@ -380,7 +305,7 @@ export default function OnboardingWizard() {
 
             {selectedTemplates.length > 0 && (
               <div style={{ fontSize: 12, color: accent, fontWeight: 600 }}>
-                {selectedTemplates.length} template{selectedTemplates.length > 1 ? 's' : ''} selected
+                {selectedTemplates.length} template{selectedTemplates.length > 1 ? 's' : ''} selected — Free
               </div>
             )}
           </div>
@@ -398,7 +323,6 @@ export default function OnboardingWizard() {
       display: 'flex', flexDirection: 'column', alignItems: 'center',
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
-      {/* Header */}
       <div style={{ width: '100%', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 10, borderBottom: '1px solid var(--border)' }}>
         <img src="/icon.png" alt="DockForm" style={{ width: 28, height: 28, borderRadius: 8 }} />
         <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>DockForm</span>
@@ -409,7 +333,6 @@ export default function OnboardingWizard() {
         </button>
       </div>
 
-      {/* Progress */}
       <div style={{ width: '100%', maxWidth: 600, padding: isMobile ? '24px 16px 0' : '32px 24px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 0, marginBottom: 32 }}>
           {STEPS.map((s, i) => {
@@ -418,16 +341,13 @@ export default function OnboardingWizard() {
             const isCurrent = i === step;
             return (
               <div key={i} style={{ display: 'flex', alignItems: 'center', flex: i < STEPS.length - 1 ? 1 : 0 }}>
-                <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4,
-                }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 4 }}>
                   <div style={{
                     width: 36, height: 36, borderRadius: '50%',
                     background: isDone ? accent : isCurrent ? `${accent}20` : 'var(--surface2)',
                     color: isDone ? '#fff' : isCurrent ? accent : 'var(--muted)',
                     border: isCurrent ? `2px solid ${accent}` : '2px solid transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'all 0.2s',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s',
                   }}>
                     {isDone ? <CheckCircle size={16} /> : <Icon size={16} />}
                   </div>
@@ -451,12 +371,10 @@ export default function OnboardingWizard() {
         </div>
       </div>
 
-      {/* Step content */}
       <div style={{ width: '100%', maxWidth: 600, padding: isMobile ? '0 16px' : '0 24px', flex: 1, overflowY: 'auto' }}>
         {renderStep()}
       </div>
 
-      {/* Footer nav */}
       <div style={{
         width: '100%', maxWidth: 600, padding: isMobile ? '20px 16px' : '24px',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
@@ -476,9 +394,15 @@ export default function OnboardingWizard() {
         ) : (
           <button onClick={handleFinish}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 24px', borderRadius: 8, border: 'none', background: accent, color: '#fff', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-            <CheckCircle size={14} /> Launch Workspace
+            <CheckCircle size={14} /> Submit & Launch
           </button>
         )}
+      </div>
+
+      <div style={{ width: '100%', padding: '12px 24px', borderTop: '1px solid var(--border)', textAlign: 'center' }}>
+        <span style={{ fontSize: 11, color: 'var(--muted)' }}>
+          Your account will be reviewed and activated by the DockForm team. You'll receive an email once approved.
+        </span>
       </div>
     </div>
   );

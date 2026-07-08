@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react';
 import {
   PanelLeft, Search, LayoutDashboard, FileText, BookOpen, CheckCircle,
   Upload, Users, Building2, Factory, Layers, UsersRound, Shield, Key,
-  Settings, HelpCircle, ArrowLeft, ChevronDown,
+  Settings, HelpCircle, ArrowLeft, ChevronDown, UserCheck,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars, legibleAccent } from '../../lib/theme';
@@ -32,6 +32,7 @@ const STRUCTURE: NavItemDef[] = [
 ];
 
 const SYSTEM: NavItemDef[] = [
+  { key: 'accounts', label: 'Accounts', icon: UserCheck },
   { key: 'settings', label: 'Settings', icon: Settings },
   { key: 'help', label: 'Help', icon: HelpCircle },
 ];

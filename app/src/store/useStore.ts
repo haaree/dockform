@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, Role, PermissionRow, ResponseItem, TemplatePack, LogicRule, FormSchedule } from './types';
+import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, Role, PermissionRow, ResponseItem, TemplatePack, LogicRule, FormSchedule, AccountItem, AccountSubscription } from './types';
 
 interface AppState {
   // Auth
@@ -60,6 +60,7 @@ interface AppState {
   users: UserItem[];
   forms: FormItem[];
   responses: ResponseItem[];
+  accounts: AccountItem[];
 
   // Actions
   setAuth: (isAuthed: boolean) => void;
@@ -138,6 +139,12 @@ interface AppState {
   submitResponse: (formId: number, values: Record<string, string>) => void;
   viewingFormId: number | null;
   viewFormResponses: (id: number) => void;
+
+  // Account management
+  addAccount: (account: Omit<AccountItem, 'id'>) => void;
+  activateAccount: (id: number, subscription: AccountSubscription) => void;
+  suspendAccount: (id: number) => void;
+  updateAccountSubscription: (id: number, updates: Partial<AccountSubscription>) => void;
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -277,6 +284,10 @@ export const useStore = create<AppState>((set) => ({
     { id: 3, formId: 0, form: 'Workplace Incident & Accident Report', packId: 'incident-report', submittedBy: 'Anita Desai', plant: 'Pune Auto Parts Facility', date: 'Jun 29, 2026', status: 'review' },
     { id: 4, formId: 0, form: 'Employee Onboarding Form', packId: 'employee-onboarding', submittedBy: 'Kavya Reddy', plant: 'Bengaluru Electronics Unit', date: 'Jun 27, 2026', status: 'published' },
     { id: 5, formId: 0, form: 'Visitor Entry & Exit Register', packId: 'visitor-log', submittedBy: 'Security Desk', plant: 'Chennai Manufacturing Plant', date: 'Jun 26, 2026', status: 'draft' },
+  ],
+  accounts: [
+    { id: 1, name: 'Kumar Rajagopal', email: 'kumar@isoconsult.in', role: 'Consultant', phone: '+91 98765 43210', status: 'pending' as const, createdAt: '2026-07-08', subscription: { maxCompanies: 1, maxPlantsPerCompany: 1, freeUsersPerPlant: 4, accountExpiry: '', plan: 'trial' as const, multiCompany: false, multiPlant: false }, companiesUsed: 0, plantsUsed: 0 },
+    { id: 2, name: 'Priya Sharma', email: 'priya@safetyfirst.com', role: 'Safety Officer', phone: '+91 87654 32109', status: 'active' as const, createdAt: '2026-06-15', subscription: { maxCompanies: 3, maxPlantsPerCompany: 2, freeUsersPerPlant: 4, accountExpiry: '2027-06-15', plan: 'professional' as const, multiCompany: true, multiPlant: true }, companiesUsed: 2, plantsUsed: 3 },
   ],
 
   setAuth: (isAuthed) => set((s) => {
@@ -562,4 +573,20 @@ export const useStore = create<AppState>((set) => ({
 
   viewingFormId: null as number | null,
   viewFormResponses: (id: number) => set({ viewingFormId: id, nav: 'form-responses' }),
+
+  addAccount: (account) => set((s) => ({
+    accounts: [...s.accounts, { ...account, id: Math.max(0, ...s.accounts.map(a => a.id)) + 1 }],
+  })),
+
+  activateAccount: (id, subscription) => set((s) => ({
+    accounts: s.accounts.map(a => a.id === id ? { ...a, status: 'active' as const, subscription } : a),
+  })),
+
+  suspendAccount: (id) => set((s) => ({
+    accounts: s.accounts.map(a => a.id === id ? { ...a, status: 'suspended' as const } : a),
+  })),
+
+  updateAccountSubscription: (id, updates) => set((s) => ({
+    accounts: s.accounts.map(a => a.id === id ? { ...a, subscription: { ...a.subscription, ...updates } } : a),
+  })),
 }));

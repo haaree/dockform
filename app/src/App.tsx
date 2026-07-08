@@ -23,6 +23,7 @@ import PermissionsScreen from './components/screens/PermissionsScreen';
 import SettingsScreen from './components/screens/SettingsScreen';
 import PlaceholderScreen from './components/screens/PlaceholderScreen';
 import OnboardingWizard from './components/screens/OnboardingWizard';
+import AccountsScreen from './components/screens/AccountsScreen';
 
 function SaveTemplateModal() {
   const show = useStore((s) => s.showSaveTemplateModal);
@@ -92,6 +93,7 @@ function ScreenSwitch() {
     case 'teams': return <TeamsScreen />;
     case 'roles': return <RolesScreen />;
     case 'permissions': return <PermissionsScreen />;
+    case 'accounts': return <AccountsScreen />;
     case 'settings': return <SettingsScreen />;
     case 'help': return <PlaceholderScreen title="Help Center" />;
     default: return <Dashboard />;

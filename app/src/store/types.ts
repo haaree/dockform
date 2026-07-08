@@ -126,6 +126,29 @@ export interface ResponseItem {
   companyId?: number;
 }
 
+export interface AccountSubscription {
+  maxCompanies: number;
+  maxPlantsPerCompany: number;
+  freeUsersPerPlant: number;
+  accountExpiry: string;
+  plan: 'trial' | 'starter' | 'professional' | 'enterprise';
+  multiCompany: boolean;
+  multiPlant: boolean;
+}
+
+export interface AccountItem {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  phone: string;
+  status: 'pending' | 'active' | 'suspended' | 'expired';
+  createdAt: string;
+  subscription: AccountSubscription;
+  companiesUsed: number;
+  plantsUsed: number;
+}
+
 export interface TemplatePack {
   id: string;
   name: string;
