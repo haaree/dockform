@@ -300,7 +300,7 @@ export const useStore = create<AppState>((set) => ({
       if (isDockformAdmin) {
         return { isAuthed, isDockformAdmin: true, currentUserId: user?.id || 1, currentUserRole: 'Admin', activeCompanyId: null };
       }
-      const activeCompanyId = user?.companyId || s.companies[0]?.id || null;
+      const activeCompanyId = user?.companyId || null;
       return { isAuthed, isDockformAdmin: false, currentUserId: user?.id || null, currentUserRole: user?.role || 'Viewer', activeCompanyId };
     }
     return { isAuthed, currentUserId: null, currentUserRole: '', isDockformAdmin: false };

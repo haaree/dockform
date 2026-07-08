@@ -76,17 +76,37 @@ export default function OnboardingWizard() {
   const resolvedRole = profileRole === 'Other' ? profileOtherRole.trim() : profileRole;
 
   const handleFinish = () => {
+    const addUser = useStore.getState().addUser;
     addedCompanies.forEach(c => addCompany(c.name, c.code, c.type));
     addedPlants.forEach(p => addPlant(p.name, '', p.company, p.location, ''));
-    if (addedCompanies.length > 0) {
-      const allCompanies = useStore.getState().companies;
-      const newest = allCompanies[allCompanies.length - 1];
-      if (newest) setActiveCompany(newest.id);
+
+    const state = useStore.getState();
+    const newCompanyId = addedCompanies.length > 0
+      ? state.companies[state.companies.length - 1]?.id || null
+      : null;
+
+    if (newCompanyId) {
+      setActiveCompany(newCompanyId);
     }
+
+    addUser(profileName.trim(), profileEmail.trim(), resolvedRole || 'Viewer', '—');
+    const updatedState = useStore.getState();
+    const newUser = updatedState.users[updatedState.users.length - 1];
+    if (newUser && newCompanyId) {
+      useStore.setState({
+        users: updatedState.users.map(u => u.id === newUser.id ? { ...u, companyId: newCompanyId } : u),
+        currentUserId: newUser.id,
+        currentUserRole: newUser.role,
+      });
+    } else if (newUser) {
+      useStore.setState({ currentUserId: newUser.id, currentUserRole: newUser.role });
+    }
+
     selectedTemplates.forEach(tid => {
       const pack = getBuiltInPacks().find(p => p.id === tid);
       if (pack) activatePack(pack);
     });
+
     addAccount({
       name: profileName.trim(),
       email: profileEmail.trim(),
