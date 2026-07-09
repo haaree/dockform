@@ -241,6 +241,7 @@ export const useStore = create<AppState>((set) => ({
     { id: 2, name: 'Acme Textiles Pvt Ltd', code: 'ACM-002', type: 'Subsidiary', plants: 2, employees: 680, status: 'active' },
     { id: 3, name: 'Acme Auto Components', code: 'ACM-003', type: 'Subsidiary', plants: 1, employees: 310, status: 'active' },
     { id: 4, name: 'Acme Green Energy', code: 'ACM-004', type: 'Joint Venture', plants: 1, employees: 95, status: 'inactive' },
+    { id: 5, name: 'Asian Sealing Products Pvt Ltd', code: 'ASP-001', type: 'Standalone', plants: 3, employees: 520, status: 'active' },
   ],
   plants: [
     { id: 1, name: 'Chennai Manufacturing Plant', code: 'PLT-CH01', company: 'Acme Precision Industries', location: 'Chennai, Tamil Nadu', capacity: '450 workers', status: 'active' },
@@ -248,6 +249,9 @@ export const useStore = create<AppState>((set) => ({
     { id: 3, name: 'Pune Auto Parts Facility', code: 'PLT-PN01', company: 'Acme Auto Components', location: 'Pune, Maharashtra', capacity: '310 workers', status: 'active' },
     { id: 4, name: 'Bengaluru Electronics Unit', code: 'PLT-BL01', company: 'Acme Precision Industries', location: 'Bengaluru, Karnataka', capacity: '260 workers', status: 'review' },
     { id: 5, name: 'Nagpur Ancillary Plant', code: 'PLT-NG01', company: 'Acme Precision Industries', location: 'Nagpur, Maharashtra', capacity: '180 workers', status: 'draft' },
+    { id: 6, name: 'Unit 1 — Main Production', code: 'ASP-U01', company: 'Asian Sealing Products Pvt Ltd', location: 'Ambattur, Chennai', capacity: '200 workers', status: 'active' },
+    { id: 7, name: 'Unit 2 — Assembly & Packing', code: 'ASP-U02', company: 'Asian Sealing Products Pvt Ltd', location: 'Ambattur, Chennai', capacity: '180 workers', status: 'active' },
+    { id: 8, name: 'Unit 3 — Warehouse', code: 'ASP-U03', company: 'Asian Sealing Products Pvt Ltd', location: 'Ambattur, Chennai', capacity: '140 workers', status: 'active' },
   ],
   departments: [
     { id: 1, name: 'Production', plant: 'Chennai Manufacturing Plant', head: 'Ravi Kumar', headcount: 180, status: 'active' },
@@ -273,12 +277,28 @@ export const useStore = create<AppState>((set) => ({
     { id: 2, name: 'Michael Torres', email: 'm.torres@acme.com', role: 'Editor', department: 'Operations', status: 'active', initials: 'MT', color: '#059669', companyId: 1 },
     { id: 3, name: 'Emily Nakamura', email: 'emily.n@acme.com', role: 'Viewer', department: 'Quality', status: 'inactive', initials: 'EN', color: '#7C3AED', companyId: 2 },
     { id: 4, name: 'James Wilson', email: 'j.wilson@acme.com', role: 'Editor', department: 'Safety', status: 'active', initials: 'JW', color: '#0D9488', companyId: 1 },
+    { id: 5, name: 'Keerthiga S', email: 'keerthiga@asiansealing.com', role: 'Auditor', department: 'Human Resources', status: 'active', initials: 'KS', color: '#D97706', companyId: 5 },
   ],
   forms: [
     { id: 1, name: 'Employee Onboarding', fields: 12, responses: 47, status: 'published', updated: 'Jun 28', category: 'HR', companyId: 1 },
     { id: 2, name: 'Plant Safety Checklist', fields: 8, responses: 0, status: 'draft', updated: 'Jun 30', category: 'Safety', companyId: 1 },
     { id: 3, name: 'Equipment Inspection Report', fields: 15, responses: 23, status: 'published', updated: 'Jun 25', category: 'Maintenance', companyId: 2 },
     { id: 4, name: 'Supplier Quality Audit', fields: 20, responses: 5, status: 'review', updated: 'Jun 29', category: 'Quality', companyId: 1 },
+    {
+      id: 5, name: 'Site Cleanliness Audit', fields: 8, responses: 3, status: 'published', updated: 'Jul 9', category: 'Housekeeping', companyId: 5,
+      assignedUserIds: [5],
+      schedule: { frequency: 'daily' as const, startDate: '2026-07-01', time: '08:00' },
+      fieldDefs: [
+        { id: 'f1', type: 'dropdown', label: 'Unit', placeholder: '', helpText: '', defaultValue: '', required: true, readOnly: false, hidden: false, searchable: false, indexed: false, options: ['Unit 1 — Main Production', 'Unit 2 — Assembly & Packing', 'Unit 3 — Warehouse'], validation: { min: '', max: '', pattern: '', message: '' }, logic: [] },
+        { id: 'f2', type: 'dropdown', label: 'Area', placeholder: '', helpText: '', defaultValue: '', required: true, readOnly: false, hidden: false, searchable: false, indexed: false, options: ['Shop Floor', 'Canteen', 'Washroom', 'Entry Gate', 'Parking Area', 'Store Room', 'Office Area'], validation: { min: '', max: '', pattern: '', message: '' }, logic: [] },
+        { id: 'f3', type: 'radio', label: 'Cleanliness Rating', placeholder: '', helpText: 'Rate the overall cleanliness of this area', defaultValue: '', required: true, readOnly: false, hidden: false, searchable: false, indexed: false, options: ['Clean', 'Needs Attention', 'Dirty', 'Hazardous'], validation: { min: '', max: '', pattern: '', message: '' }, logic: [] },
+        { id: 'f4', type: 'beforeafter', label: 'Photo Evidence', placeholder: '', helpText: 'Take a before photo, clean the area, then take an after photo', defaultValue: '', required: false, readOnly: false, hidden: false, searchable: false, indexed: false, options: [], validation: { min: '', max: '', pattern: '', message: '' }, logic: [] },
+        { id: 'f5', type: 'checkbox', label: 'Issues Found', placeholder: '', helpText: '', defaultValue: '', required: false, readOnly: false, hidden: false, searchable: false, indexed: false, options: ['Trash not cleared', 'Spills on floor', 'Dusty surfaces', 'Foul odour', 'Broken fixtures', 'Pest sighting'], validation: { min: '', max: '', pattern: '', message: '' }, logic: [] },
+        { id: 'f6', type: 'textarea', label: 'Corrective Action Taken', placeholder: 'Describe what was done to fix issues…', helpText: '', defaultValue: '', required: false, readOnly: false, hidden: false, searchable: false, indexed: false, options: [], validation: { min: '', max: '', pattern: '', message: '' }, logic: [] },
+        { id: 'f7', type: 'toggle', label: 'Area cleared and safe?', placeholder: '', helpText: '', defaultValue: '', required: true, readOnly: false, hidden: false, searchable: false, indexed: false, options: [], validation: { min: '', max: '', pattern: '', message: '' }, logic: [] },
+        { id: 'f8', type: 'signature', label: 'Auditor Signature', placeholder: '', helpText: '', defaultValue: '', required: true, readOnly: false, hidden: false, searchable: false, indexed: false, options: [], validation: { min: '', max: '', pattern: '', message: '' }, logic: [] },
+      ],
+    },
   ],
   responses: [
     { id: 1, formId: 0, form: 'Tamil Nadu Factory Act Compliance Checklist', packId: 'tn-factory-act', submittedBy: 'Ravi Kumar', plant: 'Chennai Manufacturing Plant', date: 'Jun 30, 2026', status: 'published' },

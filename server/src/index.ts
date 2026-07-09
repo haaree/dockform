@@ -12,6 +12,7 @@ import usersRouter from './routes/users.js';
 import formsRouter from './routes/forms.js';
 import responsesRouter from './routes/responses.js';
 import dashboardRouter from './routes/dashboard.js';
+import cronRouter from './routes/cron.js';
 import { authMiddleware } from './middleware/auth.js';
 
 export const prisma = new PrismaClient();
@@ -25,6 +26,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 app.use('/api/auth', authRouter);
+app.use('/api/cron', cronRouter);
 
 app.use('/api', authMiddleware);
 app.use('/api/dashboard', dashboardRouter);

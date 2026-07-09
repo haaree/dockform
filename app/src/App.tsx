@@ -114,6 +114,7 @@ function AssignUsersModal() {
   const [frequency, setFrequency] = useState<FormSchedule['frequency']>('once');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDay, setDueDay] = useState(28);
+  const [scheduleTime, setScheduleTime] = useState('09:00');
 
   if (!show) return null;
 
@@ -123,7 +124,7 @@ function AssignUsersModal() {
   );
 
   const handlePublish = () => {
-    const schedule: FormSchedule | undefined = frequency !== 'once' ? { frequency, startDate, dueDay } : undefined;
+    const schedule: FormSchedule | undefined = frequency !== 'once' ? { frequency, startDate, dueDay, time: scheduleTime } : undefined;
     publishForm(selectedIds, schedule);
   };
 
@@ -222,9 +223,15 @@ function AssignUsersModal() {
 
             {frequency !== 'once' && (
               <>
-                <div style={{ marginBottom: 14 }}>
-                  <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }}>Start Date</label>
-                  <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={inputStyle} />
+                <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }}>Start Date</label>
+                    <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} style={inputStyle} />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6, display: 'block' }}>Email Reminder Time</label>
+                    <input type="time" value={scheduleTime} onChange={e => setScheduleTime(e.target.value)} style={inputStyle} />
+                  </div>
                 </div>
 
                 {(frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') && (
@@ -241,7 +248,7 @@ function AssignUsersModal() {
                 <div style={{ background: `${accent}08`, border: `1px solid ${accent}30`, borderRadius: 8, padding: 12, marginBottom: 16 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, color: accent, marginBottom: 4 }}>Schedule Summary</div>
                   <div style={{ fontSize: 12, color: 'var(--text)' }}>
-                    This form will be due <strong>{frequency}</strong> starting from <strong>{new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>
+                    This form will be due <strong>{frequency}</strong> starting from <strong>{new Date(startDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</strong>. Email reminder at <strong>{scheduleTime}</strong>
                     {(frequency === 'monthly' || frequency === 'quarterly' || frequency === 'yearly') && <>, due by the <strong>{dueDay}{dueDay === 1 ? 'st' : dueDay === 2 ? 'nd' : dueDay === 3 ? 'rd' : 'th'}</strong> of each period</>}.
                     {selectedIds.length > 0 && <> Assigned to <strong>{selectedIds.length}</strong> user{selectedIds.length !== 1 ? 's' : ''}.</>}
                   </div>

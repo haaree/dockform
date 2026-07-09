@@ -26,6 +26,8 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       EMAIL_FROM: ${EMAIL_FROM:-DockForm <noreply@dockform.com>}
       ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      APP_URL: ${APP_URL:-http://localhost:3000}
+      CRON_SECRET: ${CRON_SECRET:-}
       PORT: "3000"
 
   web:

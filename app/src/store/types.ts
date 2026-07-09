@@ -27,6 +27,7 @@ export interface FormSchedule {
   frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   startDate: string;
   dueDay?: number;
+  time?: string;
 }
 
 export interface FormItem {

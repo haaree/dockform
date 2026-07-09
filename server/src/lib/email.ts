@@ -103,18 +103,19 @@ export async function sendResponseSubmittedEmail(to: string, fullName: string, f
   return send(to, `New Response: ${formName}`, html);
 }
 
-export async function sendFormDueReminderEmail(to: string, fullName: string, formName: string, dueDate: string) {
-  const html = wrap('Form Due Reminder', `
+export async function sendFormDueReminderEmail(to: string, fullName: string, formName: string, dueDate: string, formLink?: string) {
+  const html = wrap('Form Due — Action Required', `
     <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Hi ${fullName},</p>
-    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">This is a reminder that the following form is due:</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Your scheduled audit/checklist is due today:</p>
     <div style="margin:16px 0;padding:14px 18px;background:#fef3c7;border:1px solid #fde68a;border-radius:8px;">
       <p style="margin:0 0 4px;font-size:15px;color:#92400e;font-weight:700;">${formName}</p>
       <p style="margin:0;font-size:13px;color:#92400e;">Due: ${dueDate}</p>
     </div>
-    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Please log in to DockForm and complete the form before the deadline.</p>
+    ${formLink ? `<div style="margin:16px 0;text-align:center;"><a href="${formLink}" style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;">Open & Fill Form</a></div>` : ''}
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Please complete the form before end of day.</p>
     <p style="margin:0;font-size:14px;color:#6b7280;">— The DockForm Team</p>
   `);
-  return send(to, `Reminder: ${formName} is due ${dueDate}`, html);
+  return send(to, `Action Required: ${formName} — ${dueDate}`, html);
 }
 
 export async function sendFormOverdueEmail(to: string, fullName: string, formName: string, dueDate: string) {
