@@ -9,7 +9,7 @@ router.get('/', async (_req, res) => {
     orderBy: { updatedAt: 'desc' },
     include: { _count: { select: { fields: true, responses: true } } },
   });
-  res.json(forms.map(f => ({
+  res.json(forms.map((f: any) => ({
     id: f.id, name: f.name, fields: f._count.fields, responses: f._count.responses,
     status: f.status, updated: f.updatedAt.toISOString(), category: f.domain || 'General',
   })));

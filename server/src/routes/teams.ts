@@ -8,7 +8,7 @@ router.get('/', async (_req, res) => {
     orderBy: { name: 'asc' },
     include: { department: { select: { name: true } }, lead: { select: { fullName: true } }, _count: { select: { users: true } } },
   });
-  res.json(teams.map(t => ({
+  res.json(teams.map((t: any) => ({
     id: t.id, name: t.name, department: t.department.name, lead: t.lead?.fullName || '—',
     members: t._count.users, status: t.status,
   })));

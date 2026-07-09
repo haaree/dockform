@@ -11,7 +11,7 @@ router.get('/', async (_req, res) => {
     orderBy: { fullName: 'asc' },
     include: { role: true, department: true },
   });
-  res.json(users.map((u, i) => {
+  res.json(users.map((u: any, i: number) => {
     const parts = u.fullName.split(' ');
     const initials = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
     return {

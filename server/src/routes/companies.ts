@@ -8,7 +8,7 @@ router.get('/', async (_req, res) => {
     orderBy: { name: 'asc' },
     include: { _count: { select: { plants: true, users: true } } },
   });
-  res.json(companies.map(c => ({
+  res.json(companies.map((c: any) => ({
     id: c.id, name: c.name, code: c.code, type: c.type,
     plants: c._count.plants, employees: c._count.users, status: c.status,
   })));

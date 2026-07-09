@@ -9,7 +9,7 @@ router.get('/', async (_req, res) => {
     orderBy: { submittedAt: 'desc' },
     include: { form: { select: { name: true } }, user: { select: { fullName: true } }, plant: { select: { name: true } } },
   });
-  res.json(responses.map(r => ({
+  res.json(responses.map((r: any) => ({
     id: r.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown',
     plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
   })));

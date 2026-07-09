@@ -8,7 +8,7 @@ router.get('/', async (_req, res) => {
     orderBy: { name: 'asc' },
     include: { plant: { select: { name: true } }, head: { select: { fullName: true } }, _count: { select: { users: true } } },
   });
-  res.json(depts.map(d => ({
+  res.json(depts.map((d: any) => ({
     id: d.id, name: d.name, plant: d.plant.name, head: d.head?.fullName || '—',
     headcount: d._count.users, status: d.status,
   })));

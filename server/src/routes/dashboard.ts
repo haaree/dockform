@@ -14,7 +14,7 @@ router.get('/', async (_req, res) => {
 
   res.json({
     stats: { forms: formCount, responses: responseCount, users: userCount, plants: plantCount },
-    recentForms: recentForms.map(f => ({
+    recentForms: recentForms.map((f: any) => ({
       id: f.id, name: f.name, fields: f._count.fields, responses: f._count.responses,
       status: f.status, updated: f.updatedAt.toISOString(), category: f.domain || 'General',
     })),
