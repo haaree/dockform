@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
+import { sendResponseSubmittedEmail } from '../lib/email.js';
 
 const router = Router();
 
@@ -24,6 +25,12 @@ router.post('/', async (req, res) => {
     include: { values: true },
   });
   res.status(201).json(response);
+
+  const form = await prisma.form.findUnique({ where: { id: formId }, include: { createdBy: true } });
+  if (form?.createdBy?.email) {
+    const submitter = await prisma.user.findUnique({ where: { id: req.auth?.userId } });
+    sendResponseSubmittedEmail(form.createdBy.email, form.createdBy.fullName, form.name, submitter?.fullName || 'Someone');
+  }
 });
 
 export default router;

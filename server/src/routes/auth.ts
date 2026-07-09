@@ -2,6 +2,7 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { prisma } from '../index.js';
 import { signToken } from '../middleware/auth.js';
+import { sendWelcomeEmail, sendAdminNewSignupEmail } from '../lib/email.js';
 
 const router = Router();
 
@@ -35,6 +36,11 @@ router.post('/signup', async (req, res) => {
 
   const token = signToken({ userId: user.id, roleKey: user.role?.key || 'viewer' });
   res.json({ token, user: { id: user.id, email: user.email, fullName: user.fullName, roleKey: user.role?.key, preferences: user.preferences } });
+
+  sendWelcomeEmail(user.email, user.fullName);
+  if (process.env.ADMIN_EMAIL) {
+    sendAdminNewSignupEmail(process.env.ADMIN_EMAIL, user.fullName, user.email);
+  }
 });
 
 export default router;

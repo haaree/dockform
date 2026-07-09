@@ -23,6 +23,9 @@ services:
     environment:
       DATABASE_URL: postgresql://dockform:${DB_PASSWORD:-dockform_secret}@db:5432/dockform
       JWT_SECRET: ${JWT_SECRET:-dockform-factory-jwt-secret-change-me}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-DockForm <noreply@dockform.com>}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
       PORT: "3000"
 
   web:
