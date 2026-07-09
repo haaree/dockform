@@ -59,4 +59,14 @@ export const api = {
 
   getResponses: () => request<any[]>('/responses'),
   createResponse: (data: any) => request<any>('/responses', { method: 'POST', body: JSON.stringify(data) }),
+
+  // Email (best-effort, errors silently ignored)
+  sendWelcomeEmail: (to: string, fullName: string) =>
+    fetch(`${BASE}/email/welcome`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName }) }).catch(() => {}),
+  sendAccountApprovedEmail: (to: string, fullName: string, plan: string) =>
+    fetch(`${BASE}/email/account-approved`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName, plan }) }).catch(() => {}),
+  sendAccountSuspendedEmail: (to: string, fullName: string) =>
+    fetch(`${BASE}/email/account-suspended`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName }) }).catch(() => {}),
+  sendFormAssignedEmail: (to: string, fullName: string, formName: string, assignedBy: string) =>
+    fetch(`${BASE}/email/form-assigned`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName, formName, assignedBy }) }).catch(() => {}),
 };

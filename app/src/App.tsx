@@ -125,7 +125,17 @@ function AssignUsersModal() {
 
   const handlePublish = () => {
     const schedule: FormSchedule | undefined = frequency !== 'once' ? { frequency, startDate, dueDay, time: scheduleTime } : undefined;
+    const formName = useStore.getState().currentFormName;
     publishForm(selectedIds, schedule);
+    if (selectedIds.length > 0) {
+      import('./lib/api').then(({ api }) => {
+        const allUsers = useStore.getState().users;
+        selectedIds.forEach(uid => {
+          const u = allUsers.find(usr => usr.id === uid);
+          if (u) api.sendFormAssignedEmail(u.email, u.name, formName, 'DockForm Admin');
+        });
+      });
+    }
   };
 
   const handleClose = () => {

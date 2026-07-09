@@ -35,8 +35,14 @@ export default function AccountsScreen() {
 
   const handleActivate = () => {
     if (editId === null) return;
+    const acc = accounts.find(a => a.id === editId);
     activateAccount(editId, sub);
     setEditId(null);
+    if (acc) {
+      import('../../lib/api').then(({ api }) => {
+        api.sendAccountApprovedEmail(acc.email, acc.name, sub.plan || 'trial');
+      });
+    }
   };
 
   const handleUpdate = () => {
@@ -124,7 +130,7 @@ export default function AccountsScreen() {
                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                         <Edit3 size={13} /> Edit Plan
                       </button>
-                      <button onClick={() => suspendAccount(acc.id)}
+                      <button onClick={() => { suspendAccount(acc.id); import('../../lib/api').then(({ api }) => { api.sendAccountSuspendedEmail(acc.email, acc.name); }); }}
                         style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: '#EF4444', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                         <XCircle size={13} /> Suspend
                       </button>

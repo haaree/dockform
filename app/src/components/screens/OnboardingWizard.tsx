@@ -107,6 +107,11 @@ export default function OnboardingWizard() {
       if (pack) activatePack(pack);
     });
 
+    // Send welcome email + notify admin
+    import('../../lib/api').then(({ api }) => {
+      api.sendWelcomeEmail(profileEmail.trim(), profileName.trim());
+    });
+
     addAccount({
       name: profileName.trim(),
       email: profileEmail.trim(),
