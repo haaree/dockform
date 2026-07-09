@@ -93,10 +93,10 @@ function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v
   );
 }
 
-function BeforeAfterField({ value, onChange, accent }: { value: string; onChange: (v: string) => void; accent: string }) {
+function BeforeAfterField({ value, onChange }: { value: string; onChange: (v: string) => void; accent: string }) {
   const beforeRef = useRef<HTMLInputElement>(null);
   const afterRef = useRef<HTMLInputElement>(null);
-  let parsed: { before?: string; after?: string; observation?: string } = {};
+  let parsed: { before?: string; after?: string; beforeDesc?: string; afterDesc?: string; observation?: string } = {};
   try { parsed = JSON.parse(value || '{}'); } catch { /* empty */ }
 
   const update = (patch: Partial<typeof parsed>) => {
@@ -111,20 +111,20 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
     reader.readAsDataURL(file);
   };
 
-  const generateObservation = () => {
-    if (!parsed.before || !parsed.after) return;
-    update({ observation: 'AI observation: Visible changes detected between before and after photos. Detailed comparison requires server-side AI integration. (Demo)' });
-  };
+  const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 10px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginTop: 8 };
 
-  const photoBox = (label: string, key: 'before' | 'after', inputRef: React.RefObject<HTMLInputElement | null>) => (
+  const photoBox = (label: string, key: 'before' | 'after', descKey: 'beforeDesc' | 'afterDesc', inputRef: React.RefObject<HTMLInputElement | null>) => (
     <div style={{ flex: 1 }}>
       <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
       <input ref={inputRef} type="file" accept="image/*" onChange={handleFile(key)} style={{ display: 'none' }} />
       {parsed[key] ? (
-        <div style={{ position: 'relative' }}>
-          <img src={parsed[key]} alt={label} style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
-          <button type="button" onClick={() => update({ [key]: '' })}
-            style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
+        <div>
+          <div style={{ position: 'relative' }}>
+            <img src={parsed[key]} alt={label} style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+            <button type="button" onClick={() => update({ [key]: '', [descKey]: '' })}
+              style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
+          </div>
+          <input type="text" value={parsed[descKey] || ''} onChange={(e) => update({ [descKey]: e.target.value })} placeholder={`Describe ${label.toLowerCase()} photo…`} style={inputStyle} />
         </div>
       ) : (
         <button type="button" onClick={() => inputRef.current?.click()}
@@ -139,22 +139,14 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
   return (
     <div>
       <div style={{ display: 'flex', gap: 12 }}>
-        {photoBox('Before', 'before', beforeRef)}
-        {photoBox('After', 'after', afterRef)}
+        {photoBox('Before', 'before', 'beforeDesc', beforeRef)}
+        {photoBox('After', 'after', 'afterDesc', afterRef)}
       </div>
-      {parsed.before && parsed.after && (
-        <div style={{ marginTop: 12 }}>
-          <button type="button" onClick={generateObservation}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: 12, fontWeight: 600, border: 'none', borderRadius: 7, background: accent, color: '#fff', cursor: 'pointer', marginBottom: 8 }}>
-            <Star size={14} /> Generate AI Observation (Demo)
-          </button>
-          {parsed.observation && (
-            <div style={{ padding: 12, background: 'var(--surface2)', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
-              {parsed.observation}
-            </div>
-          )}
-        </div>
-      )}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Observation</div>
+        <textarea value={parsed.observation || ''} onChange={(e) => update({ observation: e.target.value })} placeholder="Write your observation here…"
+          style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none', minHeight: 80, resize: 'vertical', fontFamily: 'inherit' }} />
+      </div>
     </div>
   );
 }

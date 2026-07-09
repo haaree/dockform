@@ -20,7 +20,7 @@ export function downloadHTMLReport(formName: string, description: string, fieldD
       } else if (f.type === 'beforeafter') {
         try {
           const ba = JSON.parse(v);
-          display = `<div style="display:flex;gap:8px;margin-top:4px;">${ba.before ? `<img src="${ba.before}" style="max-width:45%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />` : ''}${ba.after ? `<img src="${ba.after}" style="max-width:45%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />` : ''}</div>${ba.observation ? `<div style="margin-top:6px;padding:8px;background:#f9fafb;border-radius:6px;font-size:12px;color:#374151;">${ba.observation}</div>` : ''}`;
+          display = `<div style="display:flex;gap:8px;margin-top:4px;">${ba.before ? `<div style="flex:1;"><img src="${ba.before}" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}${ba.after ? `<div style="flex:1;"><img src="${ba.after}" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}</div>${ba.observation ? `<div style="margin-top:6px;padding:8px;background:#f9fafb;border-radius:6px;font-size:12px;color:#374151;"><strong>Observation:</strong> ${ba.observation}</div>` : ''}`;
         } catch { display = v; }
       } else if (v.startsWith('data:image')) {
         display = `<img src="${v}" style="max-width:300px;max-height:200px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />`;

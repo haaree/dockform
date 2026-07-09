@@ -156,10 +156,20 @@ export default function FormResponses() {
       try {
         const ba = JSON.parse(val);
         return (
-          <div style={{ display: 'flex', gap: 8 }}>
-            {ba.before && <img src={ba.before} alt="Before" onClick={() => setImageModal(ba.before)} style={{ maxWidth: '48%', maxHeight: 160, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)' }} />}
-            {ba.after && <img src={ba.after} alt="After" onClick={() => setImageModal(ba.after)} style={{ maxWidth: '48%', maxHeight: 160, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)' }} />}
-            {ba.observation && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{ba.observation}</div>}
+          <div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {ba.before && <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>BEFORE</div>
+                <img src={ba.before} alt="Before" onClick={() => setImageModal(ba.before)} style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)' }} />
+                {ba.beforeDesc && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{ba.beforeDesc}</div>}
+              </div>}
+              {ba.after && <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--muted)', marginBottom: 4 }}>AFTER</div>
+                <img src={ba.after} alt="After" onClick={() => setImageModal(ba.after)} style={{ width: '100%', maxHeight: 160, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)' }} />
+                {ba.afterDesc && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{ba.afterDesc}</div>}
+              </div>}
+            </div>
+            {ba.observation && <div style={{ fontSize: 12, color: 'var(--text)', marginTop: 8, padding: '8px 10px', background: 'var(--surface2)', borderRadius: 6, borderLeft: '3px solid var(--border)' }}><strong>Observation:</strong> {ba.observation}</div>}
           </div>
         );
       } catch { /* fall through */ }

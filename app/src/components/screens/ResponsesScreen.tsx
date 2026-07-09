@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { StatusBadge } from '../ui/StatusBadge';
 import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport } from '../../lib/exportExcel';
+import { downloadAuditReport } from '../../lib/exportAuditReport';
 import { FileText } from 'lucide-react';
 
 function exportReport(formId: number) {
@@ -20,6 +21,15 @@ function exportExcel(formId: number) {
   if (!form) return;
   const formResponses = responses.filter(r => r.formId === formId);
   downloadExcelReport(form.name, form.description || '', form.fieldDefs || [], formResponses);
+}
+
+function exportAudit(formId: number) {
+  const { forms, responses, companies, activeCompanyId } = useStore.getState();
+  const form = forms.find(f => f.id === formId);
+  if (!form) return;
+  const formResponses = responses.filter(r => r.formId === formId);
+  const companyName = companies.find(c => c.id === (form.companyId || activeCompanyId))?.name || 'Company';
+  downloadAuditReport(form.name, form.description || '', form.fieldDefs || [], formResponses, companyName);
 }
 
 export default function ResponsesScreen() {
@@ -127,6 +137,10 @@ export default function ResponsesScreen() {
             <button onClick={() => { exportExcel(r.formId); setMenuId(null); }}
               style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
               <Download size={14} /> Download Excel (CSV)
+            </button>
+            <button onClick={() => { exportAudit(r.formId); setMenuId(null); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left', borderTop: '1px solid var(--border)' }}>
+              <FileText size={14} /> Audit Report (Single Page)
             </button>
           </div>
         );

@@ -27,10 +27,10 @@ export function downloadAuditReport(
             <div style="margin:10px 0;">
               <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}</div>
               <div style="display:flex;gap:10px;">
-                ${ba.before ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">BEFORE</div><img src="${ba.before}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" /></div>` : ''}
-                ${ba.after ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">AFTER</div><img src="${ba.after}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" /></div>` : ''}
+                ${ba.before ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">BEFORE</div><img src="${ba.before}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}
+                ${ba.after ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">AFTER</div><img src="${ba.after}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}
               </div>
-              ${ba.observation ? `<div style="margin-top:8px;padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;border-left:3px solid #3b82f6;"><strong>AI Observation:</strong> ${ba.observation}</div>` : ''}
+              ${ba.observation ? `<div style="margin-top:8px;padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;border-left:3px solid #3b82f6;"><strong>Observation:</strong> ${ba.observation}</div>` : ''}
             </div>`;
         } catch { return ''; }
       }
