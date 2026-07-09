@@ -290,6 +290,10 @@ function App() {
   const sidebarOpen = useStore((s) => s.sidebarOpen);
   const setWinWidth = useStore((s) => s.setWinWidth);
   const toggleSidebar = useStore((s) => s.toggleSidebar);
+  const isDockformAdmin = useStore((s) => s.isDockformAdmin);
+  const currentUserEmail = useStore((s) => s.authEmail);
+  const accounts = useStore((s) => s.accounts);
+  const logout = useStore((s) => s.logout);
 
   useEffect(() => {
     const handleResize = () => setWinWidth(window.innerWidth);
@@ -306,6 +310,32 @@ function App() {
 
   if (!onboardingComplete) {
     return <OnboardingWizard />;
+  }
+
+  const pendingAccount = !isDockformAdmin && accounts.find(a => a.email === currentUserEmail && a.status === 'pending');
+
+  if (pendingAccount) {
+    return (
+      <div style={{ ...themeVars, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'Inter', system-ui, sans-serif", background: 'var(--bg)' }}>
+        <div style={{ maxWidth: 440, width: '100%', padding: 20, textAlign: 'center' }}>
+          <div style={{ width: 64, height: 64, borderRadius: 16, background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 20px', fontSize: 28 }}>⏳</div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Account Pending Approval</h1>
+          <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 24 }}>
+            Thank you for signing up, <strong>{pendingAccount.name}</strong>! Your account is currently under review by the DockForm team. You'll receive an email at <strong>{pendingAccount.email}</strong> once your account is approved.
+          </p>
+          <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 24, textAlign: 'left' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10 }}>Your Details</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6 }}><strong>Name:</strong> {pendingAccount.name}</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6 }}><strong>Email:</strong> {pendingAccount.email}</div>
+            <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 6 }}><strong>Role:</strong> {pendingAccount.role}</div>
+            <div style={{ fontSize: 13, color: 'var(--text)' }}><strong>Submitted:</strong> {pendingAccount.createdAt}</div>
+          </div>
+          <button onClick={logout} style={{ padding: '10px 24px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+            Sign Out
+          </button>
+        </div>
+      </div>
+    );
   }
 
   return (
