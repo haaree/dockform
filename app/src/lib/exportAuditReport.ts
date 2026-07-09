@@ -1,0 +1,130 @@
+import type { FormField } from '../store/types';
+
+interface AuditResponseData {
+  submittedBy: string;
+  plant: string;
+  date: string;
+  values?: Record<string, string>;
+}
+
+export function downloadAuditReport(
+  formName: string,
+  description: string,
+  fieldDefs: FormField[],
+  responses: AuditResponseData[],
+  companyName: string,
+) {
+  const now = new Date().toLocaleString();
+
+  const activityRows = responses.map((r, i) => {
+    const vals = r.values || {};
+    const fields = fieldDefs.filter(f => !f.hidden).map(f => {
+      const v = vals[f.id] || '';
+      if (f.type === 'beforeafter') {
+        try {
+          const ba = JSON.parse(v);
+          return `
+            <div style="margin:10px 0;">
+              <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}</div>
+              <div style="display:flex;gap:10px;">
+                ${ba.before ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">BEFORE</div><img src="${ba.before}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" /></div>` : ''}
+                ${ba.after ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">AFTER</div><img src="${ba.after}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" /></div>` : ''}
+              </div>
+              ${ba.observation ? `<div style="margin-top:8px;padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;border-left:3px solid #3b82f6;"><strong>AI Observation:</strong> ${ba.observation}</div>` : ''}
+            </div>`;
+        } catch { return ''; }
+      }
+      if (!v) return '';
+      if (v.startsWith('data:image')) {
+        return `<div style="margin:6px 0;"><div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;">${f.label}</div><img src="${v}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;" /></div>`;
+      }
+      if (v.startsWith('data:')) return '';
+      if (f.type === 'toggle') {
+        const yes = v === 'true';
+        return `<div style="margin:4px 0;display:flex;gap:8px;align-items:center;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${yes ? '#dcfce7' : '#fee2e2'};color:${yes ? '#15803d' : '#dc2626'};">${yes ? 'Yes' : 'No'}</span></div>`;
+      }
+      if (f.type === 'rating') {
+        const n = parseInt(v) || 0;
+        return `<div style="margin:4px 0;display:flex;gap:8px;align-items:center;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:14px;letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span></div>`;
+      }
+      return `<div style="margin:4px 0;display:flex;gap:8px;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:12px;color:#1f2937;">${v.replace(/\|\|/g, ', ').replace(/</g, '&lt;')}</span></div>`;
+    }).filter(Boolean).join('');
+
+    return `
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;overflow:hidden;page-break-inside:avoid;">
+        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:13px;font-weight:700;color:#111827;">Activity #${i + 1}</span>
+          <div style="font-size:11px;color:#9ca3af;">${r.submittedBy} · ${r.plant} · ${r.date}</div>
+        </div>
+        <div style="padding:12px 14px;">${fields}</div>
+      </div>`;
+  }).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${formName} — Audit Report</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1f2937; }
+  @media print {
+    .no-print { display: none !important; }
+    body { font-size: 11px; }
+  }
+  @page { margin: 15mm; }
+</style>
+</head>
+<body>
+<div style="max-width:800px;margin:0 auto;padding:24px 20px;">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:20px;">
+    <div>
+      <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Audit Report</div>
+      <div style="font-size:22px;font-weight:800;color:#111827;margin-top:2px;">${formName}</div>
+      ${description ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${description}</div>` : ''}
+    </div>
+    <div style="text-align:right;">
+      <div style="width:40px;height:40px;border-radius:10px;background:#1a3f8f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;margin-left:auto;">D</div>
+      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">DockForm</div>
+    </div>
+  </div>
+
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
+    <div style="padding:10px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;flex:1;min-width:120px;">
+      <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;">Company</div>
+      <div style="font-size:14px;font-weight:700;color:#111827;margin-top:2px;">${companyName}</div>
+    </div>
+    <div style="padding:10px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;flex:1;min-width:120px;">
+      <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;">Activities</div>
+      <div style="font-size:14px;font-weight:700;color:#111827;margin-top:2px;">${responses.length}</div>
+    </div>
+    <div style="padding:10px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;flex:1;min-width:120px;">
+      <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;">Generated</div>
+      <div style="font-size:14px;font-weight:700;color:#111827;margin-top:2px;">${now}</div>
+    </div>
+  </div>
+
+  <div class="no-print" style="margin-bottom:16px;">
+    <button onclick="window.print()" style="padding:8px 18px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#374151;font-size:13px;font-weight:600;cursor:pointer;">Print / Save as PDF</button>
+  </div>
+
+  ${activityRows}
+
+  <div style="margin-top:24px;padding-top:16px;border-top:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+    <div style="font-size:10px;color:#9ca3af;">Generated by DockForm · ${now}</div>
+    <div style="font-size:10px;color:#9ca3af;">Page 1 of 1</div>
+  </div>
+</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `${formName.replace(/[^a-z0-9]+/gi, '_')}_audit_report.html`;
+  a.click();
+  URL.revokeObjectURL(url);
+}

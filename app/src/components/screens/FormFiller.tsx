@@ -93,6 +93,72 @@ function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v
   );
 }
 
+function BeforeAfterField({ value, onChange, accent }: { value: string; onChange: (v: string) => void; accent: string }) {
+  const beforeRef = useRef<HTMLInputElement>(null);
+  const afterRef = useRef<HTMLInputElement>(null);
+  let parsed: { before?: string; after?: string; observation?: string } = {};
+  try { parsed = JSON.parse(value || '{}'); } catch { /* empty */ }
+
+  const update = (patch: Partial<typeof parsed>) => {
+    onChange(JSON.stringify({ ...parsed, ...patch }));
+  };
+
+  const handleFile = (key: 'before' | 'after') => (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => update({ [key]: reader.result as string });
+    reader.readAsDataURL(file);
+  };
+
+  const generateObservation = () => {
+    if (!parsed.before || !parsed.after) return;
+    update({ observation: 'AI observation: Visible changes detected between before and after photos. Detailed comparison requires server-side AI integration. (Demo)' });
+  };
+
+  const photoBox = (label: string, key: 'before' | 'after', inputRef: React.RefObject<HTMLInputElement | null>) => (
+    <div style={{ flex: 1 }}>
+      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>{label}</div>
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile(key)} style={{ display: 'none' }} />
+      {parsed[key] ? (
+        <div style={{ position: 'relative' }}>
+          <img src={parsed[key]} alt={label} style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
+          <button type="button" onClick={() => update({ [key]: '' })}
+            style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
+        </div>
+      ) : (
+        <button type="button" onClick={() => inputRef.current?.click()}
+          style={{ width: '100%', height: 160, fontSize: 12, color: 'var(--muted)', background: 'var(--surface2)', border: '2px dashed var(--border)', borderRadius: 8, cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <Upload size={18} />
+          {label}
+        </button>
+      )}
+    </div>
+  );
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 12 }}>
+        {photoBox('Before', 'before', beforeRef)}
+        {photoBox('After', 'after', afterRef)}
+      </div>
+      {parsed.before && parsed.after && (
+        <div style={{ marginTop: 12 }}>
+          <button type="button" onClick={generateObservation}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', fontSize: 12, fontWeight: 600, border: 'none', borderRadius: 7, background: accent, color: '#fff', cursor: 'pointer', marginBottom: 8 }}>
+            <Star size={14} /> Generate AI Observation (Demo)
+          </button>
+          {parsed.observation && (
+            <div style={{ padding: 12, background: 'var(--surface2)', borderRadius: 8, border: '1px solid var(--border)', fontSize: 13, color: 'var(--text)', lineHeight: 1.5 }}>
+              {parsed.observation}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FileUploadField({ value, onChange, accept, label }: { value: string; onChange: (v: string) => void; accept: string; label: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
@@ -234,6 +300,9 @@ function FieldInput({ field, value, onChange }: { field: FormField; value: strin
 
     case 'image':
       return <FileUploadField value={value} onChange={onChange} accept="image/*" label="Tap to upload image" />;
+
+    case 'beforeafter':
+      return <BeforeAfterField value={value} onChange={onChange} accent={accent} />;
 
     case 'upload':
       return <FileUploadField value={value} onChange={onChange} accept="*/*" label="Tap to upload file" />;

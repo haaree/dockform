@@ -3,6 +3,7 @@ import { ArrowLeft, Download, ChevronDown, ChevronUp, Image as ImageIcon, FileTe
 import { useStore } from '../../store/useStore';
 import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport } from '../../lib/exportExcel';
+import { downloadAuditReport } from '../../lib/exportAuditReport';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -86,6 +87,8 @@ export default function FormResponses() {
   const setNav = useStore((s) => s.setNav);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
+  const companies = useStore((s) => s.companies);
+  const activeCompanyId = useStore((s) => s.activeCompanyId);
 
   const form = forms.find(f => f.id === viewingFormId);
   const formResponses = responses.filter(r => r.formId === viewingFormId);
@@ -117,6 +120,12 @@ export default function FormResponses() {
     setShowExportMenu(false);
   };
 
+  const downloadAudit = () => {
+    const companyName = companies.find(c => c.id === (form.companyId || activeCompanyId))?.name || 'Company';
+    downloadAuditReport(form.name, form.description || '', fieldDefs, displayedResponses, companyName);
+    setShowExportMenu(false);
+  };
+
   const periods = isScheduled ? getPeriodsForSchedule(form.schedule!, formResponses.map(r => r.date)) : [];
   const completedCount = periods.filter(p => p.status === 'completed').length;
   const overdueCount = periods.filter(p => p.status === 'overdue').length;
@@ -143,6 +152,18 @@ export default function FormResponses() {
   const renderValue = (fieldId: string, type: string) => {
     const val = expandedResponse?.values?.[fieldId] || '';
     if (!val) return <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Not answered</span>;
+    if (type === 'beforeafter') {
+      try {
+        const ba = JSON.parse(val);
+        return (
+          <div style={{ display: 'flex', gap: 8 }}>
+            {ba.before && <img src={ba.before} alt="Before" onClick={() => setImageModal(ba.before)} style={{ maxWidth: '48%', maxHeight: 160, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)' }} />}
+            {ba.after && <img src={ba.after} alt="After" onClick={() => setImageModal(ba.after)} style={{ maxWidth: '48%', maxHeight: 160, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)' }} />}
+            {ba.observation && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 4 }}>{ba.observation}</div>}
+          </div>
+        );
+      } catch { /* fall through */ }
+    }
     if (val.startsWith('data:image')) {
       return (
         <img src={val} alt="Uploaded" onClick={() => setImageModal(val)}
@@ -200,6 +221,10 @@ export default function FormResponses() {
               <button onClick={downloadExcel}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
                 <Download size={14} /> Download Excel (CSV)
+              </button>
+              <button onClick={downloadAudit}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left', borderTop: '1px solid var(--border)' }}>
+                <FileText size={14} /> Audit Report (Single Page)
               </button>
             </div>
           )}
@@ -268,7 +293,7 @@ export default function FormResponses() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{r.submittedBy}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.plant} · {r.date}</div>
                     </div>
-                    {r.values && Object.values(r.values).some(v => v.startsWith('data:image')) && (
+                    {r.values && Object.values(r.values).some(v => v.startsWith('data:image') || (v.startsWith('{') && v.includes('"before"'))) && (
                       <ImageIcon size={14} color={accent} style={{ flexShrink: 0 }} />
                     )}
                     {isOpen ? <ChevronUp size={16} color="var(--muted)" /> : <ChevronDown size={16} color="var(--muted)" />}

@@ -17,6 +17,11 @@ export function downloadHTMLReport(formName: string, description: string, fieldD
       let display: string;
       if (!v) {
         display = '<span style="color:#9ca3af;font-style:italic;">Not answered</span>';
+      } else if (f.type === 'beforeafter') {
+        try {
+          const ba = JSON.parse(v);
+          display = `<div style="display:flex;gap:8px;margin-top:4px;">${ba.before ? `<img src="${ba.before}" style="max-width:45%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />` : ''}${ba.after ? `<img src="${ba.after}" style="max-width:45%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />` : ''}</div>${ba.observation ? `<div style="margin-top:6px;padding:8px;background:#f9fafb;border-radius:6px;font-size:12px;color:#374151;">${ba.observation}</div>` : ''}`;
+        } catch { display = v; }
       } else if (v.startsWith('data:image')) {
         display = `<img src="${v}" style="max-width:300px;max-height:200px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />`;
       } else if (v.startsWith('data:')) {

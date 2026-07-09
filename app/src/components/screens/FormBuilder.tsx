@@ -71,6 +71,7 @@ const FIELD_CATEGORIES: FieldCategory[] = [
     items: [
       { type: 'image', label: 'Image', icon: Image },
       { type: 'camera', label: 'Camera', icon: Camera },
+      { type: 'beforeafter', label: 'Before/After', icon: Sliders },
       { type: 'video', label: 'Video', icon: Video },
       { type: 'audio', label: 'Audio', icon: Music },
       { type: 'upload', label: 'File', icon: Upload },
@@ -635,6 +636,13 @@ function FieldPreview({ field }: { field: FormField }) {
       return <DashedPlaceholder icon={Image} text="Upload or drop image" />;
     case 'camera':
       return <DashedPlaceholder icon={Camera} text="Capture photo" />;
+    case 'beforeafter':
+      return (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <DashedPlaceholder icon={Camera} text="Before" />
+          <DashedPlaceholder icon={Camera} text="After" />
+        </div>
+      );
     case 'video':
       return <DashedPlaceholder icon={Video} text="Upload or record video" />;
     case 'audio':
