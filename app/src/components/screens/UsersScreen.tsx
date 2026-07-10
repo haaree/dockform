@@ -37,11 +37,13 @@ export default function UsersScreen() {
       updateUser(editId, { name: form.name, email: form.email, role: form.role, department: form.department });
       setEditId(null);
     } else {
-      addUser(form.name, form.email, form.role || 'Viewer', form.department || '—');
-      import('../../lib/api').then(({ api }) => {
-        api.sendInviteEmail(form.email, form.name);
-      });
+      const email = form.email;
+      const name = form.name;
+      addUser(name, email, form.role || 'Viewer', form.department || '—');
       setShowAdd(false);
+      import('../../lib/api').then(({ api }) => {
+        api.sendInviteEmail(email, name);
+      });
     }
   };
 
