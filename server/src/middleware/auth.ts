@@ -20,7 +20,13 @@ export function signToken(payload: AuthPayload): string {
   return jwt.sign(payload, JWT_SECRET, { expiresIn: '7d' });
 }
 
+const PUBLIC_PREFIXES = ['/api/auth', '/api/health', '/api/cron', '/api/email'];
+
 export function authMiddleware(req: Request, res: Response, next: NextFunction): void {
+  if (PUBLIC_PREFIXES.some(p => req.path.startsWith(p) || req.originalUrl.startsWith(p))) {
+    next();
+    return;
+  }
   const header = req.headers.authorization;
   if (!header?.startsWith('Bearer ')) {
     res.status(401).json({ error: 'Missing token' });
