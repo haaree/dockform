@@ -128,11 +128,13 @@ function AssignUsersModal() {
     const formName = useStore.getState().currentFormName;
     publishForm(selectedIds, schedule);
     if (selectedIds.length > 0) {
+      const state = useStore.getState();
+      const allUsers = state.users;
+      const currentForm = state.forms.find(f => f.name === formName);
       import('./lib/api').then(({ api }) => {
-        const allUsers = useStore.getState().users;
         selectedIds.forEach(uid => {
           const u = allUsers.find(usr => usr.id === uid);
-          if (u) api.sendFormAssignedEmail(u.email, u.name, formName, 'DockForm Admin');
+          if (u) api.sendFormAssignedEmail(u.email, u.name, formName, 'DockForm Admin', currentForm?.id);
         });
       });
     }
@@ -295,11 +297,25 @@ function App() {
   const accounts = useStore((s) => s.accounts);
   const logout = useStore((s) => s.logout);
 
+  const fillForm = useStore((s) => s.fillForm);
+
   useEffect(() => {
     const handleResize = () => setWinWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [setWinWidth]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const fillId = params.get('fill');
+    if (fillId && isAuthed && onboardingComplete) {
+      const id = parseInt(fillId);
+      if (!isNaN(id)) {
+        fillForm(id);
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [isAuthed, onboardingComplete, fillForm]);
 
   const themeVars = getThemeVars(accent, dark) as CSSProperties;
   const isMobile = winWidth < 720;

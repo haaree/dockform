@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock } from 'lucide-react';
+import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock, Users, Link2, Check, UserMinus, X } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -15,10 +15,15 @@ export default function FormsScreen() {
   const winWidth = useStore((s) => s.winWidth);
   const currentUserId = useStore((s) => s.currentUserId);
   const currentUserRole = useStore((s) => s.currentUserRole);
+  const allUsers = useStore((s) => s.users);
+  const updateFormAssignment = useStore((s) => s.updateFormAssignment);
   const [search, setSearch] = useState('');
   const [menuId, setMenuId] = useState<number | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
+  const [accessFormId, setAccessFormId] = useState<number | null>(null);
+  const [accessSearch, setAccessSearch] = useState('');
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (menuId === null) return;
@@ -152,6 +157,24 @@ export default function FormsScreen() {
               <ClipboardList size={14} /> Fill Out
             </button>
           )}
+          {menuForm.status === 'published' && (
+            <button onClick={() => {
+              const url = `${window.location.origin}?fill=${menuForm.id}`;
+              navigator.clipboard.writeText(url);
+              setCopied(true);
+              setTimeout(() => setCopied(false), 2000);
+              setMenuId(null);
+            }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+              <Link2 size={14} /> {copied ? 'Copied!' : 'Copy Link'}
+            </button>
+          )}
+          {menuForm.status === 'published' && isAdmin && (
+            <button onClick={() => { setAccessFormId(menuForm.id); setMenuId(null); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+              <Users size={14} /> Manage Access
+            </button>
+          )}
           <button onClick={() => { editForm(menuForm.id); setMenuId(null); }}
             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
             <Copy size={14} /> Duplicate
@@ -162,6 +185,96 @@ export default function FormsScreen() {
           </button>
         </div>
       )}
+
+      {accessFormId !== null && (() => {
+        const form = forms.find(f => f.id === accessFormId);
+        if (!form) return null;
+        const assignedIds = form.assignedUserIds || [];
+        const activeUsers = allUsers.filter(u => u.status === 'active');
+        const assignedUsers = activeUsers.filter(u => assignedIds.includes(u.id));
+        const unassigned = activeUsers.filter(u => !assignedIds.includes(u.id) && (!accessSearch || u.name.toLowerCase().includes(accessSearch.toLowerCase()) || u.email.toLowerCase().includes(accessSearch.toLowerCase())));
+
+        const handleGrant = (userId: number) => {
+          const newIds = [...assignedIds, userId];
+          updateFormAssignment(accessFormId, newIds);
+          const u = allUsers.find(usr => usr.id === userId);
+          if (u) {
+            import('../../lib/api').then(({ api }) => {
+              api.sendFormAssignedEmail(u.email, u.name, form.name, 'DockForm Admin', form.id);
+            });
+          }
+        };
+
+        const handleRevoke = (userId: number) => {
+          updateFormAssignment(accessFormId, assignedIds.filter(id => id !== userId));
+        };
+
+        return (
+          <div onClick={() => { setAccessFormId(null); setAccessSearch(''); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 480, maxWidth: '92%', maxHeight: '80vh', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Manage Access</div>
+                  <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{form.name}</div>
+                </div>
+                <button onClick={() => { setAccessFormId(null); setAccessSearch(''); }} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer' }}><X size={18} /></button>
+              </div>
+
+              {assignedUsers.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Assigned Users ({assignedUsers.length})</div>
+                  <div style={{ border: '1px solid var(--border)', borderRadius: 8, maxHeight: 180, overflowY: 'auto' }}>
+                    {assignedUsers.map(u => (
+                      <div key={u.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ width: 28, height: 28, borderRadius: '50%', background: u.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{u.initials}</div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{u.name}</div>
+                          <div style={{ fontSize: 11, color: 'var(--muted)' }}>{u.email}</div>
+                        </div>
+                        <button onClick={() => handleRevoke(u.id)} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--surface)', color: '#EF4444', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>
+                          <UserMinus size={12} /> Revoke
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {assignedUsers.length === 0 && (
+                <div style={{ padding: 16, textAlign: 'center', color: 'var(--muted)', fontSize: 13, marginBottom: 16, background: 'var(--surface2)', borderRadius: 8 }}>
+                  No users assigned — this form is visible to all users.
+                </div>
+              )}
+
+              <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Add Users</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', marginBottom: 10 }}>
+                <Search size={13} color="var(--muted)" />
+                <input value={accessSearch} onChange={e => setAccessSearch(e.target.value)} placeholder="Search users to add…"
+                  style={{ border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 13, width: '100%', outline: 'none' }} />
+              </div>
+              <div style={{ border: '1px solid var(--border)', borderRadius: 8, maxHeight: 200, overflowY: 'auto' }}>
+                {unassigned.map(u => (
+                  <button key={u.id} onClick={() => handleGrant(u.id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'none', border: 'none', borderBottom: '1px solid var(--border)', cursor: 'pointer', textAlign: 'left' }}>
+                    <div style={{ width: 28, height: 28, borderRadius: '50%', background: u.color, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, flexShrink: 0 }}>{u.initials}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{u.name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--muted)' }}>{u.email} · {u.role}</div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, color: accent, fontSize: 11, fontWeight: 600 }}>
+                      <Check size={12} /> Grant
+                    </div>
+                  </button>
+                ))}
+                {unassigned.length === 0 && (
+                  <div style={{ padding: 16, textAlign: 'center', fontSize: 12, color: 'var(--muted)' }}>
+                    {accessSearch ? 'No matching users found.' : 'All users are already assigned.'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

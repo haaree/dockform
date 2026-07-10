@@ -35,9 +35,11 @@ router.post('/account-suspended', async (req, res) => {
 });
 
 router.post('/form-assigned', async (req, res) => {
-  const { to, fullName, formName, assignedBy } = req.body;
+  const { to, fullName, formName, assignedBy, formId } = req.body;
   if (!to || !fullName || !formName) { res.status(400).json({ error: 'to, fullName, formName required' }); return; }
-  await sendFormAssignedEmail(to, fullName, formName, assignedBy || 'DockForm Admin');
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  const formLink = formId ? `${appUrl}?fill=${formId}` : undefined;
+  await sendFormAssignedEmail(to, fullName, formName, assignedBy || 'DockForm Admin', formLink);
   res.json({ ok: true });
 });
 

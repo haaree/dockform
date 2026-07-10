@@ -77,13 +77,14 @@ export async function sendAccountSuspendedEmail(to: string, fullName: string) {
   return send(to, 'DockForm Account Suspended', html);
 }
 
-export async function sendFormAssignedEmail(to: string, fullName: string, formName: string, assignedBy: string) {
+export async function sendFormAssignedEmail(to: string, fullName: string, formName: string, assignedBy: string, formLink?: string) {
   const html = wrap('New Form Assigned', `
     <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Hi ${fullName},</p>
     <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;"><strong>${assignedBy}</strong> has assigned you a new form:</p>
     <div style="margin:16px 0;padding:14px 18px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
       <p style="margin:0;font-size:15px;color:#1e40af;font-weight:700;">${formName}</p>
     </div>
+    ${formLink ? `<div style="margin:16px 0;text-align:center;"><a href="${formLink}" style="display:inline-block;padding:12px 28px;background:#2563eb;color:#fff;border-radius:8px;font-size:14px;font-weight:700;text-decoration:none;">Open Form</a></div>` : ''}
     <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Log in to DockForm to fill out this form.</p>
     <p style="margin:0;font-size:14px;color:#6b7280;">— The DockForm Team</p>
   `);

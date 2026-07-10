@@ -140,6 +140,7 @@ interface AppState {
   submitResponse: (formId: number, values: Record<string, string>) => void;
   viewingFormId: number | null;
   viewFormResponses: (id: number) => void;
+  updateFormAssignment: (formId: number, userIds: number[]) => void;
 
   // Account management
   addAccount: (account: Omit<AccountItem, 'id'>) => void;
@@ -601,6 +602,9 @@ export const useStore = create<AppState>((set) => ({
 
   viewingFormId: null as number | null,
   viewFormResponses: (id: number) => set({ viewingFormId: id, nav: 'form-responses' }),
+  updateFormAssignment: (formId: number, userIds: number[]) => set((s) => ({
+    forms: s.forms.map(f => f.id === formId ? { ...f, assignedUserIds: userIds.length > 0 ? userIds : undefined } : f),
+  })),
 
   addAccount: (account) => set((s) => ({
     accounts: [...s.accounts, { ...account, id: Math.max(0, ...s.accounts.map(a => a.id)) + 1 }],
