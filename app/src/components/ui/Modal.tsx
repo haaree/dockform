@@ -67,7 +67,7 @@ interface ButtonRowProps {
   disabled?: boolean;
 }
 
-export function ModalButtons({ onCancel, onSave, saveLabel = 'Save', accent, disabled }: ButtonRowProps) {
+export function ModalButtons({ onCancel, onSave, saveLabel = 'Save', accent: _accent, disabled }: ButtonRowProps) {
   return (
     <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 20 }}>
       <button onClick={onCancel} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>

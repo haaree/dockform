@@ -5,7 +5,7 @@ import {
   Settings, HelpCircle, ArrowLeft, ChevronDown, UserCheck,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { getThemeVars, legibleAccent } from '../../lib/theme';
+import { getThemeVars } from '../../lib/theme';
 
 interface NavItemDef {
   key: string;
@@ -73,7 +73,6 @@ export function Sidebar() {
 
   const isMobile = winWidth < 720;
   const collapsed = !isMobile && !sidebarOpen;
-  const accentText = legibleAccent(accent, dark);
 
   if (isMobile && !sidebarOpen) return null;
 
