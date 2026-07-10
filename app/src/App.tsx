@@ -307,6 +307,14 @@ function App() {
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
+    if (params.get('signup') === 'true' && !isAuthed) {
+      useStore.setState({ authMode: 'signup' });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [isAuthed]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
     const fillId = params.get('fill');
     if (fillId && isAuthed && onboardingComplete) {
       const id = parseInt(fillId);

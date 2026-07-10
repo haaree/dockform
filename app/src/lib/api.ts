@@ -69,4 +69,6 @@ export const api = {
     fetch(`${BASE}/email/account-suspended`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName }) }).catch(() => {}),
   sendFormAssignedEmail: (to: string, fullName: string, formName: string, assignedBy: string, formId?: number) =>
     fetch(`${BASE}/email/form-assigned`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName, formName, assignedBy, formId }) }).catch(() => {}),
+  sendInviteEmail: (to: string, fullName: string) =>
+    fetch(`${BASE}/email/invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName }) }).catch(() => {}),
 };

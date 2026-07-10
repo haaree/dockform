@@ -315,7 +315,7 @@ export const useStore = create<AppState>((set) => ({
 
   setAuth: (isAuthed) => set((s) => {
     if (isAuthed) {
-      const DOCKFORM_ADMIN_EMAILS = ['sarah@acme.com', 'admin@dockform.com'];
+      const DOCKFORM_ADMIN_EMAILS = ['sarah@acme.com', 'admin@dockform.com', 'haaree@gmail.com'];
       const isDockformAdmin = DOCKFORM_ADMIN_EMAILS.includes(s.authEmail.toLowerCase());
       const user = s.users.find(u => u.email === s.authEmail);
       if (isDockformAdmin) {

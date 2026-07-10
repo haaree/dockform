@@ -133,6 +133,17 @@ export async function sendFormOverdueEmail(to: string, fullName: string, formNam
   return send(to, `Overdue: ${formName}`, html);
 }
 
+export async function sendInviteEmail(to: string, fullName: string, signupLink?: string) {
+  const html = wrap('You\'re Invited to DockForm', `
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Hi ${fullName},</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">You've been invited to join <strong>DockForm</strong> — the enterprise form engine for factories and plants.</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Create your account to get started with audits, checklists, and compliance forms.</p>
+    ${signupLink ? `<div style="margin:20px 0;text-align:center;"><a href="${signupLink}" style="display:inline-block;padding:12px 32px;background:#171717;color:#fff;border-radius:6px;font-size:14px;font-weight:600;text-decoration:none;">Create Account</a></div>` : ''}
+    <p style="margin:0;font-size:14px;color:#6b7280;">— The DockForm Team</p>
+  `);
+  return send(to, 'You\'re Invited to DockForm', html);
+}
+
 export async function sendAdminNewSignupEmail(to: string, newUserName: string, newUserEmail: string) {
   const html = wrap('New Signup — Action Required', `
     <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">A new user has signed up on DockForm and is awaiting approval:</p>

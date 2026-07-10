@@ -38,6 +38,9 @@ export default function UsersScreen() {
       setEditId(null);
     } else {
       addUser(form.name, form.email, form.role || 'Viewer', form.department || '—');
+      import('../../lib/api').then(({ api }) => {
+        api.sendInviteEmail(form.email, form.name);
+      });
       setShowAdd(false);
     }
   };

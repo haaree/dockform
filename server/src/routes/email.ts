@@ -6,6 +6,7 @@ import {
   sendAccountSuspendedEmail,
   sendFormAssignedEmail,
   sendFormDueReminderEmail,
+  sendInviteEmail,
 } from '../lib/email.js';
 
 const router = Router();
@@ -47,6 +48,15 @@ router.post('/form-reminder', async (req, res) => {
   const { to, fullName, formName, dueDate, formLink } = req.body;
   if (!to || !fullName || !formName) { res.status(400).json({ error: 'to, fullName, formName required' }); return; }
   await sendFormDueReminderEmail(to, fullName, formName, dueDate || 'Today', formLink);
+  res.json({ ok: true });
+});
+
+router.post('/invite', async (req, res) => {
+  const { to, fullName } = req.body;
+  if (!to || !fullName) { res.status(400).json({ error: 'to and fullName required' }); return; }
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  const signupLink = `${appUrl}?signup=true`;
+  await sendInviteEmail(to, fullName, signupLink);
   res.json({ ok: true });
 });
 
