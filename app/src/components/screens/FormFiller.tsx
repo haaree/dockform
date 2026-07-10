@@ -320,10 +320,26 @@ export default function FormFiller() {
   const submitResponse = useStore((s) => s.submitResponse);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
+  const currentUserId = useStore((s) => s.currentUserId);
+  const currentUserRole = useStore((s) => s.currentUserRole);
 
   const form = forms.find(f => f.id === fillingFormId);
   const fields = form?.fieldDefs || [];
   const isMobile = winWidth < 720;
+  const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
+
+  if (form && form.assignedUserIds && form.assignedUserIds.length > 0 && !isAdmin && currentUserId && !form.assignedUserIds.includes(currentUserId)) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32 }}>
+        <div style={{ textAlign: 'center', maxWidth: 400 }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Access Denied</h2>
+          <p style={{ fontSize: 14, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>You don't have permission to fill out this form. Contact your administrator to request access.</p>
+          <button onClick={() => setNav('forms')} style={{ padding: '8px 20px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Back to Forms</button>
+        </div>
+      </div>
+    );
+  }
 
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);

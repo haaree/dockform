@@ -311,7 +311,13 @@ function App() {
     if (fillId && isAuthed && onboardingComplete) {
       const id = parseInt(fillId);
       if (!isNaN(id)) {
-        fillForm(id);
+        const state = useStore.getState();
+        const form = state.forms.find(f => f.id === id);
+        if (form) {
+          const isAdm = state.currentUserRole === 'Admin' || state.currentUserRole === 'admin';
+          const hasAccess = isAdm || !form.assignedUserIds || form.assignedUserIds.length === 0 || (state.currentUserId && form.assignedUserIds.includes(state.currentUserId));
+          if (hasAccess) fillForm(id);
+        }
         window.history.replaceState({}, '', window.location.pathname);
       }
     }
