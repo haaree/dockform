@@ -4,7 +4,7 @@ const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
-const FROM = process.env.EMAIL_FROM || 'DockForm <noreply@dockform.com>';
+const FROM = process.env.EMAIL_FROM || 'DockForm <noreply@noreply.dockform.in>';
 
 function wrap(title: string, body: string) {
   return `<!DOCTYPE html>

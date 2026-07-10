@@ -38,3 +38,6 @@ postgres-data/
 # Temp files
 *.local
 *.tmp
+
+# Conversation logs
+conversation-log.md
