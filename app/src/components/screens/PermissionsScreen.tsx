@@ -24,8 +24,8 @@ export default function PermissionsScreen() {
       <div style={{ padding: pad, flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.5px' }}>Permissions</h1>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>
+            <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.5px' }}>Permissions</h1>
+            <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>
               Select a role, then click any cell to grant or revoke that access
             </p>
           </div>
@@ -64,13 +64,13 @@ export default function PermissionsScreen() {
         <div style={{ fontSize: 13, color: 'var(--text)', marginBottom: 12, fontWeight: 500 }}>
           Editing permissions for <strong style={{ color: accent, fontWeight: 700 }}>{activeRoleName}</strong>
         </div>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: 'var(--surface2)' }}>
+                <tr>
                   {['Module', 'View', 'Create', 'Edit', 'Delete'].map((h) => (
-                    <th key={h} style={{ textAlign: 'left', padding: '12px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                    <th key={h} style={{ textAlign: 'left', padding: '12px 16px', fontSize: 12, fontWeight: 500, color: 'var(--muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>

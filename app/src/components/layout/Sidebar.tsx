@@ -41,12 +41,11 @@ function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div
       style={{
-        fontSize: 9.5,
-        fontWeight: 700,
-        textTransform: 'uppercase',
-        letterSpacing: 0.9,
-        color: 'var(--muted)',
-        padding: '14px 12px 6px',
+        fontSize: 11,
+        fontWeight: 500,
+        color: 'var(--muted2)',
+        padding: '18px 14px 6px',
+        letterSpacing: 0,
       }}
     >
       {children}
@@ -85,7 +84,7 @@ export function Sidebar() {
   const renderSection = (label: string, items: NavItemDef[]) => (
     <div>
       {!collapsed && <SectionLabel>{label}</SectionLabel>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0 8px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '0 8px' }}>
         {items.map((item) => {
           const Icon = item.icon;
           const active = nav === item.key;
@@ -104,18 +103,19 @@ export function Sidebar() {
                 gap: 10,
                 justifyContent: collapsed ? 'center' : 'flex-start',
                 width: '100%',
-                padding: collapsed ? '9px 0' : '9px 10px',
-                borderRadius: 7,
+                padding: collapsed ? '8px 0' : '7px 10px',
+                borderRadius: 6,
                 border: 'none',
-                background: active ? `${accent}1A` : 'transparent',
-                color: active ? accentText : 'var(--text)',
+                background: active ? 'var(--surface2)' : 'transparent',
+                color: active ? 'var(--text)' : 'var(--muted)',
                 fontSize: 13,
-                fontWeight: active ? 600 : 500,
+                fontWeight: active ? 600 : 400,
                 cursor: 'pointer',
                 textAlign: 'left',
+                transition: 'background 0.15s, color 0.15s',
               }}
             >
-              <Icon size={16} />
+              <Icon size={15} />
               {!collapsed && <span>{item.label}</span>}
             </button>
           );

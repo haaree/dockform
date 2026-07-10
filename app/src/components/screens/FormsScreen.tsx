@@ -66,8 +66,8 @@ export default function FormsScreen() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: pad, flexShrink: 0, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--text)' }}>Forms</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>{visibleForms.length} forms in your workspace</p>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 600, letterSpacing: '-0.5px', color: 'var(--text)' }}>Forms</h1>
+          <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>{visibleForms.length} forms in your workspace</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px' }}>
           <Search size={13} color="var(--muted)" />
@@ -75,19 +75,19 @@ export default function FormsScreen() {
             style={{ border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 13, width: isMobile ? '100%' : 170, outline: 'none' }} />
         </div>
         <button onClick={openNewForm}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
           <Plus size={14} /> New Form
         </button>
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: pad }}>
-        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12 }}>
+        <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
-                <tr style={{ background: 'var(--surface2)' }}>
+                <tr>
                   {['Name', 'Category', 'Fields', 'Responses', 'Status', 'Updated', 'Actions'].map((h) => (
-                    <th key={h} style={{ textAlign: 'left', fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.03em', padding: '10px 16px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
+                    <th key={h} style={{ textAlign: 'left', fontSize: 12, fontWeight: 500, color: 'var(--muted)', padding: '12px 16px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
               </thead>

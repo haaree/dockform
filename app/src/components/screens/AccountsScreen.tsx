@@ -65,8 +65,8 @@ export default function AccountsScreen() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: pad, flexShrink: 0, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--text)' }}>Account Management</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>{accounts.length} accounts · {accounts.filter(a => a.status === 'pending').length} pending approval</p>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 600, letterSpacing: '-0.5px', color: 'var(--text)' }}>Account Management</h1>
+          <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>{accounts.length} accounts · {accounts.filter(a => a.status === 'pending').length} pending approval</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px' }}>
           <Search size={13} color="var(--muted)" />

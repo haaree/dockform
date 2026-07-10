@@ -31,7 +31,7 @@ export default function CompaniesScreen() {
     <div style={{ padding: isMobile ? 0 : 24 }}>
       <div style={{ display: 'flex', alignItems: isMobile ? 'stretch' : 'center', justifyContent: 'space-between', marginBottom: isMobile ? 14 : 20, gap: 12, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
         <div>
-          <div style={{ fontSize: 21, fontWeight: 700, letterSpacing: -0.5, color: 'var(--text)' }}>Companies</div>
+          <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: -0.5, color: 'var(--text)' }}>Companies</div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>{companies.length} {companies.length === 1 ? 'company' : 'companies'} in your organization</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -47,13 +47,13 @@ export default function CompaniesScreen() {
         </div>
       </div>
 
-      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead style={{ background: 'var(--surface2)' }}>
+            <thead>
               <tr>
                 {['Company', 'Code', 'Type', 'Plants', 'Employees', 'Status'].map((h) => (
-                  <th key={h} style={{ textAlign: 'left', padding: '10px 16px', fontSize: 11, fontWeight: 600, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                  <th key={h} style={{ textAlign: 'left', padding: '12px 16px', fontSize: 12, fontWeight: 500, color: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>{h}</th>
                 ))}
               </tr>
             </thead>

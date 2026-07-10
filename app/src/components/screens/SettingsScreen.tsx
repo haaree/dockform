@@ -7,7 +7,7 @@ function Card({ title, description, children }: { title: string; description?: s
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: 12,
+        borderRadius: 10,
         padding: 20,
       }}
     >
@@ -74,7 +74,7 @@ export default function SettingsScreen() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
       <div>
-        <h1 style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--text)' }}>Settings</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-0.5px', color: 'var(--text)' }}>Settings</h1>
         <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
           Manage your platform preferences and appearance.
         </p>

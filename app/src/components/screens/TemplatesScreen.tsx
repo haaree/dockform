@@ -67,8 +67,8 @@ export default function TemplatesScreen() {
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ padding: isMobile ? 16 : '24px 32px', flexShrink: 0, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
         <div style={{ flex: 1, minWidth: 200 }}>
-          <h1 style={{ fontSize: isMobile ? 18 : 21, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.5px' }}>Templates</h1>
-          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 3 }}>Pre-built compliance templates — activate and customise in the Form Builder</p>
+          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.5px' }}>Templates</h1>
+          <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>Pre-built compliance templates — activate and customise in the Form Builder</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px' }}>
           <Search size={13} color="var(--muted)" />
@@ -138,7 +138,7 @@ function PackCard({ pack, isActive, accent, taccent, dark, ghost, onActivate, on
 
   return (
     <div style={{
-      background: 'var(--surface)', border: `1px solid ${isActive ? accent : ghost}`, borderRadius: 12, overflow: 'hidden',
+      background: 'var(--surface)', border: `1px solid ${isActive ? accent : ghost}`, borderRadius: 10, overflow: 'hidden',
       boxShadow: isActive ? `0 0 0 3px ${accent}22` : '0 1px 3px rgba(0,0,0,.04)',
     }}>
       <div style={{ padding: '20px 20px 16px' }}>

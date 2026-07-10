@@ -19,13 +19,13 @@ export function legibleAccent(hex: string, dark: boolean): string {
 export function getThemeVars(accent: string, dark: boolean) {
   return {
     '--accent': accent,
-    '--bg': dark ? '#111113' : '#FAFAF8',
-    '--surface': dark ? '#1C1C1E' : '#FFFFFF',
-    '--surface2': dark ? '#242426' : '#F4F4F5',
-    '--border': dark ? '#303036' : '#E4E4E7',
-    '--text': dark ? '#F9FAFB' : '#09090B',
-    '--muted': '#71717A',
-    '--muted2': dark ? '#52525B' : '#A1A1AA',
+    '--bg': dark ? '#0A0A0A' : '#FAFAFA',
+    '--surface': dark ? '#141414' : '#FFFFFF',
+    '--surface2': dark ? '#1E1E1E' : '#F7F7F8',
+    '--border': dark ? '#262626' : '#EBEBEB',
+    '--text': dark ? '#EDEDED' : '#171717',
+    '--muted': dark ? '#888888' : '#666666',
+    '--muted2': dark ? '#555555' : '#999999',
   } as Record<string, string>;
 }
 

@@ -17,18 +17,18 @@ function StatCard({
       style={{
         background: 'var(--surface)',
         border: '1px solid var(--border)',
-        borderRadius: 12,
-        padding: 20,
+        borderRadius: 10,
+        padding: '22px 24px',
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--muted)' }}>{label}</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--muted)' }}>{label}</span>
         <div
           style={{
             width: 32,
             height: 32,
             borderRadius: 8,
-            background: `${iconColor}1A`,
+            background: `${iconColor}12`,
             color: iconColor,
             display: 'flex',
             alignItems: 'center',
@@ -38,8 +38,8 @@ function StatCard({
           {icon}
         </div>
       </div>
-      <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-1px', color: 'var(--text)' }}>{value}</div>
-      <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>{change}</div>
+      <div style={{ fontSize: 28, fontWeight: 600, letterSpacing: '-1.5px', color: 'var(--text)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>{change}</div>
     </div>
   );
 }
@@ -67,9 +67,9 @@ export default function Dashboard() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: `${isMobile ? 16 : 28}px ${pad} ${isMobile ? 12 : 20}px`, flexShrink: 0 }}>
-        <h1 style={{ fontSize: 21, fontWeight: 700, letterSpacing: '-0.5px', color: 'var(--text)' }}>Dashboard</h1>
-        <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>
+      <div style={{ padding: `${isMobile ? 16 : 32}px ${pad} ${isMobile ? 12 : 20}px`, flexShrink: 0 }}>
+        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 600, letterSpacing: '-0.5px', color: 'var(--text)' }}>Dashboard</h1>
+        <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 6 }}>
           Welcome back, Sarah — here's your platform overview.
         </p>
       </div>

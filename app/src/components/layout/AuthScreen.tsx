@@ -5,7 +5,7 @@ import { getThemeVars } from '../../lib/theme';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+    <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>
       {children}
     </label>
   );
@@ -13,8 +13,8 @@ function Label({ children }: { children: React.ReactNode }) {
 
 const inputStyle: CSSProperties = {
   width: '100%',
-  padding: '11px 13px',
-  borderRadius: 8,
+  padding: '10px 13px',
+  borderRadius: 6,
   border: '1px solid var(--border)',
   fontSize: 14,
   background: 'var(--surface)',
