@@ -40,7 +40,9 @@ export function AuthScreen() {
   const isSignup = authMode === 'signup';
   const themeVars = getThemeVars(accent, dark) as CSSProperties;
 
-  const handleSubmit = (e: FormEvent) => {
+  const [loading, setLoading] = useState(false);
+
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!authEmail || !authPassword) {
       setAuthError('Please enter both email and password.');
@@ -55,9 +57,24 @@ export function AuthScreen() {
       return;
     }
     setAuthError('');
-    setAuth(true);
-    if (isSignup) {
-      useStore.setState({ onboardingComplete: false, onboardingStep: 0 });
+    setLoading(true);
+    try {
+      const { api, setToken } = await import('../../lib/api');
+      if (isSignup) {
+        const res = await api.signup(authEmail, authPassword, fullName || undefined);
+        setToken(res.token);
+        setAuth(true);
+        useStore.setState({ onboardingComplete: false, onboardingStep: 0 });
+      } else {
+        const res = await api.login(authEmail, authPassword);
+        setToken(res.token);
+        setAuth(true);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Authentication failed';
+      setAuthError(msg);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -177,6 +194,7 @@ export function AuthScreen() {
 
             <button
               type="submit"
+              disabled={loading}
               style={{
                 width: '100%',
                 background: accent,
@@ -186,10 +204,11 @@ export function AuthScreen() {
                 padding: '11px 0',
                 fontWeight: 600,
                 fontSize: 14,
-                cursor: 'pointer',
+                cursor: loading ? 'default' : 'pointer',
+                opacity: loading ? 0.7 : 1,
               }}
             >
-              {isSignup ? 'Create Account' : 'Sign In'}
+              {loading ? 'Please wait…' : isSignup ? 'Create Account' : 'Sign In'}
             </button>
           </form>
 
