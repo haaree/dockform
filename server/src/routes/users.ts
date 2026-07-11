@@ -57,4 +57,13 @@ router.patch('/:id', async (req, res) => {
   res.json(user);
 });
 
+router.delete('/:id', async (req, res) => {
+  if (req.auth?.roleKey !== 'admin') { res.status(403).json({ error: 'Admin access required' }); return; }
+  const target = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!target || target.companyId !== req.auth.companyId) { res.status(404).json({ error: 'User not found' }); return; }
+  if (target.id === req.auth.userId) { res.status(400).json({ error: 'Cannot delete your own account' }); return; }
+  await prisma.user.delete({ where: { id: req.params.id } });
+  res.status(204).send();
+});
+
 export default router;

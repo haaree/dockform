@@ -54,6 +54,7 @@ export const api = {
   getUsers: () => request<any[]>('/users'),
   inviteUser: (email: string, fullName: string, roleId?: string) => request<any>('/users', { method: 'POST', body: JSON.stringify({ email, fullName, roleId }) }),
   updateUserStatus: (id: string, status: string) => request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
 
   getForms: () => request<any[]>('/forms'),
   getForm: (id: string) => request<any>(`/forms/${id}`),

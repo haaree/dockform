@@ -10,7 +10,6 @@ export default function UsersScreen() {
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
   const updateUser = useStore((s) => s.updateUser);
-  const deleteUser = useStore((s) => s.deleteUser);
   const isDockformAdmin = useStore((s) => s.isDockformAdmin);
   const [search, setSearch] = useState('');
   const [menuId, setMenuId] = useState<string | number | null>(null);
@@ -51,6 +50,16 @@ export default function UsersScreen() {
     await api.updateUserStatus(user.id, 'suspended');
     api.sendAccountSuspendedEmail(user.email, user.name);
     fetchUsers();
+  };
+
+  const handleDelete = async (user: any) => {
+    setMenuId(null);
+    try {
+      await api.deleteUser(user.id);
+      fetchUsers();
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to delete user');
+    }
   };
 
   const handleSave = async () => {
@@ -138,7 +147,7 @@ export default function UsersScreen() {
                                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
                                 <Edit3 size={14} /> Edit User
                               </button>
-                              <button onClick={() => deleteUser(user.id)}
+                              <button onClick={() => handleDelete(user)}
                                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: '#EF4444', cursor: 'pointer', textAlign: 'left' }}>
                                 <Trash2 size={14} /> Delete User
                               </button>
