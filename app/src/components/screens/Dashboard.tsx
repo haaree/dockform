@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { FileText, Users, CheckCircle, Send } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
@@ -54,8 +55,17 @@ export default function Dashboard() {
   const editForm = useStore((s) => s.editForm);
   const winWidth = useStore((s) => s.winWidth);
   const currentUserName = useStore((s) => s.currentUserName);
+  const currentUserId = useStore((s) => s.currentUserId);
+  const currentUserRole = useStore((s) => s.currentUserRole);
+  const refreshForms = useStore((s) => s.refreshForms);
 
-  const forms = activeCompanyId ? allForms.filter(f => !f.companyId || f.companyId === activeCompanyId) : allForms;
+  useEffect(() => { refreshForms(); }, [refreshForms]);
+
+  const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
+  const companyForms = activeCompanyId ? allForms.filter(f => !f.companyId || f.companyId === activeCompanyId) : allForms;
+  const forms = isAdmin ? companyForms : companyForms.filter(f =>
+    !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId as string))
+  );
   const users = activeCompanyId ? allUsers.filter(u => !u.companyId || u.companyId === activeCompanyId) : allUsers;
   const accentText = legibleAccent(accent, dark);
   const activeUsers = users.filter((u) => u.status === 'active').length;
