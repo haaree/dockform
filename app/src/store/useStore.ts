@@ -6,6 +6,7 @@ interface AppState {
   isAuthed: boolean;
   currentUserId: number | null;
   currentUserRole: string;
+  currentUserName: string;
   isDockformAdmin: boolean;
   activeCompanyId: number | null;
   onboardingComplete: boolean;
@@ -163,6 +164,7 @@ export const useStore = create<AppState>((set) => ({
   isAuthed: false,
   currentUserId: null,
   currentUserRole: '',
+  currentUserName: '',
   isDockformAdmin: false,
   activeCompanyId: 1,
   onboardingComplete: true,
@@ -268,7 +270,7 @@ export const useStore = create<AppState>((set) => ({
   setAuthMode: (authMode) => set({ authMode, authError: '' }),
   setAuthField: (key, val) => set({ [key]: val, authError: '' }),
   setAuthError: (authError) => set({ authError }),
-  logout: () => set({ isAuthed: false, currentUserId: null, currentUserRole: '', isDockformAdmin: false, activeCompanyId: null, onboardingComplete: true, onboardingStep: 0, authEmail: '', authPassword: '', authMode: 'login' }),
+  logout: () => { import('../lib/api').then(({ setToken }) => setToken(null)); set({ isAuthed: false, currentUserId: null, currentUserRole: '', currentUserName: '', isDockformAdmin: false, activeCompanyId: null, onboardingComplete: true, onboardingStep: 0, authEmail: '', authPassword: '', authMode: 'login' }); },
   setActiveCompany: (activeCompanyId) => set({ activeCompanyId }),
   setOnboardingStep: (onboardingStep) => set({ onboardingStep }),
   completeOnboarding: () => set({ onboardingComplete: true, nav: 'dashboard' }),

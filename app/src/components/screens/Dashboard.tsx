@@ -53,6 +53,7 @@ export default function Dashboard() {
   const setNav = useStore((s) => s.setNav);
   const editForm = useStore((s) => s.editForm);
   const winWidth = useStore((s) => s.winWidth);
+  const currentUserName = useStore((s) => s.currentUserName);
 
   const forms = activeCompanyId ? allForms.filter(f => !f.companyId || f.companyId === activeCompanyId) : allForms;
   const users = activeCompanyId ? allUsers.filter(u => !u.companyId || u.companyId === activeCompanyId) : allUsers;
@@ -70,7 +71,7 @@ export default function Dashboard() {
       <div style={{ padding: `${isMobile ? 16 : 32}px ${pad} ${isMobile ? 12 : 20}px`, flexShrink: 0 }}>
         <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 600, letterSpacing: '-0.5px', color: 'var(--text)' }}>Dashboard</h1>
         <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 6 }}>
-          Welcome back, Sarah — here's your platform overview.
+          Welcome back, {currentUserName?.split(' ')[0] || 'there'} — here's your platform overview.
         </p>
       </div>
 

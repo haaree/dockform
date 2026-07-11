@@ -68,11 +68,13 @@ export function AuthScreen() {
           return;
         }
         setToken(res.token);
+        useStore.setState({ currentUserName: res.user?.fullName || fullName || '' });
         setAuth(true);
         useStore.setState({ onboardingComplete: false, onboardingStep: 0 });
       } else {
         const res = await api.login(authEmail, authPassword);
         setToken(res.token);
+        useStore.setState({ currentUserName: res.user?.fullName || '' });
         setAuth(true);
       }
     } catch (err: unknown) {

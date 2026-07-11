@@ -63,6 +63,8 @@ export function Sidebar() {
   const setNav = useStore((s) => s.setNav);
   const logout = useStore((s) => s.logout);
   const isDockformAdmin = useStore((s) => s.isDockformAdmin);
+  const currentUserName = useStore((s) => s.currentUserName);
+  const currentUserRole = useStore((s) => s.currentUserRole);
   const companies = useStore((s) => s.companies);
   const activeCompanyId = useStore((s) => s.activeCompanyId);
   const setActiveCompany = useStore((s) => s.setActiveCompany);
@@ -353,7 +355,7 @@ export function Sidebar() {
               flexShrink: 0,
             }}
           >
-            SC
+            {(currentUserName || 'U').split(' ').map(p => p[0] || '').join('').toUpperCase().slice(0, 2) || 'U'}
           </div>
           {!collapsed && (
             <>
@@ -368,9 +370,9 @@ export function Sidebar() {
                     textOverflow: 'ellipsis',
                   }}
                 >
-                  Sarah Chen
+                  {currentUserName || 'User'}
                 </div>
-                <div style={{ fontSize: 10, color: 'var(--muted)' }}>Administrator</div>
+                <div style={{ fontSize: 10, color: 'var(--muted)' }}>{currentUserRole || 'User'}</div>
               </div>
               <button
                 type="button"
