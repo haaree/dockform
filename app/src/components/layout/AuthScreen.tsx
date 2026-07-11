@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
-import { Info } from 'lucide-react';
+import { Info, Clock } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars } from '../../lib/theme';
 
@@ -41,6 +41,7 @@ export function AuthScreen() {
   const themeVars = getThemeVars(accent, dark) as CSSProperties;
 
   const [loading, setLoading] = useState(false);
+  const [pendingMessage, setPendingMessage] = useState('');
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -62,6 +63,10 @@ export function AuthScreen() {
       const { api, setToken } = await import('../../lib/api');
       if (isSignup) {
         const res = await api.signup(authEmail, authPassword, fullName || undefined);
+        if (res.pending) {
+          setPendingMessage(res.message || 'Your account is pending admin approval.');
+          return;
+        }
         setToken(res.token);
         setAuth(true);
         useStore.setState({ onboardingComplete: false, onboardingStep: 0 });
@@ -110,6 +115,20 @@ export function AuthScreen() {
             boxShadow: dark ? undefined : '0 1px 3px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.04)',
           }}
         >
+          {pendingMessage ? (
+            <div style={{ textAlign: 'center', padding: '12px 0' }}>
+              <Clock size={40} color={accent} style={{ marginBottom: 16 }} />
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Account Pending</div>
+              <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>{pendingMessage}</div>
+              <button
+                type="button"
+                onClick={() => { setPendingMessage(''); setAuthMode('login'); }}
+                style={{ background: accent, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+              >
+                Back to Sign In
+              </button>
+            </div>
+          ) : (<>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
             {isSignup ? 'Create your account' : 'Welcome back'}
           </div>
@@ -230,6 +249,7 @@ export function AuthScreen() {
               {isSignup ? 'Sign in' : 'Sign up'}
             </button>
           </div>
+          </>)}
         </div>
       </div>
     </div>

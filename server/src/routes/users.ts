@@ -29,4 +29,14 @@ router.post('/', async (req, res) => {
   res.status(201).json(user);
 });
 
+router.patch('/:id', async (req, res) => {
+  if (req.auth?.roleKey !== 'admin') { res.status(403).json({ error: 'Admin access required' }); return; }
+  const { status, roleId } = req.body;
+  const data: Record<string, string> = {};
+  if (status) data.status = status;
+  if (roleId) data.roleId = roleId;
+  const user = await prisma.user.update({ where: { id: req.params.id }, data, include: { role: true } });
+  res.json(user);
+});
+
 export default router;

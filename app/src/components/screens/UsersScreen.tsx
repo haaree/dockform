@@ -1,49 +1,70 @@
-import { useState } from 'react';
-import { UserPlus, Search, MoreHorizontal, Trash2, Edit3 } from 'lucide-react';
+import { useState, useEffect, useCallback } from 'react';
+import { UserPlus, Search, MoreHorizontal, Trash2, Edit3, CheckCircle2, XCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { StatusBadge } from '../ui/StatusBadge';
 import { Modal, ModalField, ModalButtons } from '../ui/Modal';
+import { api } from '../../lib/api';
 
 export default function UsersScreen() {
-  const users = useStore((s) => s.users);
+  const storeUsers = useStore((s) => s.users);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
   const addUser = useStore((s) => s.addUser);
   const updateUser = useStore((s) => s.updateUser);
   const deleteUser = useStore((s) => s.deleteUser);
+  const isDockformAdmin = useStore((s) => s.isDockformAdmin);
   const [search, setSearch] = useState('');
-  const [menuId, setMenuId] = useState<number | null>(null);
+  const [menuId, setMenuId] = useState<string | number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editId, setEditId] = useState<string | number | null>(null);
   const [form, setForm] = useState({ name: '', email: '', role: '', department: '' });
+  const [apiUsers, setApiUsers] = useState<any[] | null>(null);
 
   const activeCompanyId = useStore((s) => s.activeCompanyId);
   const isMobile = winWidth < 720;
-  const companyUsers = activeCompanyId ? users.filter(u => !u.companyId || u.companyId === activeCompanyId) : users;
-  const filtered = companyUsers.filter((u) =>
-    u.name.toLowerCase().includes(search.toLowerCase()) ||
-    u.email.toLowerCase().includes(search.toLowerCase()) ||
-    u.role.toLowerCase().includes(search.toLowerCase()) ||
-    u.department.toLowerCase().includes(search.toLowerCase())
+
+  const fetchUsers = useCallback(() => {
+    api.getUsers().then(setApiUsers).catch(() => setApiUsers(null));
+  }, []);
+
+  useEffect(() => { fetchUsers(); }, [fetchUsers]);
+
+  const users = apiUsers || storeUsers;
+  const companyUsers = activeCompanyId ? users.filter((u: any) => !u.companyId || u.companyId === activeCompanyId) : users;
+  const filtered = companyUsers.filter((u: any) =>
+    (u.name || '').toLowerCase().includes(search.toLowerCase()) ||
+    (u.email || '').toLowerCase().includes(search.toLowerCase()) ||
+    (u.role || '').toLowerCase().includes(search.toLowerCase()) ||
+    (u.department || '').toLowerCase().includes(search.toLowerCase())
   );
 
   const openAdd = () => { setForm({ name: '', email: '', role: '', department: '' }); setShowAdd(true); };
-  const openEdit = (u: typeof users[0]) => { setForm({ name: u.name, email: u.email, role: u.role, department: u.department }); setEditId(u.id); setMenuId(null); };
+  const openEdit = (u: any) => { setForm({ name: u.name, email: u.email, role: u.role, department: u.department }); setEditId(u.id); setMenuId(null); };
   const closeForm = () => { setShowAdd(false); setEditId(null); };
+
+  const handleApprove = async (user: any) => {
+    await api.updateUserStatus(user.id, 'active');
+    api.sendAccountApprovedEmail(user.email, user.name, 'Standard');
+    fetchUsers();
+  };
+
+  const handleReject = async (user: any) => {
+    await api.updateUserStatus(user.id, 'suspended');
+    api.sendAccountSuspendedEmail(user.email, user.name);
+    fetchUsers();
+  };
 
   const handleSave = () => {
     if (!form.name || !form.email) return;
     if (editId !== null) {
-      updateUser(editId, { name: form.name, email: form.email, role: form.role, department: form.department });
+      updateUser(editId as number, { name: form.name, email: form.email, role: form.role, department: form.department });
       setEditId(null);
     } else {
       const email = form.email;
       const name = form.name;
       addUser(name, email, form.role || 'Viewer', form.department || '—');
       setShowAdd(false);
-      import('../../lib/api').then(({ api }) => {
-        api.sendInviteEmail(email, name);
-      });
+      api.sendInviteEmail(email, name);
     }
   };
 
@@ -93,25 +114,40 @@ export default function UsersScreen() {
                   <td style={{ padding: '12px 20px' }}><StatusBadge status={user.status} /></td>
                   <td style={{ padding: '12px 20px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, position: 'relative' }}>
-                      <button onClick={() => openEdit(user)}
-                        style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
-                        Edit
-                      </button>
-                      <button onClick={() => setMenuId(menuId === user.id ? null : user.id)}
-                        style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', cursor: 'pointer' }}>
-                        <MoreHorizontal size={15} />
-                      </button>
-                      {menuId === user.id && (
-                        <div style={{ position: 'absolute', right: 0, top: 36, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.15)', zIndex: 20, minWidth: 150, overflow: 'hidden' }}>
+                      {user.status === 'pending' && isDockformAdmin ? (
+                        <>
+                          <button onClick={() => handleApprove(user)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#DCFCE7', border: '1px solid #BBF7D0', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: '#15803D', cursor: 'pointer' }}>
+                            <CheckCircle2 size={13} /> Approve
+                          </button>
+                          <button onClick={() => handleReject(user)}
+                            style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: '#EF4444', cursor: 'pointer' }}>
+                            <XCircle size={13} /> Reject
+                          </button>
+                        </>
+                      ) : (
+                        <>
                           <button onClick={() => openEdit(user)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
-                            <Edit3 size={14} /> Edit User
+                            style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
+                            Edit
                           </button>
-                          <button onClick={() => deleteUser(user.id)}
-                            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: '#EF4444', cursor: 'pointer', textAlign: 'left' }}>
-                            <Trash2 size={14} /> Delete User
+                          <button onClick={() => setMenuId(menuId === user.id ? null : user.id)}
+                            style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', cursor: 'pointer' }}>
+                            <MoreHorizontal size={15} />
                           </button>
-                        </div>
+                          {menuId === user.id && (
+                            <div style={{ position: 'absolute', right: 0, top: 36, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 12px rgba(0,0,0,.15)', zIndex: 20, minWidth: 150, overflow: 'hidden' }}>
+                              <button onClick={() => openEdit(user)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+                                <Edit3 size={14} /> Edit User
+                              </button>
+                              <button onClick={() => deleteUser(user.id)}
+                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: '#EF4444', cursor: 'pointer', textAlign: 'left' }}>
+                                <Trash2 size={14} /> Delete User
+                              </button>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </td>

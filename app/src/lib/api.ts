@@ -25,7 +25,7 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
 export const api = {
   // Auth
   login: (email: string, password: string) => request<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  signup: (email: string, password: string, fullName?: string) => request<{ token: string; user: any }>('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, fullName }) }),
+  signup: (email: string, password: string, fullName?: string) => request<{ token: string; user: any; pending?: boolean; message?: string }>('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, fullName }) }),
 
   // Dashboard
   dashboard: () => request<{ stats: any; recentForms: any[] }>('/dashboard'),
@@ -50,6 +50,7 @@ export const api = {
 
   getUsers: () => request<any[]>('/users'),
   createUser: (data: any) => request<any>('/users', { method: 'POST', body: JSON.stringify(data) }),
+  updateUserStatus: (id: string, status: string) => request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
   getForms: () => request<any[]>('/forms'),
   getForm: (id: string) => request<any>(`/forms/${id}`),
