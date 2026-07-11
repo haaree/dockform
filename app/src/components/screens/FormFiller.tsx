@@ -1,7 +1,8 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2, Sparkles } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule } from '../../store/types';
+import { api } from '../../lib/api';
 
 function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v: string) => void; accent: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -93,11 +94,13 @@ function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v
   );
 }
 
-function BeforeAfterField({ value, onChange }: { value: string; onChange: (v: string) => void; accent: string }) {
+function BeforeAfterField({ value, onChange, accent }: { value: string; onChange: (v: string) => void; accent: string }) {
   const beforeRef = useRef<HTMLInputElement>(null);
   const afterRef = useRef<HTMLInputElement>(null);
-  let parsed: { before?: string; after?: string; beforeDesc?: string; afterDesc?: string; observation?: string } = {};
+  let parsed: { before?: string; after?: string; beforeDesc?: string; afterDesc?: string; observation?: string; aiComment?: string; aiComparison?: string } = {};
   try { parsed = JSON.parse(value || '{}'); } catch { /* empty */ }
+  const [aiLoading, setAiLoading] = useState<'before' | 'compare' | null>(null);
+  const [aiError, setAiError] = useState('');
 
   const update = (patch: Partial<typeof parsed>) => {
     onChange(JSON.stringify({ ...parsed, ...patch }));
@@ -107,8 +110,37 @@ function BeforeAfterField({ value, onChange }: { value: string; onChange: (v: st
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => update({ [key]: reader.result as string });
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+      update({ [key]: dataUrl });
+      if (key === 'after' && parsed.before) {
+        setAiError('');
+        setAiLoading('compare');
+        try {
+          const { comment } = await api.comparePhotos(parsed.before, dataUrl, 'factory cleaning checklist');
+          update({ after: dataUrl, aiComparison: comment });
+        } catch {
+          setAiError('AI comparison unavailable — you can still add a manual comment.');
+        } finally {
+          setAiLoading(null);
+        }
+      }
+    };
     reader.readAsDataURL(file);
+  };
+
+  const runAiOnBefore = async () => {
+    if (!parsed.before) return;
+    setAiError('');
+    setAiLoading('before');
+    try {
+      const { comment } = await api.analyzePhoto(parsed.before, 'factory cleaning checklist');
+      update({ aiComment: comment });
+    } catch {
+      setAiError('AI comment unavailable — you can still write one manually.');
+    } finally {
+      setAiLoading(null);
+    }
   };
 
   const inputStyle: React.CSSProperties = { width: '100%', padding: '8px 10px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginTop: 8 };
@@ -121,7 +153,7 @@ function BeforeAfterField({ value, onChange }: { value: string; onChange: (v: st
         <div>
           <div style={{ position: 'relative' }}>
             <img src={parsed[key]} alt={label} style={{ width: '100%', height: 160, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)' }} />
-            <button type="button" onClick={() => update({ [key]: '', [descKey]: '' })}
+            <button type="button" onClick={() => update({ [key]: '', [descKey]: '', ...(key === 'before' ? { aiComment: '' } : { aiComparison: '' }) })}
               style={{ position: 'absolute', top: 6, right: 6, width: 24, height: 24, borderRadius: '50%', border: 'none', background: 'rgba(0,0,0,.6)', color: '#fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>×</button>
           </div>
           <input type="text" value={parsed[descKey] || ''} onChange={(e) => update({ [descKey]: e.target.value })} placeholder={`Describe ${label.toLowerCase()} photo…`} style={inputStyle} />
@@ -142,11 +174,36 @@ function BeforeAfterField({ value, onChange }: { value: string; onChange: (v: st
         {photoBox('Before', 'before', 'beforeDesc', beforeRef)}
         {photoBox('After', 'after', 'afterDesc', afterRef)}
       </div>
-      <div style={{ marginTop: 12 }}>
-        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Observation</div>
-        <textarea value={parsed.observation || ''} onChange={(e) => update({ observation: e.target.value })} placeholder="Write your observation here…"
-          style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none', minHeight: 80, resize: 'vertical', fontFamily: 'inherit' }} />
-      </div>
+
+      {parsed.before && !parsed.after && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>Comment (before cleaning)</div>
+            <button type="button" onClick={runAiOnBefore} disabled={aiLoading === 'before'}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: `1px solid ${accent}`, borderRadius: 6, padding: '3px 8px', fontSize: 11, fontWeight: 600, color: accent, cursor: aiLoading === 'before' ? 'default' : 'pointer' }}>
+              <Sparkles size={11} /> {aiLoading === 'before' ? 'Analyzing…' : 'AI Suggest'}
+            </button>
+          </div>
+          <textarea value={parsed.aiComment ?? parsed.observation ?? ''} onChange={(e) => update({ observation: e.target.value, aiComment: undefined })}
+            placeholder="Write a manual comment, or click AI Suggest…"
+            style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none', minHeight: 70, resize: 'vertical', fontFamily: 'inherit' }} />
+        </div>
+      )}
+
+      {parsed.after && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Comparison</div>
+          {aiLoading === 'compare' ? (
+            <div style={{ fontSize: 13, color: 'var(--muted)', padding: '10px 0' }}>Comparing before/after photos…</div>
+          ) : (
+            <textarea value={parsed.aiComparison ?? parsed.observation ?? ''} onChange={(e) => update({ observation: e.target.value, aiComparison: e.target.value })}
+              placeholder="AI comparison will appear here once both photos are uploaded, or write your own…"
+              style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none', minHeight: 80, resize: 'vertical', fontFamily: 'inherit' }} />
+          )}
+        </div>
+      )}
+
+      {aiError && <div style={{ fontSize: 11, color: '#DC2626', marginTop: 6 }}>{aiError}</div>}
     </div>
   );
 }
@@ -318,6 +375,9 @@ export default function FormFiller() {
   const forms = useStore((s) => s.forms);
   const setNav = useStore((s) => s.setNav);
   const submitResponse = useStore((s) => s.submitResponse);
+  const saveResponseDraft = useStore((s) => s.saveResponseDraft);
+  const activeResponseId = useStore((s) => s.activeResponseId);
+  const activeResponseValues = useStore((s) => s.activeResponseValues);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
   const currentUserId = useStore((s) => s.currentUserId);
@@ -343,6 +403,11 @@ export default function FormFiller() {
 
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    if (activeResponseValues) setValues(activeResponseValues);
+  }, [activeResponseValues]);
 
   const evaluateRule = (rule: LogicRule): boolean => {
     const sourceVal = values[rule.sourceFieldId] || '';
@@ -422,6 +487,12 @@ export default function FormFiller() {
     setSubmitted(true);
   };
 
+  const handleSaveDraft = async () => {
+    await saveResponseDraft(form.id, values);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ height: 52, minHeight: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', background: 'var(--surface)' }}>
@@ -430,7 +501,11 @@ export default function FormFiller() {
           <ArrowLeft size={17} />
         </button>
         <div style={{ width: 1, height: 18, background: 'var(--border)' }} />
-        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.name}</div>
+        <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.name}{activeResponseId ? ' (In Progress)' : ''}</div>
+        <button type="button" onClick={handleSaveDraft}
+          style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
+          {saved ? 'Saved' : 'Save & Continue Later'}
+        </button>
         <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
           style={{
             height: 32, padding: '0 14px', borderRadius: 7, border: 'none',

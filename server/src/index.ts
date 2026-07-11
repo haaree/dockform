@@ -14,13 +14,14 @@ import responsesRouter from './routes/responses.js';
 import dashboardRouter from './routes/dashboard.js';
 import cronRouter from './routes/cron.js';
 import emailRouter from './routes/email.js';
+import aiRouter from './routes/ai.js';
 import { authMiddleware } from './middleware/auth.js';
 
 export const prisma = new PrismaClient();
 
 const app = express();
 app.use(cors());
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok' });
@@ -41,6 +42,7 @@ app.use('/api/permissions', permissionsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/forms', formsRouter);
 app.use('/api/responses', responsesRouter);
+app.use('/api/ai', aiRouter);
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 app.listen(PORT, '0.0.0.0', () => {

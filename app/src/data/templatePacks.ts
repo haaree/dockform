@@ -278,5 +278,20 @@ export function getBuiltInPacks(): TemplatePack[] {
         f('signature', 'Compliance Officer Signature', { req: true }),
       ],
     },
+    {
+      id: 'daily-cleaning-checklist', name: 'Daily Factory Cleaning Checklist',
+      description: 'Housekeeping checklist for factory plants — capture a before photo per area, hand off instructions, then return after cleaning to capture the after photo with an AI-generated or manual comparison comment.',
+      domain: 'Housekeeping & Facilities', tag: 'Housekeeping', color: '#0D9488',
+      chips: ['Cleaning', 'Before/After', 'AI Comparison', 'Recurring'],
+      fields: [
+        f('textbox', 'Plant', { req: true, ph: 'e.g. Chennai Manufacturing Plant', idx: true }),
+        f('textbox', 'Area', { req: true, ph: 'e.g. Shop Floor A, Loading Dock, Canteen', idx: true }),
+        f('date', 'Date', { req: true }),
+        f('beforeafter', 'Cleaning Before/After', { req: true, help: 'Upload the before photo and add a comment (manual or AI-generated). Return after cleaning to upload the after photo — AI will compare both automatically.' }),
+        f('checkbox', 'Areas Checked', { opts: ['Floors Swept & Mopped', 'Surfaces Wiped Down', 'Waste Bins Emptied', 'Windows/Glass Cleaned', 'Equipment Wiped', 'Restrooms Sanitized'] }),
+        f('rating', 'Cleanliness Rating (After)', { help: '1 = Poor · 5 = Excellent' }),
+        f('signature', 'Housekeeping Staff Signature', { req: true }),
+      ],
+    },
   ];
 }

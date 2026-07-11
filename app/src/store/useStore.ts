@@ -140,8 +140,11 @@ interface AppState {
   toggleAssignUser: (userId: string) => void;
   setAssignModalUserIds: (ids: string[]) => void;
   fillingFormId: string | null;
+  activeResponseId: string | null;
+  activeResponseValues: Record<string, string> | null;
   fillForm: (id: string) => Promise<void>;
   submitResponse: (formId: string, values: Record<string, string>) => Promise<void>;
+  saveResponseDraft: (formId: string, values: Record<string, string>) => Promise<void>;
   refreshResponses: () => Promise<void>;
   viewingFormId: string | null;
   viewFormResponses: (id: string) => void;
@@ -545,8 +548,10 @@ export const useStore = create<AppState>((set) => ({
   },
 
   fillingFormId: null as string | null,
+  activeResponseId: null as string | null,
+  activeResponseValues: null as Record<string, string> | null,
   fillForm: async (id: string) => {
-    set({ fillingFormId: id, nav: 'fill' });
+    set({ fillingFormId: id, nav: 'fill', activeResponseId: null, activeResponseValues: null });
     const { api } = await import('../lib/api');
     const full = await api.getForm(id);
     const fieldDefs: FormField[] = (full.fields || []).map((f: any) => ({
@@ -558,6 +563,13 @@ export const useStore = create<AppState>((set) => ({
       logic: f.logic || [],
     }));
     set((s) => ({ forms: s.forms.map(fm => fm.id === id ? { ...fm, fieldDefs } : fm) }));
+
+    const { currentUserId, responses } = useStore.getState();
+    const draft = responses.find(r => r.formId === id && r.status === 'draft' && r.submittedById === currentUserId);
+    if (draft) {
+      const full = await api.getResponse(draft.id);
+      set({ activeResponseId: draft.id, activeResponseValues: full.values || {} });
+    }
   },
 
   refreshResponses: async () => {
@@ -565,9 +577,27 @@ export const useStore = create<AppState>((set) => ({
     try { const responses = await api.getResponses(); set({ responses }); } catch { /* ignore */ }
   },
 
+  saveResponseDraft: async (formId: string, values: Record<string, string>) => {
+    const { api } = await import('../lib/api');
+    const { activeResponseId } = useStore.getState();
+    if (activeResponseId) {
+      await api.updateResponse(activeResponseId, { values, status: 'draft' });
+    } else {
+      const created = await api.createResponse({ formId, values, status: 'draft' });
+      set({ activeResponseId: created.id });
+    }
+    await useStore.getState().refreshResponses();
+  },
+
   submitResponse: async (formId: string, values: Record<string, string>) => {
     const { api } = await import('../lib/api');
-    await api.createResponse({ formId, values });
+    const { activeResponseId } = useStore.getState();
+    if (activeResponseId) {
+      await api.updateResponse(activeResponseId, { values, status: 'submitted' });
+    } else {
+      await api.createResponse({ formId, values, status: 'submitted' });
+    }
+    set({ activeResponseId: null, activeResponseValues: null });
     await useStore.getState().refreshResponses();
   },
 

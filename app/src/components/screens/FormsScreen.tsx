@@ -70,10 +70,17 @@ export default function FormsScreen() {
 
   const isCompletedForViewer = (form: typeof forms[number]) => {
     const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
-    if (!occurrenceStart) {
-      return responses.some(r => r.formId === form.id && (!currentUserId || r.submittedById === currentUserId));
-    }
-    return responses.some(r => r.formId === form.id && r.submittedById === currentUserId && new Date(r.date) >= occurrenceStart);
+    const submitted = responses.filter(r => r.formId === form.id && r.status !== 'draft' && (!currentUserId || r.submittedById === currentUserId));
+    if (!occurrenceStart) return submitted.length > 0;
+    return submitted.some(r => new Date(r.date) >= occurrenceStart);
+  };
+
+  const isInProgressForViewer = (form: typeof forms[number]) => {
+    if (isCompletedForViewer(form)) return false;
+    const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
+    const drafts = responses.filter(r => r.formId === form.id && r.status === 'draft' && (!currentUserId || r.submittedById === currentUserId));
+    if (!occurrenceStart) return drafts.length > 0;
+    return drafts.some(r => new Date(r.date) >= occurrenceStart);
   };
 
   const pendingForms = isViewer ? filtered.filter(f => !isCompletedForViewer(f)) : [];
@@ -104,7 +111,7 @@ export default function FormsScreen() {
       <div style={{ flex: 1, overflow: 'auto', padding: pad }}>
         {isViewer ? (
           <>
-            <ViewerFormSection title="Pending" forms={pendingForms} accentText={accentText} fillForm={fillForm} />
+            <ViewerFormSection title="Pending" forms={pendingForms} accentText={accentText} fillForm={fillForm} isInProgress={isInProgressForViewer} />
             <div style={{ height: 24 }} />
             <ViewerFormSection title="Completed" forms={completedForms} accentText={accentText} fillForm={fillForm} completed />
           </>
@@ -306,8 +313,8 @@ export default function FormsScreen() {
   );
 }
 
-function ViewerFormSection({ title, forms, accentText, fillForm, completed }: {
-  title: string; forms: any[]; accentText: string; fillForm: (id: string) => void; completed?: boolean;
+function ViewerFormSection({ title, forms, accentText, fillForm, completed, isInProgress }: {
+  title: string; forms: any[]; accentText: string; fillForm: (id: string) => void; completed?: boolean; isInProgress?: (form: any) => boolean;
 }) {
   return (
     <div>
@@ -332,6 +339,11 @@ function ViewerFormSection({ title, forms, accentText, fillForm, completed }: {
                     <CalendarClock size={10} /> {form.schedule.frequency}
                   </span>
                 )}
+                {!completed && isInProgress?.(form) && (
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#FEF3C7', color: '#92400E' }}>
+                    In Progress
+                  </span>
+                )}
                 {!completed && (() => {
                   const due = getOccurrenceDueDate(form.schedule);
                   if (!due) return null;
@@ -347,7 +359,7 @@ function ViewerFormSection({ title, forms, accentText, fillForm, completed }: {
             {!completed && (
               <button onClick={() => fillForm(form.id)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: accentText, border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>
-                <ClipboardList size={12} /> Fill Out
+                <ClipboardList size={12} /> {isInProgress?.(form) ? 'Continue' : 'Fill Out'}
               </button>
             )}
           </div>
