@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 
 async function main() {
   // Roles
+  await prisma.role.create({ data: { key: 'platform_admin', name: 'Platform Admin', description: 'DockForm staff — approves companies, no tenant data access' } });
   const adminRole = await prisma.role.create({ data: { key: 'admin', name: 'Administrator', description: 'Full platform access, user & role management' } });
   const editorRole = await prisma.role.create({ data: { key: 'editor', name: 'Form Editor', description: 'Create and edit forms, view responses' } });
   const auditorRole = await prisma.role.create({ data: { key: 'auditor', name: 'Compliance Auditor', description: 'Fill and submit compliance checklists' } });

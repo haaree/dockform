@@ -9,7 +9,6 @@ export default function UsersScreen() {
   const storeUsers = useStore((s) => s.users);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
-  const addUser = useStore((s) => s.addUser);
   const updateUser = useStore((s) => s.updateUser);
   const deleteUser = useStore((s) => s.deleteUser);
   const isDockformAdmin = useStore((s) => s.isDockformAdmin);
@@ -54,17 +53,15 @@ export default function UsersScreen() {
     fetchUsers();
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name || !form.email) return;
     if (editId !== null) {
       updateUser(editId as number, { name: form.name, email: form.email, role: form.role, department: form.department });
       setEditId(null);
     } else {
-      const email = form.email;
-      const name = form.name;
-      addUser(name, email, form.role || 'Viewer', form.department || '—');
+      await api.inviteUser(form.email, form.name);
       setShowAdd(false);
-      api.sendInviteEmail(email, name);
+      fetchUsers();
     }
   };
 

@@ -4,14 +4,16 @@ import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, R
 interface AppState {
   // Auth
   isAuthed: boolean;
-  currentUserId: number | null;
+  currentUserId: number | string | null;
   currentUserRole: string;
   currentUserName: string;
   isDockformAdmin: boolean;
-  activeCompanyId: number | null;
+  isPlatformAdmin: boolean;
+  activeCompanyId: number | string | null;
   onboardingComplete: boolean;
   onboardingStep: number;
   authMode: 'login' | 'signup';
+  inviteToken: string;
   authEmail: string;
   authPassword: string;
   authError: string;
@@ -65,12 +67,12 @@ interface AppState {
   accounts: AccountItem[];
 
   // Actions
-  setAuth: (isAuthed: boolean) => void;
+  setAuth: (isAuthed: boolean, authUser?: { id?: string; roleKey?: string; companyId?: string | null }) => void;
   setAuthMode: (mode: 'login' | 'signup') => void;
   setAuthField: (key: 'authEmail' | 'authPassword', val: string) => void;
   setAuthError: (err: string) => void;
   logout: () => void;
-  setActiveCompany: (id: number | null) => void;
+  setActiveCompany: (id: number | string | null) => void;
   setOnboardingStep: (step: number) => void;
   completeOnboarding: () => void;
 
@@ -166,10 +168,12 @@ export const useStore = create<AppState>((set) => ({
   currentUserRole: '',
   currentUserName: '',
   isDockformAdmin: false,
-  activeCompanyId: 1,
+  isPlatformAdmin: false,
+  activeCompanyId: null,
   onboardingComplete: true,
   onboardingStep: 0,
   authMode: 'login',
+  inviteToken: '',
   authEmail: '',
   authPassword: '',
   authError: '',
@@ -254,23 +258,26 @@ export const useStore = create<AppState>((set) => ({
   responses: [],
   accounts: [],
 
-  setAuth: (isAuthed) => set((s) => {
-    if (isAuthed) {
-      const DOCKFORM_ADMIN_EMAILS = ['sarah@acme.com', 'admin@dockform.com', 'haaree@gmail.com'];
-      const isDockformAdmin = DOCKFORM_ADMIN_EMAILS.includes(s.authEmail.toLowerCase());
-      const user = s.users.find(u => u.email === s.authEmail);
-      if (isDockformAdmin) {
-        return { isAuthed, isDockformAdmin: true, currentUserId: user?.id || 1, currentUserRole: 'Admin', activeCompanyId: null };
-      }
-      const activeCompanyId = user?.companyId || null;
-      return { isAuthed, isDockformAdmin: false, currentUserId: user?.id || null, currentUserRole: user?.role || 'Viewer', activeCompanyId };
+  setAuth: (isAuthed, authUser) => set(() => {
+    if (isAuthed && authUser) {
+      const isPlatformAdmin = authUser.roleKey === 'platform_admin';
+      const isDockformAdmin = authUser.roleKey === 'admin';
+      return {
+        isAuthed,
+        isDockformAdmin,
+        isPlatformAdmin,
+        currentUserId: authUser.id ?? null,
+        currentUserRole: isPlatformAdmin ? 'Platform Admin' : isDockformAdmin ? 'Admin' : (authUser.roleKey || 'Viewer'),
+        activeCompanyId: authUser.companyId || null,
+      };
     }
-    return { isAuthed, currentUserId: null, currentUserRole: '', isDockformAdmin: false };
+    if (isAuthed) return { isAuthed };
+    return { isAuthed, currentUserId: null, currentUserRole: '', isDockformAdmin: false, isPlatformAdmin: false };
   }),
   setAuthMode: (authMode) => set({ authMode, authError: '' }),
   setAuthField: (key, val) => set({ [key]: val, authError: '' }),
   setAuthError: (authError) => set({ authError }),
-  logout: () => { import('../lib/api').then(({ setToken }) => setToken(null)); set({ isAuthed: false, currentUserId: null, currentUserRole: '', currentUserName: '', isDockformAdmin: false, activeCompanyId: null, onboardingComplete: true, onboardingStep: 0, authEmail: '', authPassword: '', authMode: 'login' }); },
+  logout: () => { import('../lib/api').then(({ setToken }) => setToken(null)); set({ isAuthed: false, currentUserId: null, currentUserRole: '', currentUserName: '', isDockformAdmin: false, isPlatformAdmin: false, activeCompanyId: null, onboardingComplete: true, onboardingStep: 0, authEmail: '', authPassword: '', authMode: 'login' }); },
   setActiveCompany: (activeCompanyId) => set({ activeCompanyId }),
   setOnboardingStep: (onboardingStep) => set({ onboardingStep }),
   completeOnboarding: () => set({ onboardingComplete: true, nav: 'dashboard' }),

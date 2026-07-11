@@ -25,7 +25,7 @@ async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
 export const api = {
   // Auth
   login: (email: string, password: string) => request<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
-  signup: (email: string, password: string, fullName?: string) => request<{ token: string; user: any; pending?: boolean; message?: string }>('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, fullName }) }),
+  signup: (email: string, password: string, fullName?: string, inviteToken?: string) => request<{ token: string; user: any; pending?: boolean; message?: string }>('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, fullName, inviteToken }) }),
   forgotPassword: (email: string) => request<{ ok: boolean }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
   resetPassword: (token: string, password: string) => request<{ ok: boolean }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
 
@@ -51,7 +51,7 @@ export const api = {
   updatePermission: (id: string, data: any) => request<any>(`/permissions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   getUsers: () => request<any[]>('/users'),
-  createUser: (data: any) => request<any>('/users', { method: 'POST', body: JSON.stringify(data) }),
+  inviteUser: (email: string, fullName: string, roleId?: string) => request<any>('/users', { method: 'POST', body: JSON.stringify({ email, fullName, roleId }) }),
   updateUserStatus: (id: string, status: string) => request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
   getForms: () => request<any[]>('/forms'),

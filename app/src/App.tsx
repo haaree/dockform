@@ -312,6 +312,10 @@ function App() {
       useStore.setState({ authMode: 'signup' });
       window.history.replaceState({}, '', window.location.pathname);
     }
+    const invite = params.get('invite');
+    if (invite && !isAuthed) {
+      useStore.setState({ authMode: 'signup', inviteToken: invite });
+    }
   }, [isAuthed]);
 
   useEffect(() => {
@@ -324,7 +328,7 @@ function App() {
         const form = state.forms.find(f => f.id === id);
         if (form) {
           const isAdm = state.currentUserRole === 'Admin' || state.currentUserRole === 'admin';
-          const hasAccess = isAdm || !form.assignedUserIds || form.assignedUserIds.length === 0 || (state.currentUserId && form.assignedUserIds.includes(state.currentUserId));
+          const hasAccess = isAdm || !form.assignedUserIds || form.assignedUserIds.length === 0 || (state.currentUserId && form.assignedUserIds.includes(state.currentUserId as number));
           if (hasAccess) fillForm(id);
         }
         window.history.replaceState({}, '', window.location.pathname);

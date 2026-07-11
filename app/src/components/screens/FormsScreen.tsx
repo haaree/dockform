@@ -53,7 +53,7 @@ export default function FormsScreen() {
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
   const companyForms = activeCompanyId ? forms.filter(f => !f.companyId || f.companyId === activeCompanyId) : forms;
   const visibleForms = isAdmin ? companyForms : companyForms.filter(f =>
-    !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId))
+    !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId as number))
   );
   const filtered = visibleForms.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||

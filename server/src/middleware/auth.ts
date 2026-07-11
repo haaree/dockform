@@ -6,6 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'dockform-factory-secret-change-me'
 export interface AuthPayload {
   userId: string;
   roleKey: string;
+  companyId: string | null;
 }
 
 declare global {

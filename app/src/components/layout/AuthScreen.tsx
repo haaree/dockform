@@ -25,6 +25,7 @@ const inputStyle: CSSProperties = {
 
 export function AuthScreen() {
   const authMode = useStore((s) => s.authMode);
+  const inviteToken = useStore((s) => s.inviteToken);
   const authEmail = useStore((s) => s.authEmail);
   const authPassword = useStore((s) => s.authPassword);
   const authError = useStore((s) => s.authError);
@@ -82,20 +83,20 @@ export function AuthScreen() {
     try {
       const { api, setToken } = await import('../../lib/api');
       if (isSignup) {
-        const res = await api.signup(authEmail, authPassword, fullName || undefined);
+        const res = await api.signup(authEmail, authPassword, fullName || undefined, inviteToken || undefined);
         if (res.pending) {
           setPendingMessage(res.message || 'Your account is pending admin approval.');
           return;
         }
         setToken(res.token);
-        useStore.setState({ currentUserName: res.user?.fullName || fullName || '' });
-        setAuth(true);
+        useStore.setState({ currentUserName: res.user?.fullName || fullName || '', inviteToken: '' });
+        setAuth(true, res.user);
         useStore.setState({ onboardingComplete: false, onboardingStep: 0 });
       } else {
         const res = await api.login(authEmail, authPassword);
         setToken(res.token);
         useStore.setState({ currentUserName: res.user?.fullName || '' });
-        setAuth(true);
+        setAuth(true, res.user);
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Authentication failed';
