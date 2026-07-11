@@ -35,7 +35,15 @@ router.post('/', async (req, res) => {
   const form = await prisma.form.create({
     data: {
       name, description, domain, createdById: req.auth?.userId, companyId: req.auth?.companyId,
-      fields: fields ? { create: fields.map((f: any, i: number) => ({ ...f, sortOrder: i })) } : undefined,
+      fields: fields ? {
+        create: fields.map((f: any, i: number) => ({
+          sortOrder: i, type: f.type, label: f.label,
+          placeholder: f.placeholder || '', helpText: f.helpText || '', defaultValue: f.defaultValue || '',
+          options: f.options || [], validation: f.validation || {}, isRequired: f.required || false,
+          isReadOnly: f.readOnly || false, isHidden: f.hidden || false,
+          isSearchable: f.searchable || false, isIndexed: f.indexed || false, logic: f.logic || [],
+        })),
+      } : undefined,
     },
     include: { fields: true },
   });
