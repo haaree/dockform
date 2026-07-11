@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
+import { sendAccountApprovedEmail, sendAccountSuspendedEmail } from '../lib/email.js';
 
 const router = Router();
 
@@ -21,6 +22,14 @@ router.patch('/:id', async (req, res) => {
   const { status } = req.body;
   const company = await prisma.company.update({ where: { id: req.params.id }, data: { status } });
   res.json(company);
+
+  if (status === 'active' || status === 'suspended') {
+    const admins = await prisma.user.findMany({ where: { companyId: company.id, role: { key: 'admin' } } });
+    for (const admin of admins) {
+      if (status === 'active') sendAccountApprovedEmail(admin.email, admin.fullName, 'Standard');
+      else sendAccountSuspendedEmail(admin.email, admin.fullName);
+    }
+  }
 });
 
 router.post('/', async (req, res) => {
