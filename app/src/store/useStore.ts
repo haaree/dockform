@@ -269,7 +269,7 @@ export const useStore = create<AppState>((set) => ({
         isDockformAdmin,
         isPlatformAdmin,
         currentUserId: authUser.id ?? null,
-        currentUserRole: isPlatformAdmin ? 'Platform Admin' : isDockformAdmin ? 'Admin' : (authUser.roleKey || 'Viewer'),
+        currentUserRole: isPlatformAdmin ? 'Platform Admin' : isDockformAdmin ? 'Admin' : (authUser.roleKey || 'viewer'),
         activeCompanyId: authUser.companyId || null,
       };
     }

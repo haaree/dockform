@@ -33,10 +33,16 @@ router.post('/', async (req, res) => {
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) { res.status(409).json({ error: 'Email already registered' }); return; }
 
+  let resolvedRoleId = roleId;
+  if (!resolvedRoleId) {
+    const viewerRole = await prisma.role.findUnique({ where: { key: 'viewer' } });
+    resolvedRoleId = viewerRole?.id;
+  }
+
   const inviteToken = crypto.randomBytes(32).toString('hex');
   const user = await prisma.user.create({
     data: {
-      email, fullName, roleId, companyId: req.auth.companyId,
+      email, fullName, roleId: resolvedRoleId, companyId: req.auth.companyId,
       status: 'invited', preferences: { inviteToken },
     },
   });

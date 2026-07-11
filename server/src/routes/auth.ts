@@ -32,8 +32,9 @@ router.post('/login', async (req, res) => {
     res.status(403).json({ error: 'Your company account has been suspended. Contact DockForm support.' }); return;
   }
 
-  const token = signToken({ userId: user.id, roleKey: user.role?.key || 'viewer', companyId: user.companyId });
-  res.json({ token, user: { id: user.id, email: user.email, fullName: user.fullName, roleKey: user.role?.key, status: user.status, companyId: user.companyId, companyStatus: user.company?.status, preferences: user.preferences } });
+  const roleKey = user.role?.key || 'viewer';
+  const token = signToken({ userId: user.id, roleKey, companyId: user.companyId });
+  res.json({ token, user: { id: user.id, email: user.email, fullName: user.fullName, roleKey, status: user.status, companyId: user.companyId, companyStatus: user.company?.status, preferences: user.preferences } });
 });
 
 router.post('/signup', async (req, res) => {
