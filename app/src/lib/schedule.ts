@@ -30,3 +30,33 @@ export function getCurrentOccurrenceStart(schedule: FormSchedule | undefined, no
       return null;
   }
 }
+
+// Returns the due date for the current recurrence window, or null if not recurring / not started.
+export function getOccurrenceDueDate(schedule: FormSchedule | undefined, now: Date = new Date()): Date | null {
+  if (!schedule || !schedule.frequency || schedule.frequency === 'once') {
+    return schedule?.startDate ? new Date(schedule.startDate) : null;
+  }
+  const occurrenceStart = getCurrentOccurrenceStart(schedule, now);
+  if (!occurrenceStart) return null;
+
+  switch (schedule.frequency) {
+    case 'daily':
+      return occurrenceStart;
+    case 'weekly':
+      return new Date(occurrenceStart.getFullYear(), occurrenceStart.getMonth(), occurrenceStart.getDate() + 6);
+    case 'monthly': {
+      const day = schedule.dueDay || new Date(occurrenceStart.getFullYear(), occurrenceStart.getMonth() + 1, 0).getDate();
+      return new Date(occurrenceStart.getFullYear(), occurrenceStart.getMonth(), day);
+    }
+    case 'quarterly': {
+      const day = schedule.dueDay || new Date(occurrenceStart.getFullYear(), occurrenceStart.getMonth() + 3, 0).getDate();
+      return new Date(occurrenceStart.getFullYear(), occurrenceStart.getMonth() + 2, day);
+    }
+    case 'yearly': {
+      const day = schedule.dueDay || 31;
+      return new Date(occurrenceStart.getFullYear(), 11, day);
+    }
+    default:
+      return null;
+  }
+}

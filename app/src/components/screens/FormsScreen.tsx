@@ -4,7 +4,7 @@ import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
 import { api } from '../../lib/api';
-import { getCurrentOccurrenceStart } from '../../lib/schedule';
+import { getCurrentOccurrenceStart, getOccurrenceDueDate } from '../../lib/schedule';
 
 export default function FormsScreen() {
   const forms = useStore((s) => s.forms);
@@ -325,13 +325,23 @@ function ViewerFormSection({ title, forms, accentText, fillForm, completed }: {
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{form.name}</div>
-              <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2, flexWrap: 'wrap' }}>
                 {form.category}
                 {form.schedule && form.schedule.frequency !== 'once' && (
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EFF6FF', color: '#2563EB' }}>
                     <CalendarClock size={10} /> {form.schedule.frequency}
                   </span>
                 )}
+                {!completed && (() => {
+                  const due = getOccurrenceDueDate(form.schedule);
+                  if (!due) return null;
+                  const overdue = due < new Date(new Date().toDateString());
+                  return (
+                    <span style={{ fontSize: 11, fontWeight: 600, color: overdue ? '#DC2626' : 'var(--muted)' }}>
+                      Due {due.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  );
+                })()}
               </div>
             </div>
             {!completed && (
