@@ -569,7 +569,6 @@ export const useStore = create<AppState>((set) => ({
     const { api } = await import('../lib/api');
     await api.createResponse({ formId, values });
     await useStore.getState().refreshResponses();
-    set({ nav: 'responses' });
   },
 
   viewingFormId: null as string | null,

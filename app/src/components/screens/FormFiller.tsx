@@ -416,9 +416,9 @@ export default function FormFiller() {
   const visibleFields = fields.filter(f => isFieldVisible(f));
   const missingRequired = visibleFields.filter(f => isFieldRequired(f) && !values[f.id]?.trim());
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (missingRequired.length > 0) return;
-    submitResponse(form.id, values);
+    await submitResponse(form.id, values);
     setSubmitted(true);
   };
 
