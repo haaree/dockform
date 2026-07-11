@@ -37,6 +37,20 @@ const SYSTEM: NavItemDef[] = [
   { key: 'help', label: 'Help', icon: HelpCircle },
 ];
 
+// Default nav visibility per role — Admin sees everything; others are scoped down.
+// This is cosmetic only (hides nav items); it does not enforce server-side access.
+const ROLE_NAV_KEYS: Record<string, string[]> = {
+  editor: ['dashboard', 'forms', 'packs', 'responses', 'reports'],
+  auditor: ['dashboard', 'forms', 'responses', 'reports'],
+  viewer: ['dashboard', 'forms', 'responses', 'reports'],
+};
+
+function filterByRole(items: NavItemDef[], roleKey: string): NavItemDef[] {
+  const allowed = ROLE_NAV_KEYS[roleKey];
+  if (!allowed) return items; // unknown role key — fail open to avoid hiding everything
+  return items.filter(i => allowed.includes(i.key));
+}
+
 function SectionLabel({ children }: { children: ReactNode }) {
   return (
     <div
@@ -338,9 +352,18 @@ export function Sidebar() {
 
         {/* Nav sections */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
-          {!isPlatformAdmin && renderSection('Platform', PLATFORM)}
-          {!isPlatformAdmin && renderSection('Structure', STRUCTURE)}
-          {!isPlatformAdmin && renderSection('System', isDockformAdmin ? SYSTEM : SYSTEM.filter(s => s.key !== 'accounts'))}
+          {!isPlatformAdmin && !isDockformAdmin && (
+            <>
+              {renderSection('Platform', filterByRole(PLATFORM, currentUserRole))}
+            </>
+          )}
+          {!isPlatformAdmin && isDockformAdmin && (
+            <>
+              {renderSection('Platform', PLATFORM)}
+              {renderSection('Structure', STRUCTURE)}
+              {renderSection('System', SYSTEM)}
+            </>
+          )}
         </div>
 
         {/* User profile footer */}
