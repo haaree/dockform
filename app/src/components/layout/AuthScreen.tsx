@@ -88,10 +88,13 @@ export function AuthScreen() {
           setPendingMessage(res.message || 'Your account is pending admin approval.');
           return;
         }
+        const wasInvite = !!inviteToken;
         setToken(res.token);
         useStore.setState({ currentUserName: res.user?.fullName || fullName || '', inviteToken: '' });
         setAuth(true, res.user);
-        useStore.setState({ onboardingComplete: false, onboardingStep: 0 });
+        if (!wasInvite) {
+          useStore.setState({ onboardingComplete: false, onboardingStep: 0 });
+        }
       } else {
         const res = await api.login(authEmail, authPassword);
         setToken(res.token);
