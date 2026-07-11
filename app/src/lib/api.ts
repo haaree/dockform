@@ -26,6 +26,8 @@ export const api = {
   // Auth
   login: (email: string, password: string) => request<{ token: string; user: any }>('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   signup: (email: string, password: string, fullName?: string) => request<{ token: string; user: any; pending?: boolean; message?: string }>('/auth/signup', { method: 'POST', body: JSON.stringify({ email, password, fullName }) }),
+  forgotPassword: (email: string) => request<{ ok: boolean }>('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) }),
+  resetPassword: (token: string, password: string) => request<{ ok: boolean }>('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, password }) }),
 
   // Dashboard
   dashboard: () => request<{ stats: any; recentForms: any[] }>('/dashboard'),

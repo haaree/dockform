@@ -144,6 +144,17 @@ export async function sendInviteEmail(to: string, fullName: string, signupLink?:
   return send(to, 'You\'re Invited to DockForm', html);
 }
 
+export async function sendPasswordResetEmail(to: string, fullName: string, resetLink: string) {
+  const html = wrap('Reset Your Password', `
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Hi ${fullName},</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">We received a request to reset your DockForm password. Click below to choose a new one. This link expires in 1 hour.</p>
+    <div style="margin:20px 0;text-align:center;"><a href="${resetLink}" style="display:inline-block;padding:12px 32px;background:#171717;color:#fff;border-radius:6px;font-size:14px;font-weight:600;text-decoration:none;">Reset Password</a></div>
+    <p style="margin:0 0 12px;font-size:13px;color:#9ca3af;line-height:1.6;">If you didn't request this, you can safely ignore this email.</p>
+    <p style="margin:0;font-size:14px;color:#6b7280;">— The DockForm Team</p>
+  `);
+  return send(to, 'Reset Your DockForm Password', html);
+}
+
 export async function sendAdminNewSignupEmail(to: string, newUserName: string, newUserEmail: string) {
   const html = wrap('New Signup — Action Required', `
     <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">A new user has signed up on DockForm and is awaiting approval:</p>

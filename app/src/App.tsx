@@ -5,6 +5,7 @@ import { useStore } from './store/useStore';
 import { getThemeVars } from './lib/theme';
 import { Sidebar } from './components/layout/Sidebar';
 import { AuthScreen } from './components/layout/AuthScreen';
+import { ResetPasswordScreen } from './components/layout/ResetPasswordScreen';
 import Dashboard from './components/screens/Dashboard';
 import FormsScreen from './components/screens/FormsScreen';
 import FormBuilder from './components/screens/FormBuilder';
@@ -333,6 +334,11 @@ function App() {
 
   const themeVars = getThemeVars(accent, dark) as CSSProperties;
   const isMobile = winWidth < 720;
+
+  const resetToken = new URLSearchParams(window.location.search).get('reset');
+  if (resetToken) {
+    return <ResetPasswordScreen token={resetToken} />;
+  }
 
   if (!isAuthed) {
     return <AuthScreen />;

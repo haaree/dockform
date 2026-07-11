@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
+import crypto from 'crypto';
 import { prisma } from '../index.js';
 import { signToken } from '../middleware/auth.js';
-import { sendWelcomeEmail, sendAdminNewSignupEmail } from '../lib/email.js';
+import { sendWelcomeEmail, sendAdminNewSignupEmail, sendPasswordResetEmail } from '../lib/email.js';
 
 const router = Router();
 
@@ -51,6 +52,46 @@ router.post('/signup', async (req, res) => {
   if (process.env.ADMIN_EMAIL) {
     sendAdminNewSignupEmail(process.env.ADMIN_EMAIL, user.fullName, user.email);
   }
+});
+
+router.post('/forgot-password', async (req, res) => {
+  const { email } = req.body;
+  if (!email) { res.status(400).json({ error: 'Email required' }); return; }
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  // Always return success to avoid leaking which emails are registered
+  if (!user) { res.json({ ok: true }); return; }
+
+  const token = crypto.randomBytes(32).toString('hex');
+  const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
+  const preferences = { ...(user.preferences as object || {}), resetToken: token, resetTokenExpiresAt: expiresAt };
+  await prisma.user.update({ where: { id: user.id }, data: { preferences } });
+
+  const appUrl = process.env.APP_URL || 'http://localhost:3000';
+  const resetLink = `${appUrl}?reset=${token}`;
+  sendPasswordResetEmail(user.email, user.fullName, resetLink);
+
+  res.json({ ok: true });
+});
+
+router.post('/reset-password', async (req, res) => {
+  const { token, password } = req.body;
+  if (!token || !password || password.length < 6) { res.status(400).json({ error: 'Token and password (≥6 chars) required' }); return; }
+
+  const users = await prisma.user.findMany({ where: { preferences: { path: ['resetToken'], equals: token } } });
+  const user = users[0];
+  if (!user) { res.status(400).json({ error: 'Invalid or expired reset link' }); return; }
+
+  const prefs = user.preferences as { resetToken?: string; resetTokenExpiresAt?: number };
+  if (!prefs.resetTokenExpiresAt || Date.now() > prefs.resetTokenExpiresAt) {
+    res.status(400).json({ error: 'Invalid or expired reset link' }); return;
+  }
+
+  const hash = await bcrypt.hash(password, 10);
+  const { resetToken, resetTokenExpiresAt, ...rest } = prefs;
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash: hash, preferences: rest } });
+
+  res.json({ ok: true });
 });
 
 export default router;

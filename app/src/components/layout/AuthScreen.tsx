@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
-import { Info, Clock } from 'lucide-react';
+import { Info, Clock, Mail } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars } from '../../lib/theme';
 
@@ -42,6 +42,25 @@ export function AuthScreen() {
 
   const [loading, setLoading] = useState(false);
   const [pendingMessage, setPendingMessage] = useState('');
+  const [showForgot, setShowForgot] = useState(false);
+  const [forgotSent, setForgotSent] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+
+  const handleForgotSubmit = async (e: FormEvent) => {
+    e.preventDefault();
+    if (!authEmail) { setForgotError('Please enter your email.'); return; }
+    setForgotError('');
+    setLoading(true);
+    try {
+      const { api } = await import('../../lib/api');
+      await api.forgotPassword(authEmail);
+      setForgotSent(true);
+    } catch (err: unknown) {
+      setForgotError(err instanceof Error ? err.message : 'Failed to send reset email');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -130,6 +149,63 @@ export function AuthScreen() {
                 Back to Sign In
               </button>
             </div>
+          ) : showForgot ? (
+            forgotSent ? (
+              <div style={{ textAlign: 'center', padding: '12px 0' }}>
+                <Mail size={40} color={accent} style={{ marginBottom: 16 }} />
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Check your email</div>
+                <div style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 20 }}>
+                  If an account exists for {authEmail}, we've sent a password reset link. It expires in 1 hour.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => { setShowForgot(false); setForgotSent(false); }}
+                  style={{ background: accent, color: '#fff', border: 'none', borderRadius: 8, padding: '10px 24px', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
+                >
+                  Back to Sign In
+                </button>
+              </div>
+            ) : (
+              <>
+                <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Reset your password</div>
+                <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>Enter your email and we'll send you a reset link.</div>
+
+                {forgotError && (
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, background: dark ? '#3F1D1D' : '#FEF2F2', border: `1px solid ${dark ? '#7F1D1D' : '#FECACA'}`, borderRadius: 8, padding: '10px 12px', marginBottom: 16 }}>
+                    <Info size={14} color="#EF4444" style={{ marginTop: 1, flexShrink: 0 }} />
+                    <span style={{ fontSize: 12, color: '#EF4444' }}>{forgotError}</span>
+                  </div>
+                )}
+
+                <form onSubmit={handleForgotSubmit}>
+                  <Label>Work Email</Label>
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={(e) => setAuthField('authEmail', e.target.value)}
+                    placeholder="you@company.com"
+                    style={inputStyle}
+                  />
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    style={{ width: '100%', marginTop: 20, background: accent, color: '#FFFFFF', border: 'none', borderRadius: 8, padding: '11px 0', fontWeight: 600, fontSize: 14, cursor: loading ? 'default' : 'pointer', opacity: loading ? 0.7 : 1 }}
+                  >
+                    {loading ? 'Please wait…' : 'Send Reset Link'}
+                  </button>
+                </form>
+
+                <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--muted)' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setShowForgot(false); setForgotError(''); }}
+                    style={{ border: 'none', background: 'transparent', color: accent, fontWeight: 700, fontSize: 13, cursor: 'pointer', padding: 0 }}
+                  >
+                    Back to Sign In
+                  </button>
+                </div>
+              </>
+            )
           ) : (<>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
             {isSignup ? 'Create your account' : 'Welcome back'}
@@ -206,9 +282,13 @@ export function AuthScreen() {
 
             {!isSignup && (
               <div style={{ textAlign: 'right', marginTop: 10, marginBottom: 18 }}>
-                <a href="#" style={{ fontSize: 12, color: accent, textDecoration: 'none' }}>
+                <button
+                  type="button"
+                  onClick={() => setShowForgot(true)}
+                  style={{ fontSize: 12, color: accent, background: 'none', border: 'none', padding: 0, cursor: 'pointer' }}
+                >
                   Forgot password?
-                </a>
+                </button>
               </div>
             )}
             {isSignup && <div style={{ marginTop: 20 }} />}
