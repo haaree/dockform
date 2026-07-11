@@ -71,6 +71,8 @@ export function AuthScreen() {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
+        overflow: 'auto',
+        padding: '40px 0',
       }}
     >
       <div style={{ maxWidth: 400, width: '100%', padding: 20 }}>
