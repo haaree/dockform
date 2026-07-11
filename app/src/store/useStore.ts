@@ -264,13 +264,15 @@ export const useStore = create<AppState>((set) => ({
     if (isAuthed && authUser) {
       const isPlatformAdmin = authUser.roleKey === 'platform_admin';
       const isDockformAdmin = authUser.roleKey === 'admin';
+      const roleKey = authUser.roleKey || 'viewer';
       return {
         isAuthed,
         isDockformAdmin,
         isPlatformAdmin,
         currentUserId: authUser.id ?? null,
-        currentUserRole: isPlatformAdmin ? 'Platform Admin' : isDockformAdmin ? 'Admin' : (authUser.roleKey || 'viewer'),
+        currentUserRole: isPlatformAdmin ? 'Platform Admin' : isDockformAdmin ? 'Admin' : roleKey,
         activeCompanyId: authUser.companyId || null,
+        nav: !isPlatformAdmin && !isDockformAdmin && roleKey === 'viewer' ? 'forms' : 'dashboard',
       };
     }
     if (isAuthed) return { isAuthed };

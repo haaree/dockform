@@ -42,7 +42,7 @@ const SYSTEM: NavItemDef[] = [
 const ROLE_NAV_KEYS: Record<string, string[]> = {
   editor: ['dashboard', 'forms', 'packs', 'responses', 'reports'],
   auditor: ['dashboard', 'forms', 'responses', 'reports'],
-  viewer: ['dashboard', 'forms', 'responses', 'reports'],
+  viewer: ['forms'],
 };
 
 function filterByRole(items: NavItemDef[], roleKey: string): NavItemDef[] {

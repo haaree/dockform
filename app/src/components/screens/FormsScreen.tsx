@@ -55,6 +55,7 @@ export default function FormsScreen() {
   const isMobile = winWidth < 720;
   const pad = isMobile ? '16px' : '24px 32px';
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
+  const isViewer = currentUserRole === 'viewer';
   const visibleForms = isAdmin ? forms : forms.filter(f =>
     !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId as string))
   );
@@ -77,10 +78,12 @@ export default function FormsScreen() {
           <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search forms…"
             style={{ border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 13, width: isMobile ? '100%' : 170, outline: 'none' }} />
         </div>
-        <button onClick={openNewForm}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
-          <Plus size={14} /> New Form
-        </button>
+        {!isViewer && (
+          <button onClick={openNewForm}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
+            <Plus size={14} /> New Form
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: pad }}>
@@ -89,7 +92,7 @@ export default function FormsScreen() {
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {['Name', 'Category', 'Fields', 'Responses', 'Status', 'Updated', 'Actions'].map((h) => (
+                  {(isViewer ? ['Name', 'Category', 'Status', 'Actions'] : ['Name', 'Category', 'Fields', 'Responses', 'Status', 'Updated', 'Actions']).map((h) => (
                     <th key={h} style={{ textAlign: 'left', fontSize: 12, fontWeight: 500, color: 'var(--muted)', padding: '12px 16px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -106,8 +109,8 @@ export default function FormsScreen() {
                       </div>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.category}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.fields}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.responses}</td>
+                    {!isViewer && <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.fields}</td>}
+                    {!isViewer && <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.responses}</td>}
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <StatusBadge status={form.status} />
@@ -118,7 +121,7 @@ export default function FormsScreen() {
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.updated}</td>
+                    {!isViewer && <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.updated}</td>}
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {form.status === 'published' && (
@@ -127,14 +130,18 @@ export default function FormsScreen() {
                             <ClipboardList size={12} /> Fill Out
                           </button>
                         )}
-                        <button onClick={() => editForm(form.id)}
-                          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
-                          Edit
-                        </button>
-                        <button onClick={(e) => handleMenuClick(e, form.id)}
-                          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', cursor: 'pointer' }}>
-                          <MoreHorizontal size={15} />
-                        </button>
+                        {!isViewer && (
+                          <>
+                            <button onClick={() => editForm(form.id)}
+                              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
+                              Edit
+                            </button>
+                            <button onClick={(e) => handleMenuClick(e, form.id)}
+                              style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', cursor: 'pointer' }}>
+                              <MoreHorizontal size={15} />
+                            </button>
+                          </>
+                        )}
                       </div>
                     </td>
                   </tr>
