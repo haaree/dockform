@@ -38,6 +38,7 @@ router.post('/analyze-photo', async (req, res) => {
     const text = message.content.filter(b => b.type === 'text').map(b => (b as any).text).join(' ');
     res.json({ comment: text });
   } catch (err: any) {
+    console.error('[ai/analyze-photo] failed:', err?.status, err?.message, err?.error);
     res.status(502).json({ error: 'AI request failed', detail: err?.message });
   }
 });
@@ -69,6 +70,7 @@ router.post('/compare-photos', async (req, res) => {
     const text = message.content.filter(b => b.type === 'text').map(b => (b as any).text).join(' ');
     res.json({ comment: text });
   } catch (err: any) {
+    console.error('[ai/compare-photos] failed:', err?.status, err?.message, err?.error);
     res.status(502).json({ error: 'AI request failed', detail: err?.message });
   }
 });

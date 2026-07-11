@@ -119,8 +119,8 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
         try {
           const { comment } = await api.comparePhotos(parsed.before, dataUrl, 'factory cleaning checklist');
           update({ after: dataUrl, aiComparison: comment });
-        } catch {
-          setAiError('AI comparison unavailable — you can still add a manual comment.');
+        } catch (err: any) {
+          setAiError(`AI comparison unavailable (${err?.message || 'unknown error'}) — you can still add a manual comment.`);
         } finally {
           setAiLoading(null);
         }
@@ -136,8 +136,8 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
     try {
       const { comment } = await api.analyzePhoto(parsed.before, 'factory cleaning checklist');
       update({ aiComment: comment });
-    } catch {
-      setAiError('AI comment unavailable — you can still write one manually.');
+    } catch (err: any) {
+      setAiError(`AI comment unavailable (${err?.message || 'unknown error'}) — you can still write one manually.`);
     } finally {
       setAiLoading(null);
     }
