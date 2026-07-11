@@ -1,5 +1,5 @@
 import { useState, type CSSProperties, type FormEvent } from 'react';
-import { Info, Shield } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars } from '../../lib/theme';
 
@@ -193,53 +193,24 @@ export function AuthScreen() {
             </button>
           </form>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '20px 0' }}>
-            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
-            <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 600 }}>OR</span>
-            <div style={{ flex: 1, height: 1, background: 'var(--border)' }} />
+          <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--muted)' }}>
+            {isSignup ? 'Already have an account? ' : "Don't have an account? "}
+            <button
+              type="button"
+              onClick={() => setAuthMode(isSignup ? 'login' : 'signup')}
+              style={{
+                border: 'none',
+                background: 'transparent',
+                color: accent,
+                fontWeight: 700,
+                fontSize: 13,
+                cursor: 'pointer',
+                padding: 0,
+              }}
+            >
+              {isSignup ? 'Sign in' : 'Sign up'}
+            </button>
           </div>
-
-          <button
-            type="button"
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              background: 'transparent',
-              color: 'var(--text)',
-              border: '1px solid var(--border)',
-              borderRadius: 8,
-              padding: '11px 0',
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: 'pointer',
-            }}
-          >
-            <Shield size={16} />
-            Continue with SSO
-          </button>
-        </div>
-
-        {/* Footer */}
-        <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--muted)' }}>
-          {isSignup ? 'Already have an account? ' : "Don't have an account? "}
-          <button
-            type="button"
-            onClick={() => setAuthMode(isSignup ? 'login' : 'signup')}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              color: accent,
-              fontWeight: 700,
-              fontSize: 13,
-              cursor: 'pointer',
-              padding: 0,
-            }}
-          >
-            {isSignup ? 'Sign in' : 'Sign up'}
-          </button>
         </div>
       </div>
     </div>
