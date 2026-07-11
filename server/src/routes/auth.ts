@@ -50,7 +50,7 @@ router.post('/signup', async (req, res) => {
     const { inviteToken: _t, ...restPrefs } = invitedUser.preferences as Record<string, unknown>;
     const updated = await prisma.user.update({
       where: { id: invitedUser.id },
-      data: { passwordHash: hash, status: 'active', preferences: restPrefs },
+      data: { passwordHash: hash, status: 'active', preferences: restPrefs as object },
       include: { role: true },
     });
 

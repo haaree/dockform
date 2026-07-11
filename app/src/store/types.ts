@@ -31,7 +31,7 @@ export interface FormSchedule {
 }
 
 export interface FormItem {
-  id: number;
+  id: string;
   name: string;
   fields: number;
   responses: number;
@@ -40,13 +40,13 @@ export interface FormItem {
   category: string;
   description?: string;
   fieldDefs?: FormField[];
-  assignedUserIds?: number[];
+  assignedUserIds?: string[];
   schedule?: FormSchedule;
   companyId?: number | string;
 }
 
 export interface UserItem {
-  id: number;
+  id: string;
   name: string;
   email: string;
   role: string;
@@ -116,7 +116,7 @@ export interface PermissionRow {
 
 export interface ResponseItem {
   id: number;
-  formId: number;
+  formId: string;
   form: string;
   packId: string;
   submittedBy: string;

@@ -3,9 +3,11 @@ import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, Ca
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
+import { api } from '../../lib/api';
 
 export default function FormsScreen() {
   const forms = useStore((s) => s.forms);
+  const refreshForms = useStore((s) => s.refreshForms);
   const accent = useStore((s) => s.accent);
   const dark = useStore((s) => s.dark);
   const openNewForm = useStore((s) => s.openNewForm);
@@ -15,15 +17,18 @@ export default function FormsScreen() {
   const winWidth = useStore((s) => s.winWidth);
   const currentUserId = useStore((s) => s.currentUserId);
   const currentUserRole = useStore((s) => s.currentUserRole);
-  const allUsers = useStore((s) => s.users);
   const updateFormAssignment = useStore((s) => s.updateFormAssignment);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
-  const [menuId, setMenuId] = useState<number | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
-  const [accessFormId, setAccessFormId] = useState<number | null>(null);
+  const [accessFormId, setAccessFormId] = useState<string | null>(null);
   const [accessSearch, setAccessSearch] = useState('');
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => { refreshForms(); }, [refreshForms]);
+  useEffect(() => { api.getUsers().then(setAllUsers).catch(() => {}); }, []);
 
   useEffect(() => {
     if (menuId === null) return;
@@ -34,7 +39,7 @@ export default function FormsScreen() {
     return () => document.removeEventListener('mousedown', handler);
   }, [menuId]);
 
-  const handleMenuClick = (e: React.MouseEvent, formId: number) => {
+  const handleMenuClick = (e: React.MouseEvent, formId: string) => {
     e.stopPropagation();
     if (menuId === formId) {
       setMenuId(null);
@@ -49,11 +54,9 @@ export default function FormsScreen() {
   const accentText = legibleAccent(accent, dark);
   const isMobile = winWidth < 720;
   const pad = isMobile ? '16px' : '24px 32px';
-  const activeCompanyId = useStore((s) => s.activeCompanyId);
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
-  const companyForms = activeCompanyId ? forms.filter(f => !f.companyId || f.companyId === activeCompanyId) : forms;
-  const visibleForms = isAdmin ? companyForms : companyForms.filter(f =>
-    !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId as number))
+  const visibleForms = isAdmin ? forms : forms.filter(f =>
+    !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId as string))
   );
   const filtered = visibleForms.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -194,19 +197,17 @@ export default function FormsScreen() {
         const assignedUsers = activeUsers.filter(u => assignedIds.includes(u.id));
         const unassigned = activeUsers.filter(u => !assignedIds.includes(u.id) && (!accessSearch || u.name.toLowerCase().includes(accessSearch.toLowerCase()) || u.email.toLowerCase().includes(accessSearch.toLowerCase())));
 
-        const handleGrant = (userId: number) => {
+        const handleGrant = async (userId: string) => {
           const newIds = [...assignedIds, userId];
-          updateFormAssignment(accessFormId, newIds);
+          await updateFormAssignment(accessFormId, newIds);
           const u = allUsers.find(usr => usr.id === userId);
           if (u) {
-            import('../../lib/api').then(({ api }) => {
-              api.sendFormAssignedEmail(u.email, u.name, form.name, 'DockForm Admin', form.id);
-            });
+            api.sendFormAssignedEmail(u.email, u.name, form.name, 'DockForm Admin', form.id);
           }
         };
 
-        const handleRevoke = (userId: number) => {
-          updateFormAssignment(accessFormId, assignedIds.filter(id => id !== userId));
+        const handleRevoke = async (userId: string) => {
+          await updateFormAssignment(accessFormId, assignedIds.filter(id => id !== userId));
         };
 
         return (

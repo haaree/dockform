@@ -3,16 +3,22 @@ import { prisma } from '../index.js';
 
 const router = Router();
 
-router.get('/', async (_req, res) => {
+function toListItem(f: any) {
+  return {
+    id: f.id, name: f.name, fields: f._count?.fields ?? f.fields?.length ?? 0,
+    responses: f._count?.responses ?? 0, status: f.status, updated: f.updatedAt.toISOString(),
+    category: f.domain || 'General', companyId: f.companyId,
+    assignedUserIds: f.assignedUserIds || [], schedule: f.scheduleMeta || undefined,
+  };
+}
+
+router.get('/', async (req, res) => {
   const forms = await prisma.form.findMany({
-    where: { isTemplate: false },
+    where: { isTemplate: false, companyId: req.auth?.companyId || undefined },
     orderBy: { updatedAt: 'desc' },
     include: { _count: { select: { fields: true, responses: true } } },
   });
-  res.json(forms.map((f: any) => ({
-    id: f.id, name: f.name, fields: f._count.fields, responses: f._count.responses,
-    status: f.status, updated: f.updatedAt.toISOString(), category: f.domain || 'General',
-  })));
+  res.json(forms.map(toListItem));
 });
 
 router.get('/:id', async (req, res) => {
@@ -20,7 +26,7 @@ router.get('/:id', async (req, res) => {
     where: { id: req.params.id },
     include: { fields: { orderBy: { sortOrder: 'asc' } } },
   });
-  if (!form) { res.status(404).json({ error: 'Not found' }); return; }
+  if (!form || form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
   res.json(form);
 });
 
@@ -28,7 +34,7 @@ router.post('/', async (req, res) => {
   const { name, description, domain, fields } = req.body;
   const form = await prisma.form.create({
     data: {
-      name, description, domain, createdById: req.auth?.userId,
+      name, description, domain, createdById: req.auth?.userId, companyId: req.auth?.companyId,
       fields: fields ? { create: fields.map((f: any, i: number) => ({ ...f, sortOrder: i })) } : undefined,
     },
     include: { fields: true },
@@ -37,7 +43,10 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const { name, description, domain, status, fields } = req.body;
+  const existing = await prisma.form.findUnique({ where: { id: req.params.id } });
+  if (!existing || existing.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
+
+  const { name, description, domain, status, fields, schedule } = req.body as { name?: string; description?: string; domain?: string; status?: string; fields?: any[]; schedule?: unknown };
   if (fields) {
     await prisma.formField.deleteMany({ where: { formId: req.params.id } });
     await prisma.formField.createMany({
@@ -52,13 +61,27 @@ router.put('/:id', async (req, res) => {
   }
   const form = await prisma.form.update({
     where: { id: req.params.id },
-    data: { ...(name && { name }), ...(description !== undefined && { description }), ...(domain && { domain }), ...(status && { status }) },
+    data: {
+      ...(name && { name }), ...(description !== undefined && { description }),
+      ...(domain && { domain }), ...(status && { status }),
+      ...(schedule !== undefined && { scheduleMeta: schedule as any }),
+    },
     include: { fields: { orderBy: { sortOrder: 'asc' } } },
   });
   res.json(form);
 });
 
+router.patch('/:id/assignment', async (req, res) => {
+  const existing = await prisma.form.findUnique({ where: { id: req.params.id } });
+  if (!existing || existing.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
+  const { assignedUserIds } = req.body;
+  const form = await prisma.form.update({ where: { id: req.params.id }, data: { assignedUserIds: assignedUserIds || [] } });
+  res.json(toListItem({ ...form, _count: undefined }));
+});
+
 router.delete('/:id', async (req, res) => {
+  const existing = await prisma.form.findUnique({ where: { id: req.params.id } });
+  if (!existing || existing.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
   await prisma.form.delete({ where: { id: req.params.id } });
   res.status(204).end();
 });

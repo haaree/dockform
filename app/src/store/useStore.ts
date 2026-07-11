@@ -28,6 +28,7 @@ interface AppState {
   // Builder
   builderTab: 'build' | 'logic' | 'preview';
   fieldPropTab: 'props' | 'validation' | 'logic';
+  currentFormId: string | null;
   currentFormName: string;
   currentFormDesc: string;
   fields: FormField[];
@@ -47,8 +48,8 @@ interface AppState {
   // Modals
   showModal: string | null;
   modalData: Record<string, string>;
-  editingUserId: number | null;
-  menuOpenId: number | null;
+  editingUserId: string | null;
+  menuOpenId: string | null;
 
   // Permissions
   selectedPermRole: string;
@@ -116,8 +117,8 @@ interface AppState {
   openModal: (modal: string, data?: Record<string, string>) => void;
   closeModal: () => void;
   setModalField: (key: string, val: string) => void;
-  setEditingUserId: (id: number | null) => void;
-  setMenuOpenId: (id: number | null) => void;
+  setEditingUserId: (id: string | null) => void;
+  setMenuOpenId: (id: string | null) => void;
 
   // CRUD
   addCompany: (name: string, code: string, type: string) => void;
@@ -126,24 +127,24 @@ interface AppState {
   addTeam: (name: string, department: string) => void;
   addRole: (name: string, description: string) => void;
   addUser: (name: string, email: string, role: string, department: string) => void;
-  updateUser: (id: number, data: Partial<UserItem>) => void;
-  deleteUser: (id: number) => void;
-  deleteForm: (id: number) => void;
+  updateUser: (id: string, data: Partial<UserItem>) => void;
+  deleteForm: (id: string) => Promise<void>;
+  refreshForms: () => Promise<void>;
   openNewForm: () => void;
-  editForm: (id: number) => void;
-  saveDraft: () => void;
-  publishForm: (assignedUserIds?: number[], schedule?: FormSchedule) => void;
+  editForm: (id: string) => void;
+  saveDraft: () => Promise<void>;
+  publishForm: (assignedUserIds?: string[], schedule?: FormSchedule) => Promise<void>;
   showAssignModal: boolean;
-  assignModalUserIds: number[];
+  assignModalUserIds: string[];
   setShowAssignModal: (show: boolean) => void;
-  toggleAssignUser: (userId: number) => void;
-  setAssignModalUserIds: (ids: number[]) => void;
-  fillingFormId: number | null;
-  fillForm: (id: number) => void;
-  submitResponse: (formId: number, values: Record<string, string>) => void;
-  viewingFormId: number | null;
-  viewFormResponses: (id: number) => void;
-  updateFormAssignment: (formId: number, userIds: number[]) => void;
+  toggleAssignUser: (userId: string) => void;
+  setAssignModalUserIds: (ids: string[]) => void;
+  fillingFormId: string | null;
+  fillForm: (id: string) => void;
+  submitResponse: (formId: string, values: Record<string, string>) => void;
+  viewingFormId: string | null;
+  viewFormResponses: (id: string) => void;
+  updateFormAssignment: (formId: string, userIds: string[]) => Promise<void>;
 
   // Account management
   addAccount: (account: Omit<AccountItem, 'id'>) => void;
@@ -186,6 +187,7 @@ export const useStore = create<AppState>((set) => ({
   winWidth: typeof window !== 'undefined' ? window.innerWidth : 1440,
   builderTab: 'build',
   fieldPropTab: 'props',
+  currentFormId: null,
   currentFormName: 'New Form',
   currentFormDesc: 'Add a description…',
   fields: [],
@@ -443,7 +445,7 @@ export const useStore = create<AppState>((set) => ({
     const initials = ((parts[0]?.[0] || '') + (parts[1]?.[0] || '')).toUpperCase();
     const colors = ['#2563EB', '#059669', '#7C3AED', '#0D9488', '#DC2626', '#D97706'];
     return {
-      users: [...s.users, { id: Math.max(0, ...s.users.map(u => u.id)) + 1, name, email, role, department, status: 'active', initials, color: colors[s.users.length % colors.length] }],
+      users: [...s.users, { id: crypto.randomUUID(), name, email, role, department, status: 'active', initials, color: colors[s.users.length % colors.length] }],
       showModal: null, modalData: {},
     };
   }),
@@ -453,19 +455,24 @@ export const useStore = create<AppState>((set) => ({
     showModal: null, modalData: {}, editingUserId: null,
   })),
 
-  deleteUser: (id) => set((s) => ({
-    users: s.users.filter(u => u.id !== id),
-    menuOpenId: null,
-  })),
+  deleteForm: async (id) => {
+    const { api } = await import('../lib/api');
+    await api.deleteForm(id);
+    set((s) => ({ forms: s.forms.filter(f => f.id !== id), menuOpenId: null }));
+  },
 
-  deleteForm: (id) => set((s) => ({
-    forms: s.forms.filter(f => f.id !== id),
-    menuOpenId: null,
-  })),
+  refreshForms: async () => {
+    const { api } = await import('../lib/api');
+    try {
+      const forms = await api.getForms();
+      set({ forms });
+    } catch { /* leave forms as-is if the fetch fails */ }
+  },
 
   openNewForm: () => set({
     fields: [],
     selectedId: null,
+    currentFormId: null,
     currentFormName: 'New Form',
     currentFormDesc: 'Add a description…',
     activePackId: null,
@@ -478,26 +485,30 @@ export const useStore = create<AppState>((set) => ({
     const form = s.forms.find(f => f.id === id);
     if (!form) return {};
     return {
+      currentFormId: form.id,
       currentFormName: form.name,
-      currentFormDesc: `${form.category} form — ${form.fields} fields`,
+      currentFormDesc: form.description ?? `${form.category} form — ${form.fields} fields`,
+      fields: form.fieldDefs ? [...form.fieldDefs] : [],
       activePackId: null,
       builderTab: 'build',
       nav: 'builder',
     };
   }),
 
-  saveDraft: () => set((s) => {
+  saveDraft: async () => {
+    const { api } = await import('../lib/api');
+    const s = useStore.getState();
     const name = s.currentFormName || 'Untitled Form';
-    const desc = s.currentFormDesc;
-    const defs = [...s.fields];
-    const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const existing = s.forms.find(f => f.name === name);
-    if (existing) {
-      return { forms: s.forms.map(f => f.id === existing.id ? { ...f, fields: defs.length, fieldDefs: defs, description: desc, status: 'draft', updated: now } : f) };
+    const description = s.currentFormDesc;
+    const fields = [...s.fields];
+    if (s.currentFormId) {
+      await api.updateForm(s.currentFormId, { name, description, status: 'draft', fields });
+    } else {
+      const created = await api.createForm({ name, description, domain: 'Custom', fields });
+      set({ currentFormId: created.id });
     }
-    const newId = Math.max(0, ...s.forms.map(f => f.id)) + 1;
-    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'draft', updated: now, category: 'Custom', companyId: s.activeCompanyId || undefined }] };
-  }),
+    await useStore.getState().refreshForms();
+  },
 
   setShowAssignModal: (showAssignModal) => set({ showAssignModal }),
   toggleAssignUser: (userId) => set((s) => ({
@@ -507,24 +518,33 @@ export const useStore = create<AppState>((set) => ({
   })),
   setAssignModalUserIds: (assignModalUserIds) => set({ assignModalUserIds }),
 
-  publishForm: (assignedUserIds, schedule) => set((s) => {
+  publishForm: async (assignedUserIds, schedule) => {
+    const { api } = await import('../lib/api');
+    const s = useStore.getState();
     const name = s.currentFormName || 'Untitled Form';
-    const desc = s.currentFormDesc;
-    const defs = [...s.fields];
-    const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const description = s.currentFormDesc;
+    const fields = [...s.fields];
     const ids = assignedUserIds || s.assignModalUserIds;
-    const existing = s.forms.find(f => f.name === name);
-    if (existing) {
-      return { forms: s.forms.map(f => f.id === existing.id ? { ...f, fields: defs.length, fieldDefs: defs, description: desc, status: 'published', updated: now, assignedUserIds: ids.length > 0 ? ids : undefined, schedule } : f), nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
+    let formId: string;
+    if (s.currentFormId) {
+      formId = s.currentFormId;
+      await api.updateForm(formId, { name, description, status: 'published', fields, schedule });
+    } else {
+      const created = await api.createForm({ name, description, domain: 'Custom', fields });
+      formId = created.id;
+      await api.updateForm(formId, { status: 'published', schedule });
     }
-    const newId = Math.max(0, ...s.forms.map(f => f.id)) + 1;
-    return { forms: [...s.forms, { id: newId, name, fields: defs.length, fieldDefs: defs, description: desc, responses: 0, status: 'published', updated: now, category: 'Custom', assignedUserIds: ids.length > 0 ? ids : undefined, schedule, companyId: s.activeCompanyId || undefined }], nav: 'forms', showAssignModal: false, assignModalUserIds: [] };
-  }),
+    if (ids.length > 0) {
+      await api.updateFormAssignment(formId, ids);
+    }
+    await useStore.getState().refreshForms();
+    set({ nav: 'forms', showAssignModal: false, assignModalUserIds: [], currentFormId: null });
+  },
 
-  fillingFormId: null as number | null,
-  fillForm: (id: number) => set({ fillingFormId: id, nav: 'fill' }),
+  fillingFormId: null as string | null,
+  fillForm: (id: string) => set({ fillingFormId: id, nav: 'fill' }),
 
-  submitResponse: (formId: number, values: Record<string, string>) => set((s) => {
+  submitResponse: (formId: string, values: Record<string, string>) => set((s) => {
     const form = s.forms.find(f => f.id === formId);
     if (!form) return {};
     const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
@@ -534,7 +554,7 @@ export const useStore = create<AppState>((set) => ({
       formId,
       form: form.name,
       packId: '',
-      submittedBy: 'Sarah Chen',
+      submittedBy: s.currentUserName || 'Unknown User',
       plant: 'Chennai Manufacturing Plant',
       date: now,
       status: 'published',
@@ -548,11 +568,15 @@ export const useStore = create<AppState>((set) => ({
     };
   }),
 
-  viewingFormId: null as number | null,
-  viewFormResponses: (id: number) => set({ viewingFormId: id, nav: 'form-responses' }),
-  updateFormAssignment: (formId: number, userIds: number[]) => set((s) => ({
-    forms: s.forms.map(f => f.id === formId ? { ...f, assignedUserIds: userIds.length > 0 ? userIds : undefined } : f),
-  })),
+  viewingFormId: null as string | null,
+  viewFormResponses: (id: string) => set({ viewingFormId: id, nav: 'form-responses' }),
+  updateFormAssignment: async (formId, userIds) => {
+    const { api } = await import('../lib/api');
+    await api.updateFormAssignment(formId, userIds);
+    set((s) => ({
+      forms: s.forms.map(f => f.id === formId ? { ...f, assignedUserIds: userIds.length > 0 ? userIds : undefined } : f),
+    }));
+  },
 
   addAccount: (account) => set((s) => ({
     accounts: [...s.accounts, { ...account, id: Math.max(0, ...s.accounts.map(a => a.id)) + 1 }],

@@ -7,7 +7,7 @@ import { downloadExcelReport } from '../../lib/exportExcel';
 import { downloadAuditReport } from '../../lib/exportAuditReport';
 import { FileText } from 'lucide-react';
 
-function exportReport(formId: number) {
+function exportReport(formId: string) {
   const { forms, responses } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;
@@ -15,7 +15,7 @@ function exportReport(formId: number) {
   downloadHTMLReport(form.name, form.description || '', form.fieldDefs || [], formResponses);
 }
 
-function exportExcel(formId: number) {
+function exportExcel(formId: string) {
   const { forms, responses } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;
@@ -23,7 +23,7 @@ function exportExcel(formId: number) {
   downloadExcelReport(form.name, form.description || '', form.fieldDefs || [], formResponses);
 }
 
-function exportAudit(formId: number) {
+function exportAudit(formId: string) {
   const { forms, responses, companies, activeCompanyId } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;
@@ -102,7 +102,7 @@ export default function ResponsesScreen() {
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{r.date}</td>
                     <td style={{ padding: '12px 16px' }}><StatusBadge status={r.status} /></td>
                     <td style={{ padding: '12px 16px' }}>
-                      {r.formId && r.formId > 0 && (
+                      {r.formId && (
                         <button onClick={(e) => handleMenuClick(e, r.id)}
                           style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', cursor: 'pointer' }}>
                           <MoreHorizontal size={15} />

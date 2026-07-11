@@ -60,6 +60,7 @@ export const api = {
   getForm: (id: string) => request<any>(`/forms/${id}`),
   createForm: (data: any) => request<any>('/forms', { method: 'POST', body: JSON.stringify(data) }),
   updateForm: (id: string, data: any) => request<any>(`/forms/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  updateFormAssignment: (id: string, assignedUserIds: string[]) => request<any>(`/forms/${id}/assignment`, { method: 'PATCH', body: JSON.stringify({ assignedUserIds }) }),
   deleteForm: (id: string) => request<void>(`/forms/${id}`, { method: 'DELETE' }),
 
   getResponses: () => request<any[]>('/responses'),
@@ -72,7 +73,7 @@ export const api = {
     fetch(`${BASE}/email/account-approved`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName, plan }) }).catch(() => {}),
   sendAccountSuspendedEmail: (to: string, fullName: string) =>
     fetch(`${BASE}/email/account-suspended`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName }) }).catch(() => {}),
-  sendFormAssignedEmail: (to: string, fullName: string, formName: string, assignedBy: string, formId?: number) =>
+  sendFormAssignedEmail: (to: string, fullName: string, formName: string, assignedBy: string, formId?: string) =>
     fetch(`${BASE}/email/form-assigned`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName, formName, assignedBy, formId }) }).catch(() => {}),
   sendInviteEmail: (to: string, fullName: string) =>
     fetch(`${BASE}/email/invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to, fullName }) }).catch(() => {}),

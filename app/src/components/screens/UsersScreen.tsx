@@ -65,7 +65,7 @@ export default function UsersScreen() {
   const handleSave = async () => {
     if (!form.name || !form.email) return;
     if (editId !== null) {
-      updateUser(editId as number, { name: form.name, email: form.email, role: form.role, department: form.department });
+      updateUser(editId as string, { name: form.name, email: form.email, role: form.role, department: form.department });
       setEditId(null);
     } else {
       await api.inviteUser(form.email, form.name);

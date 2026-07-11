@@ -107,19 +107,24 @@ function ScreenSwitch() {
 
 function AssignUsersModal() {
   const show = useStore((s) => s.showAssignModal);
-  const users = useStore((s) => s.users);
   const selectedIds = useStore((s) => s.assignModalUserIds);
   const toggleAssignUser = useStore((s) => s.toggleAssignUser);
   const setShowAssignModal = useStore((s) => s.setShowAssignModal);
   const setAssignModalUserIds = useStore((s) => s.setAssignModalUserIds);
   const publishForm = useStore((s) => s.publishForm);
   const accent = useStore((s) => s.accent);
+  const [users, setUsers] = useState<any[]>([]);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState<'users' | 'schedule'>('users');
   const [frequency, setFrequency] = useState<FormSchedule['frequency']>('once');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDay, setDueDay] = useState(28);
   const [scheduleTime, setScheduleTime] = useState('09:00');
+
+  useEffect(() => {
+    if (!show) return;
+    import('./lib/api').then(({ api }) => api.getUsers()).then(setUsers).catch(() => {});
+  }, [show]);
 
   if (!show) return null;
 
@@ -128,19 +133,17 @@ function AssignUsersModal() {
     !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handlePublish = () => {
+  const handlePublish = async () => {
     const schedule: FormSchedule | undefined = frequency !== 'once' ? { frequency, startDate, dueDay, time: scheduleTime } : undefined;
     const formName = useStore.getState().currentFormName;
-    publishForm(selectedIds, schedule);
+    await publishForm(selectedIds, schedule);
     if (selectedIds.length > 0) {
       const state = useStore.getState();
-      const allUsers = state.users;
       const currentForm = state.forms.find(f => f.name === formName);
-      import('./lib/api').then(({ api }) => {
-        selectedIds.forEach(uid => {
-          const u = allUsers.find(usr => usr.id === uid);
-          if (u) api.sendFormAssignedEmail(u.email, u.name, formName, 'DockForm Admin', currentForm?.id);
-        });
+      const { api } = await import('./lib/api');
+      selectedIds.forEach(uid => {
+        const u = users.find(usr => usr.id === uid);
+        if (u) api.sendFormAssignedEmail(u.email, u.name, formName, 'DockForm Admin', currentForm?.id);
       });
     }
   };
@@ -326,17 +329,16 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const fillId = params.get('fill');
     if (fillId && isAuthed && onboardingComplete) {
-      const id = parseInt(fillId);
-      if (!isNaN(id)) {
+      useStore.getState().refreshForms().then(() => {
         const state = useStore.getState();
-        const form = state.forms.find(f => f.id === id);
+        const form = state.forms.find(f => f.id === fillId);
         if (form) {
           const isAdm = state.currentUserRole === 'Admin' || state.currentUserRole === 'admin';
-          const hasAccess = isAdm || !form.assignedUserIds || form.assignedUserIds.length === 0 || (state.currentUserId && form.assignedUserIds.includes(state.currentUserId as number));
-          if (hasAccess) fillForm(id);
+          const hasAccess = isAdm || !form.assignedUserIds || form.assignedUserIds.length === 0 || (state.currentUserId && form.assignedUserIds.includes(state.currentUserId as string));
+          if (hasAccess) fillForm(fillId);
         }
-        window.history.replaceState({}, '', window.location.pathname);
-      }
+      });
+      window.history.replaceState({}, '', window.location.pathname);
     }
   }, [isAuthed, onboardingComplete, fillForm]);
 

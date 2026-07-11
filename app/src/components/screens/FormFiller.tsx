@@ -328,7 +328,7 @@ export default function FormFiller() {
   const isMobile = winWidth < 720;
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
 
-  if (form && form.assignedUserIds && form.assignedUserIds.length > 0 && !isAdmin && currentUserId && !form.assignedUserIds.includes(currentUserId as number)) {
+  if (form && form.assignedUserIds && form.assignedUserIds.length > 0 && !isAdmin && currentUserId && !form.assignedUserIds.includes(currentUserId as string)) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32 }}>
         <div style={{ textAlign: 'center', maxWidth: 400 }}>
