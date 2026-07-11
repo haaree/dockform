@@ -35,6 +35,7 @@ export const api = {
   // CRUD
   getCompanies: () => request<any[]>('/companies'),
   createCompany: (data: any) => request<any>('/companies', { method: 'POST', body: JSON.stringify(data) }),
+  updateCompanyStatus: (id: string, status: string) => request<any>(`/companies/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
 
   getPlants: () => request<any[]>('/plants'),
   createPlant: (data: any) => request<any>('/plants', { method: 'POST', body: JSON.stringify(data) }),

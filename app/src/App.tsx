@@ -25,6 +25,7 @@ import SettingsScreen from './components/screens/SettingsScreen';
 import PlaceholderScreen from './components/screens/PlaceholderScreen';
 import OnboardingWizard from './components/screens/OnboardingWizard';
 import AccountsScreen from './components/screens/AccountsScreen';
+import PlatformAdminScreen from './components/screens/PlatformAdminScreen';
 
 function SaveTemplateModal() {
   const show = useStore((s) => s.showSaveTemplateModal);
@@ -77,6 +78,9 @@ function SaveTemplateModal() {
 
 function ScreenSwitch() {
   const nav = useStore((s) => s.nav);
+  const isPlatformAdmin = useStore((s) => s.isPlatformAdmin);
+
+  if (isPlatformAdmin) return <PlatformAdminScreen />;
 
   switch (nav) {
     case 'dashboard': return <Dashboard />;

@@ -63,6 +63,7 @@ export function Sidebar() {
   const setNav = useStore((s) => s.setNav);
   const logout = useStore((s) => s.logout);
   const isDockformAdmin = useStore((s) => s.isDockformAdmin);
+  const isPlatformAdmin = useStore((s) => s.isPlatformAdmin);
   const currentUserName = useStore((s) => s.currentUserName);
   const currentUserRole = useStore((s) => s.currentUserRole);
   const companies = useStore((s) => s.companies);
@@ -222,8 +223,21 @@ export function Sidebar() {
           </div>
         )}
 
+        {/* Platform admin label */}
+        {!collapsed && isPlatformAdmin && (
+          <div style={{ padding: '8px 12px 0' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
+              borderRadius: 8, background: 'var(--surface2)', border: '1px solid var(--border)',
+            }}>
+              <Shield size={14} color={accent} />
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Platform Admin</span>
+            </div>
+          </div>
+        )}
+
         {/* Company label for regular users */}
-        {!collapsed && !isDockformAdmin && activeCompany && (
+        {!collapsed && !isDockformAdmin && !isPlatformAdmin && activeCompany && (
           <div style={{ padding: '8px 12px 0' }}>
             <div style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px',
@@ -238,7 +252,7 @@ export function Sidebar() {
         )}
 
         {/* Company switcher — DockForm admin only */}
-        {!collapsed && isDockformAdmin && (
+        {!collapsed && isDockformAdmin && !isPlatformAdmin && (
           <div style={{ padding: '8px 12px 0', position: 'relative' }}>
             <button
               type="button"
@@ -291,7 +305,7 @@ export function Sidebar() {
         )}
 
         {/* Search box */}
-        {!collapsed && (
+        {!collapsed && !isPlatformAdmin && (
           <div style={{ padding: '10px 12px' }}>
             <div
               style={{
@@ -324,9 +338,9 @@ export function Sidebar() {
 
         {/* Nav sections */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
-          {renderSection('Platform', PLATFORM)}
-          {renderSection('Structure', STRUCTURE)}
-          {renderSection('System', isDockformAdmin ? SYSTEM : SYSTEM.filter(s => s.key !== 'accounts'))}
+          {!isPlatformAdmin && renderSection('Platform', PLATFORM)}
+          {!isPlatformAdmin && renderSection('Structure', STRUCTURE)}
+          {!isPlatformAdmin && renderSection('System', isDockformAdmin ? SYSTEM : SYSTEM.filter(s => s.key !== 'accounts'))}
         </div>
 
         {/* User profile footer */}
