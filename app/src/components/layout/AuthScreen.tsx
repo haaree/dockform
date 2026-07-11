@@ -2,6 +2,7 @@ import { useState, type CSSProperties, type FormEvent } from 'react';
 import { Info, Clock, Mail } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars } from '../../lib/theme';
+import { PasswordInput } from '../ui/PasswordInput';
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
@@ -258,23 +259,17 @@ export function AuthScreen() {
               </div>
               <div>
                 <Label>Password</Label>
-                <input
-                  type="password"
+                <PasswordInput
                   value={authPassword}
-                  onChange={(e) => setAuthField('authPassword', e.target.value)}
-                  placeholder="••••••••"
-                  style={inputStyle}
+                  onChange={(v) => setAuthField('authPassword', v)}
                 />
               </div>
               {isSignup && (
                 <div>
                   <Label>Confirm Password</Label>
-                  <input
-                    type="password"
+                  <PasswordInput
                     value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                    placeholder="••••••••"
-                    style={inputStyle}
+                    onChange={setConfirmPassword}
                   />
                 </div>
               )}

@@ -3,17 +3,7 @@ import { Info, CheckCircle2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars } from '../../lib/theme';
 import { api } from '../../lib/api';
-
-const inputStyle: CSSProperties = {
-  width: '100%',
-  padding: '10px 13px',
-  borderRadius: 6,
-  border: '1px solid var(--border)',
-  fontSize: 14,
-  background: 'var(--surface)',
-  color: 'var(--text)',
-  outline: 'none',
-};
+import { PasswordInput } from '../ui/PasswordInput';
 
 export function ResetPasswordScreen({ token }: { token: string }) {
   const dark = useStore((s) => s.dark);
@@ -81,11 +71,11 @@ export function ResetPasswordScreen({ token }: { token: string }) {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                   <div>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>New Password</label>
-                    <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
+                    <PasswordInput value={password} onChange={setPassword} />
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>Confirm Password</label>
-                    <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="••••••••" style={inputStyle} />
+                    <PasswordInput value={confirmPassword} onChange={setConfirmPassword} />
                   </div>
                 </div>
 
