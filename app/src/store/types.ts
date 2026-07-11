@@ -115,11 +115,12 @@ export interface PermissionRow {
 }
 
 export interface ResponseItem {
-  id: number;
+  id: string;
   formId: string;
   form: string;
   packId: string;
   submittedBy: string;
+  submittedById?: string | null;
   plant: string;
   date: string;
   status: string;

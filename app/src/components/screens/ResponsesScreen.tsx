@@ -36,9 +36,12 @@ export default function ResponsesScreen() {
   const allResponses = useStore((s) => s.responses);
   const activeCompanyId = useStore((s) => s.activeCompanyId);
   const viewFormResponses = useStore((s) => s.viewFormResponses);
+  const refreshResponses = useStore((s) => s.refreshResponses);
   const responses = activeCompanyId ? allResponses.filter(r => !r.companyId || r.companyId === activeCompanyId) : allResponses;
   const [search, setSearch] = useState('');
-  const [menuId, setMenuId] = useState<number | null>(null);
+  const [menuId, setMenuId] = useState<string | null>(null);
+
+  useEffect(() => { refreshResponses(); }, [refreshResponses]);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -56,7 +59,7 @@ export default function ResponsesScreen() {
     return !q || r.form.toLowerCase().includes(q) || r.submittedBy.toLowerCase().includes(q);
   });
 
-  const handleMenuClick = (e: React.MouseEvent, responseId: number) => {
+  const handleMenuClick = (e: React.MouseEvent, responseId: string) => {
     e.stopPropagation();
     if (menuId === responseId) { setMenuId(null); return; }
     const btn = e.currentTarget as HTMLElement;

@@ -4,10 +4,13 @@ import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
 import { api } from '../../lib/api';
+import { getCurrentOccurrenceStart } from '../../lib/schedule';
 
 export default function FormsScreen() {
   const forms = useStore((s) => s.forms);
+  const responses = useStore((s) => s.responses);
   const refreshForms = useStore((s) => s.refreshForms);
+  const refreshResponses = useStore((s) => s.refreshResponses);
   const accent = useStore((s) => s.accent);
   const dark = useStore((s) => s.dark);
   const openNewForm = useStore((s) => s.openNewForm);
@@ -29,6 +32,7 @@ export default function FormsScreen() {
 
   useEffect(() => { refreshForms(); }, [refreshForms]);
   useEffect(() => { api.getUsers().then(setAllUsers).catch(() => {}); }, []);
+  useEffect(() => { refreshResponses(); }, [refreshResponses]);
 
   useEffect(() => {
     if (menuId === null) return;
@@ -62,7 +66,18 @@ export default function FormsScreen() {
   const filtered = visibleForms.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||
     f.category.toLowerCase().includes(search.toLowerCase())
-  );
+  ).filter(f => !isViewer || f.status === 'published');
+
+  const isCompletedForViewer = (form: typeof forms[number]) => {
+    const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
+    if (!occurrenceStart) {
+      return responses.some(r => r.formId === form.id && (!currentUserId || r.submittedById === currentUserId));
+    }
+    return responses.some(r => r.formId === form.id && r.submittedById === currentUserId && new Date(r.date) >= occurrenceStart);
+  };
+
+  const pendingForms = isViewer ? filtered.filter(f => !isCompletedForViewer(f)) : [];
+  const completedForms = isViewer ? filtered.filter(f => isCompletedForViewer(f)) : [];
 
   const menuForm = forms.find(f => f.id === menuId);
 
@@ -87,12 +102,19 @@ export default function FormsScreen() {
       </div>
 
       <div style={{ flex: 1, overflow: 'auto', padding: pad }}>
+        {isViewer ? (
+          <>
+            <ViewerFormSection title="Pending" forms={pendingForms} accentText={accentText} fillForm={fillForm} />
+            <div style={{ height: 24 }} />
+            <ViewerFormSection title="Completed" forms={completedForms} accentText={accentText} fillForm={fillForm} completed />
+          </>
+        ) : (
         <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr>
-                  {(isViewer ? ['Name', 'Category', 'Status', 'Actions'] : ['Name', 'Category', 'Fields', 'Responses', 'Status', 'Updated', 'Actions']).map((h) => (
+                  {['Name', 'Category', 'Fields', 'Responses', 'Status', 'Updated', 'Actions'].map((h) => (
                     <th key={h} style={{ textAlign: 'left', fontSize: 12, fontWeight: 500, color: 'var(--muted)', padding: '12px 16px', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -109,8 +131,8 @@ export default function FormsScreen() {
                       </div>
                     </td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.category}</td>
-                    {!isViewer && <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.fields}</td>}
-                    {!isViewer && <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.responses}</td>}
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.fields}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.responses}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                         <StatusBadge status={form.status} />
@@ -121,7 +143,7 @@ export default function FormsScreen() {
                         )}
                       </div>
                     </td>
-                    {!isViewer && <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.updated}</td>}
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.updated}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {form.status === 'published' && (
@@ -130,18 +152,14 @@ export default function FormsScreen() {
                             <ClipboardList size={12} /> Fill Out
                           </button>
                         )}
-                        {!isViewer && (
-                          <>
-                            <button onClick={() => editForm(form.id)}
-                              style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
-                              Edit
-                            </button>
-                            <button onClick={(e) => handleMenuClick(e, form.id)}
-                              style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', cursor: 'pointer' }}>
-                              <MoreHorizontal size={15} />
-                            </button>
-                          </>
-                        )}
+                        <button onClick={() => editForm(form.id)}
+                          style={{ background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '5px 12px', fontSize: 12, fontWeight: 600, color: 'var(--text)', cursor: 'pointer' }}>
+                          Edit
+                        </button>
+                        <button onClick={(e) => handleMenuClick(e, form.id)}
+                          style={{ background: 'none', border: '1px solid var(--border)', borderRadius: 6, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)', cursor: 'pointer' }}>
+                          <MoreHorizontal size={15} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -153,6 +171,7 @@ export default function FormsScreen() {
             </table>
           </div>
         </div>
+        )}
       </div>
 
       {menuId !== null && menuForm && (
@@ -283,6 +302,47 @@ export default function FormsScreen() {
           </div>
         );
       })()}
+    </div>
+  );
+}
+
+function ViewerFormSection({ title, forms, accentText, fillForm, completed }: {
+  title: string; forms: any[]; accentText: string; fillForm: (id: string) => void; completed?: boolean;
+}) {
+  return (
+    <div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{title} ({forms.length})</div>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden' }}>
+        {forms.length === 0 && (
+          <div style={{ padding: '24px 16px', textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>
+            {completed ? 'No forms completed yet.' : 'Nothing pending.'}
+          </div>
+        )}
+        {forms.map((form, i) => (
+          <div key={form.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < forms.length - 1 ? '1px solid var(--border)' : 'none' }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: `${accentText}1A`, color: accentText, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+              <FileText size={15} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{form.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--muted)', display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                {form.category}
+                {form.schedule && form.schedule.frequency !== 'once' && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EFF6FF', color: '#2563EB' }}>
+                    <CalendarClock size={10} /> {form.schedule.frequency}
+                  </span>
+                )}
+              </div>
+            </div>
+            {!completed && (
+              <button onClick={() => fillForm(form.id)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: accentText, border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>
+                <ClipboardList size={12} /> Fill Out
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

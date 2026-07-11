@@ -96,7 +96,7 @@ export default function FormResponses() {
   const isMobile = winWidth < 720;
   const isScheduled = form?.schedule && form.schedule.frequency !== 'once';
 
-  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [imageModal, setImageModal] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);

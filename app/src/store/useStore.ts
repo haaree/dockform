@@ -140,8 +140,9 @@ interface AppState {
   toggleAssignUser: (userId: string) => void;
   setAssignModalUserIds: (ids: string[]) => void;
   fillingFormId: string | null;
-  fillForm: (id: string) => void;
-  submitResponse: (formId: string, values: Record<string, string>) => void;
+  fillForm: (id: string) => Promise<void>;
+  submitResponse: (formId: string, values: Record<string, string>) => Promise<void>;
+  refreshResponses: () => Promise<void>;
   viewingFormId: string | null;
   viewFormResponses: (id: string) => void;
   updateFormAssignment: (formId: string, userIds: string[]) => Promise<void>;
@@ -544,31 +545,32 @@ export const useStore = create<AppState>((set) => ({
   },
 
   fillingFormId: null as string | null,
-  fillForm: (id: string) => set({ fillingFormId: id, nav: 'fill' }),
+  fillForm: async (id: string) => {
+    set({ fillingFormId: id, nav: 'fill' });
+    const { api } = await import('../lib/api');
+    const full = await api.getForm(id);
+    const fieldDefs: FormField[] = (full.fields || []).map((f: any) => ({
+      id: f.id, type: f.type, label: f.label, placeholder: f.placeholder || '',
+      helpText: f.helpText || '', defaultValue: f.defaultValue || '',
+      required: f.isRequired, readOnly: f.isReadOnly, hidden: f.isHidden,
+      searchable: f.isSearchable, indexed: f.isIndexed,
+      options: f.options || [], validation: f.validation || { min: '', max: '', pattern: '', message: '' },
+      logic: f.logic || [],
+    }));
+    set((s) => ({ forms: s.forms.map(fm => fm.id === id ? { ...fm, fieldDefs } : fm) }));
+  },
 
-  submitResponse: (formId: string, values: Record<string, string>) => set((s) => {
-    const form = s.forms.find(f => f.id === formId);
-    if (!form) return {};
-    const now = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const newId = Math.max(0, ...s.responses.map(r => r.id)) + 1;
-    const newResponse: ResponseItem = {
-      id: newId,
-      formId,
-      form: form.name,
-      packId: '',
-      submittedBy: s.currentUserName || 'Unknown User',
-      plant: 'Chennai Manufacturing Plant',
-      date: now,
-      status: 'published',
-      values,
-      companyId: s.activeCompanyId || undefined,
-    };
-    return {
-      responses: [...s.responses, newResponse],
-      forms: s.forms.map(f => f.id === formId ? { ...f, responses: f.responses + 1 } : f),
-      nav: 'responses',
-    };
-  }),
+  refreshResponses: async () => {
+    const { api } = await import('../lib/api');
+    try { const responses = await api.getResponses(); set({ responses }); } catch { /* ignore */ }
+  },
+
+  submitResponse: async (formId: string, values: Record<string, string>) => {
+    const { api } = await import('../lib/api');
+    await api.createResponse({ formId, values });
+    await useStore.getState().refreshResponses();
+    set({ nav: 'responses' });
+  },
 
   viewingFormId: null as string | null,
   viewFormResponses: (id: string) => set({ viewingFormId: id, nav: 'form-responses' }),
