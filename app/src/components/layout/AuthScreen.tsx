@@ -64,10 +64,16 @@ export function AuthScreen() {
     }
   };
 
+  const isInvite = isSignup && !!inviteToken;
+
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    if (!authEmail || !authPassword) {
-      setAuthError('Please enter both email and password.');
+    if (!isInvite && !authEmail) {
+      setAuthError('Please enter your email.');
+      return;
+    }
+    if (!authPassword) {
+      setAuthError('Please enter a password.');
       return;
     }
     if (authPassword.length < 6) {
@@ -213,10 +219,10 @@ export function AuthScreen() {
             )
           ) : (<>
           <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>
-            {isSignup ? 'Create your account' : 'Welcome back'}
+            {isInvite ? 'Set your password' : isSignup ? 'Create your account' : 'Welcome back'}
           </div>
           <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24 }}>
-            {isSignup ? 'Get started with DockForm in seconds.' : 'Sign in to continue to your workspace.'}
+            {isInvite ? "You've been invited to join a DockForm workspace. Choose a password to get started." : isSignup ? 'Get started with DockForm in seconds.' : 'Sign in to continue to your workspace.'}
           </div>
 
           {authError && (
@@ -239,7 +245,7 @@ export function AuthScreen() {
 
           <form onSubmit={handleSubmit}>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {isSignup && (
+              {isSignup && !isInvite && (
                 <div>
                   <Label>Full Name</Label>
                   <input
@@ -251,16 +257,18 @@ export function AuthScreen() {
                   />
                 </div>
               )}
-              <div>
-                <Label>Work Email</Label>
-                <input
-                  type="email"
-                  value={authEmail}
-                  onChange={(e) => setAuthField('authEmail', e.target.value)}
-                  placeholder="you@company.com"
-                  style={inputStyle}
-                />
-              </div>
+              {!isInvite && (
+                <div>
+                  <Label>Work Email</Label>
+                  <input
+                    type="email"
+                    value={authEmail}
+                    onChange={(e) => setAuthField('authEmail', e.target.value)}
+                    placeholder="you@company.com"
+                    style={inputStyle}
+                  />
+                </div>
+              )}
               <div>
                 <Label>Password</Label>
                 <PasswordInput
@@ -308,10 +316,11 @@ export function AuthScreen() {
                 opacity: loading ? 0.7 : 1,
               }}
             >
-              {loading ? 'Please wait…' : isSignup ? 'Create Account' : 'Sign In'}
+              {loading ? 'Please wait…' : isInvite ? 'Set Password & Continue' : isSignup ? 'Create Account' : 'Sign In'}
             </button>
           </form>
 
+          {!isInvite && (
           <div style={{ textAlign: 'center', marginTop: 20, fontSize: 13, color: 'var(--muted)' }}>
             {isSignup ? 'Already have an account? ' : "Don't have an account? "}
             <button
@@ -330,6 +339,7 @@ export function AuthScreen() {
               {isSignup ? 'Sign in' : 'Sign up'}
             </button>
           </div>
+          )}
           </>)}
         </div>
       </div>

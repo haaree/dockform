@@ -38,9 +38,9 @@ router.post('/login', async (req, res) => {
 
 router.post('/signup', async (req, res) => {
   const { email, password, fullName, inviteToken } = req.body;
-  if (!email || !password || password.length < 6) { res.status(400).json({ error: 'Email and password (≥6 chars) required' }); return; }
+  if (!password || password.length < 6) { res.status(400).json({ error: 'Password (≥6 chars) required' }); return; }
 
-  // Invited teammate completing their pre-created account
+  // Invited teammate completing their pre-created account — identified by token, not email
   if (inviteToken) {
     const candidates = await prisma.user.findMany({ where: { preferences: { path: ['inviteToken'], equals: inviteToken } } });
     const invitedUser = candidates[0];
@@ -50,7 +50,7 @@ router.post('/signup', async (req, res) => {
     const { inviteToken: _t, ...restPrefs } = invitedUser.preferences as Record<string, unknown>;
     const updated = await prisma.user.update({
       where: { id: invitedUser.id },
-      data: { passwordHash: hash, fullName: fullName || invitedUser.fullName, status: 'active', preferences: restPrefs },
+      data: { passwordHash: hash, status: 'active', preferences: restPrefs },
       include: { role: true },
     });
 
@@ -59,6 +59,7 @@ router.post('/signup', async (req, res) => {
     return;
   }
 
+  if (!email) { res.status(400).json({ error: 'Email required' }); return; }
   const exists = await prisma.user.findUnique({ where: { email } });
   if (exists) { res.status(409).json({ error: 'Email already registered' }); return; }
 
