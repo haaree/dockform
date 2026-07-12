@@ -120,6 +120,7 @@ function AssignUsersModal() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [dueDay, setDueDay] = useState(28);
   const [scheduleTime, setScheduleTime] = useState('09:00');
+  const [publishError, setPublishError] = useState('');
 
   useEffect(() => {
     if (!show) return;
@@ -132,8 +133,6 @@ function AssignUsersModal() {
   const filtered = activeUsers.filter(u =>
     !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())
   );
-
-  const [publishError, setPublishError] = useState('');
 
   const handlePublish = async () => {
     setPublishError('');
