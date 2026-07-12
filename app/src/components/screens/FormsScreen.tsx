@@ -68,9 +68,12 @@ export default function FormsScreen() {
     f.category.toLowerCase().includes(search.toLowerCase())
   ).filter(f => !isViewer || f.status === 'published');
 
+  const isMine = (r: (typeof responses)[number]) =>
+    !currentUserId || r.submittedById === currentUserId || r.assignedToId === currentUserId;
+
   const isCompletedForViewer = (form: typeof forms[number]) => {
     const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
-    const submitted = responses.filter(r => r.formId === form.id && r.status !== 'draft' && (!currentUserId || r.submittedById === currentUserId));
+    const submitted = responses.filter(r => r.formId === form.id && r.status === 'submitted' && isMine(r));
     if (!occurrenceStart) return submitted.length > 0;
     return submitted.some(r => new Date(r.date) >= occurrenceStart);
   };
@@ -78,9 +81,9 @@ export default function FormsScreen() {
   const isInProgressForViewer = (form: typeof forms[number]) => {
     if (isCompletedForViewer(form)) return false;
     const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
-    const drafts = responses.filter(r => r.formId === form.id && r.status === 'draft' && (!currentUserId || r.submittedById === currentUserId));
-    if (!occurrenceStart) return drafts.length > 0;
-    return drafts.some(r => new Date(r.date) >= occurrenceStart);
+    const inProgress = responses.filter(r => r.formId === form.id && (r.status === 'draft' || r.status === 'awaiting_supervisor') && isMine(r));
+    if (!occurrenceStart) return inProgress.length > 0;
+    return inProgress.some(r => new Date(r.date) >= occurrenceStart);
   };
 
   const pendingForms = isViewer ? filtered.filter(f => !isCompletedForViewer(f)) : [];

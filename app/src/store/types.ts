@@ -139,6 +139,8 @@ export interface ResponseItem {
   packId: string;
   submittedBy: string;
   submittedById?: string | null;
+  assignedToId?: string | null;
+  assignedToName?: string | null;
   plant: string;
   date: string;
   status: string;

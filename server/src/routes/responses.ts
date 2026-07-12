@@ -10,10 +10,11 @@ router.get('/', async (req, res) => {
   const responses = await prisma.response.findMany({
     where: { form: { companyId: req.auth.companyId } },
     orderBy: { submittedAt: 'desc' },
-    include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true },
+    include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true },
   });
   res.json(responses.map((r: any) => ({
     id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
+    assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
     plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
     values: Object.fromEntries(r.values.map((v: any) => [v.fieldId, v.value])),
   })));
@@ -27,17 +28,17 @@ router.get('/:id', async (req, res) => {
   if (!response || response.form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
   res.json({
     id: response.id, formId: response.form.id, form: response.form.name, status: response.status,
-    submittedById: response.submittedBy, date: response.submittedAt.toISOString(),
+    submittedById: response.submittedBy, assignedToId: response.assignedToId, date: response.submittedAt.toISOString(),
     values: Object.fromEntries(response.values.map((v: any) => [v.fieldId, v.value])),
   });
 });
 
 router.post('/', async (req, res) => {
-  const { formId, plantId, values, status } = req.body as { formId: string; plantId?: string; values?: Record<string, string>; status?: string };
+  const { formId, plantId, values, status, assignedToId } = req.body as { formId: string; plantId?: string; values?: Record<string, string>; status?: string; assignedToId?: string };
   const form = await prisma.form.findUnique({ where: { id: formId } });
   if (!form || form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Form not found' }); return; }
 
-  if (status !== 'draft' && !isWithinDailyWindow(form.scheduleMeta as any)) {
+  if (status !== 'draft' && status !== 'awaiting_supervisor' && !isWithinDailyWindow(form.scheduleMeta as any)) {
     res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
     return;
   }
@@ -45,14 +46,15 @@ router.post('/', async (req, res) => {
   const valueEntries = values ? Object.entries(values) : [];
   const response = await prisma.response.create({
     data: {
-      formId, submittedBy: req.auth?.userId, plantId, status: status === 'draft' ? 'draft' : 'submitted',
+      formId, submittedBy: req.auth?.userId, plantId, assignedToId: assignedToId || null,
+      status: status === 'draft' || status === 'awaiting_supervisor' ? status : 'submitted',
       values: valueEntries.length > 0 ? { create: valueEntries.map(([fieldId, value]) => ({ fieldId, value })) } : undefined,
     },
     include: { values: true },
   });
   res.status(201).json(response);
 
-  if (response.status !== 'draft') {
+  if (response.status === 'submitted') {
     const formWithCreator = await prisma.form.findUnique({ where: { id: formId }, include: { createdBy: true } });
     if (formWithCreator?.createdBy?.email) {
       const submitter = await prisma.user.findUnique({ where: { id: req.auth?.userId } });
@@ -64,11 +66,12 @@ router.post('/', async (req, res) => {
 router.patch('/:id', async (req, res) => {
   const existing = await prisma.response.findUnique({ where: { id: req.params.id }, include: { form: true } });
   if (!existing || existing.form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
-  if (existing.submittedBy !== req.auth?.userId) { res.status(403).json({ error: 'Not your response' }); return; }
+  const isOwner = existing.submittedBy === req.auth?.userId || existing.assignedToId === req.auth?.userId;
+  if (!isOwner) { res.status(403).json({ error: 'Not your response' }); return; }
 
-  const { values, status } = req.body as { values?: Record<string, string>; status?: string };
+  const { values, status, assignedToId } = req.body as { values?: Record<string, string>; status?: string; assignedToId?: string };
 
-  if (status && status !== 'draft' && !isWithinDailyWindow(existing.form.scheduleMeta as any)) {
+  if (status && status !== 'draft' && status !== 'awaiting_supervisor' && !isWithinDailyWindow(existing.form.scheduleMeta as any)) {
     res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
     return;
   }
@@ -84,12 +87,12 @@ router.patch('/:id', async (req, res) => {
   }
   const response = await prisma.response.update({
     where: { id: req.params.id },
-    data: { ...(status && { status }) },
+    data: { ...(status && { status }), ...(assignedToId !== undefined && { assignedToId: assignedToId || null }) },
     include: { values: true },
   });
   res.json(response);
 
-  if (status && status !== 'draft') {
+  if (status === 'submitted') {
     const formWithCreator = await prisma.form.findUnique({ where: { id: existing.formId }, include: { createdBy: true } });
     if (formWithCreator?.createdBy?.email) {
       const submitter = await prisma.user.findUnique({ where: { id: req.auth?.userId } });

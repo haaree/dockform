@@ -144,7 +144,7 @@ interface AppState {
   activeResponseValues: Record<string, string> | null;
   fillForm: (id: string) => Promise<void>;
   submitResponse: (formId: string, values: Record<string, string>) => Promise<void>;
-  saveResponseDraft: (formId: string, values: Record<string, string>) => Promise<void>;
+  saveResponseDraft: (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean }) => Promise<void>;
   refreshResponses: () => Promise<void>;
   viewingFormId: string | null;
   viewFormResponses: (id: string) => void;
@@ -571,7 +571,9 @@ export const useStore = create<AppState>((set) => ({
     set((s) => ({ forms: s.forms.map(fm => fm.id === id ? { ...fm, fieldDefs } : fm) }));
 
     const { currentUserId, responses } = useStore.getState();
-    const draft = responses.find(r => r.formId === id && r.status === 'draft' && r.submittedById === currentUserId);
+    const draft = responses.find(r => r.formId === id
+      && (r.status === 'draft' || r.status === 'awaiting_supervisor')
+      && (r.submittedById === currentUserId || r.assignedToId === currentUserId));
     if (draft) {
       const full = await api.getResponse(draft.id);
       set({ activeResponseId: draft.id, activeResponseValues: full.values || {} });
@@ -583,15 +585,17 @@ export const useStore = create<AppState>((set) => ({
     try { const responses = await api.getResponses(); set({ responses }); } catch { /* ignore */ }
   },
 
-  saveResponseDraft: async (formId: string, values: Record<string, string>) => {
+  saveResponseDraft: async (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean }) => {
     const { api } = await import('../lib/api');
     const { activeResponseId } = useStore.getState();
+    const status = opts?.handOff ? 'awaiting_supervisor' : 'draft';
     if (activeResponseId) {
-      await api.updateResponse(activeResponseId, { values, status: 'draft' });
+      await api.updateResponse(activeResponseId, { values, status, ...(opts?.assignedToId !== undefined && { assignedToId: opts.assignedToId }) });
     } else {
-      const created = await api.createResponse({ formId, values, status: 'draft' });
+      const created = await api.createResponse({ formId, values, status, assignedToId: opts?.assignedToId });
       set({ activeResponseId: created.id });
     }
+    if (opts?.handOff) set({ activeResponseId: null, activeResponseValues: null });
     await useStore.getState().refreshResponses();
   },
 

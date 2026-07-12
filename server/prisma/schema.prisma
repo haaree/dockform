@@ -123,7 +123,8 @@ model User {
   departmentsHeaded Department[] @relation("DepartmentHead")
   teamsLed          Team[]       @relation("TeamLead")
   formsCreated      Form[]
-  responses         Response[]
+  responses         Response[]   @relation("ResponseSubmitter")
+  assignedResponses Response[]   @relation("ResponseAssignee")
 
   @@map("users")
 }
@@ -179,17 +180,19 @@ model FormField {
 }
 
 model Response {
-  id          String   @id @default(uuid()) @db.Uuid
-  formId      String   @map("form_id") @db.Uuid
-  submittedBy String?  @map("submitted_by") @db.Uuid
-  plantId     String?  @map("plant_id") @db.Uuid
-  status      String   @default("draft")
-  submittedAt DateTime @default(now()) @map("submitted_at")
+  id           String   @id @default(uuid()) @db.Uuid
+  formId       String   @map("form_id") @db.Uuid
+  submittedBy  String?  @map("submitted_by") @db.Uuid
+  assignedToId String?  @map("assigned_to_id") @db.Uuid
+  plantId      String?  @map("plant_id") @db.Uuid
+  status       String   @default("draft")
+  submittedAt  DateTime @default(now()) @map("submitted_at")
 
-  form   Form           @relation(fields: [formId], references: [id])
-  user   User?          @relation(fields: [submittedBy], references: [id])
-  plant  Plant?         @relation(fields: [plantId], references: [id])
-  values ResponseValue[]
+  form       Form            @relation(fields: [formId], references: [id])
+  user       User?           @relation("ResponseSubmitter", fields: [submittedBy], references: [id])
+  assignedTo User?           @relation("ResponseAssignee", fields: [assignedToId], references: [id])
+  plant      Plant?          @relation(fields: [plantId], references: [id])
+  values     ResponseValue[]
 
   @@map("responses")
 }
@@ -200,8 +203,8 @@ model ResponseValue {
   fieldId    String @map("field_id") @db.Uuid
   value      Json   @default("null")
 
-  response    Response              @relation(fields: [responseId], references: [id], onDelete: Cascade)
-  field       FormField             @relation(fields: [fieldId], references: [id])
+  response    Response             @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  field       FormField            @relation(fields: [fieldId], references: [id])
   attachments ResponseAttachment[]
 
   @@unique([responseId, fieldId])

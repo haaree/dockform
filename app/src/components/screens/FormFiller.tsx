@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2, Sparkles } from 'lucide-react';
+import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2, Sparkles, UserCheck } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule } from '../../store/types';
 import { api } from '../../lib/api';
@@ -565,6 +565,10 @@ export default function FormFiller() {
   const [submitted, setSubmitted] = useState(false);
   const [saved, setSaved] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [showHandoff, setShowHandoff] = useState(false);
+  const [handoffUsers, setHandoffUsers] = useState<any[]>([]);
+  const [handoffTarget, setHandoffTarget] = useState('');
+  const [handoffError, setHandoffError] = useState('');
 
   useEffect(() => {
     if (activeResponseValues) setValues(activeResponseValues);
@@ -659,6 +663,23 @@ export default function FormFiller() {
     setTimeout(() => setSaved(false), 2000);
   };
 
+  const openHandoff = () => {
+    setHandoffError('');
+    setShowHandoff(true);
+    api.getUsers().then(setHandoffUsers).catch(() => {});
+  };
+
+  const handleHandoff = async () => {
+    if (!handoffTarget) { setHandoffError('Select a supervisor to hand off to.'); return; }
+    try {
+      await saveResponseDraft(form.id, values, { assignedToId: handoffTarget, handOff: true });
+      setShowHandoff(false);
+      setNav('forms');
+    } catch (err: any) {
+      setHandoffError(err?.message || 'Failed to hand off');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
       <div style={{ height: 52, minHeight: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', background: 'var(--surface)' }}>
@@ -672,6 +693,12 @@ export default function FormFiller() {
           style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
           {saved ? 'Saved' : 'Save & Continue Later'}
         </button>
+        {isAdmin && (
+          <button type="button" onClick={openHandoff}
+            style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <UserCheck size={13} /> Hand Off to Supervisor
+          </button>
+        )}
         <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
           style={{
             height: 32, padding: '0 14px', borderRadius: 7, border: 'none',
@@ -725,6 +752,27 @@ export default function FormFiller() {
           </div>
         </div>
       </div>
+
+      {showHandoff && (
+        <div onClick={() => setShowHandoff(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 420, maxWidth: '92%' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Hand Off to Supervisor</div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 16 }}>Saves your current progress and assigns this response to the selected supervisor to complete.</div>
+            <select value={handoffTarget} onChange={(e) => setHandoffTarget(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginBottom: 12 }}>
+              <option value="">Select a supervisor…</option>
+              {handoffUsers.filter(u => u.status === 'active' && u.id !== currentUserId).map(u => (
+                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+              ))}
+            </select>
+            {handoffError && <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 10 }}>{handoffError}</div>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowHandoff(false)} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
+              <button onClick={handleHandoff} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Hand Off</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
