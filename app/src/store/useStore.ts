@@ -176,7 +176,7 @@ const FIELD_LABELS: Record<string, string> = {
   email: 'Email', phone: 'Phone', url: 'URL', rating: 'Rating', color: 'Color Picker', hidden: 'Hidden Field', system: 'System Field', ai: 'AI Field',
 };
 
-const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox'];
+const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox', 'photochecklist'];
 
 export const useStore = create<AppState>((set) => ({
   isAuthed: false,
