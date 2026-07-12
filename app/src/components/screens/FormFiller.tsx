@@ -3,6 +3,7 @@ import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2, Sparkles } from 
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule } from '../../store/types';
 import { api } from '../../lib/api';
+import { resizeImageFile } from '../../lib/image';
 
 function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v: string) => void; accent: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -106,27 +107,23 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
     onChange(JSON.stringify({ ...parsed, ...patch }));
   };
 
-  const handleFile = (key: 'before' | 'after') => (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = (key: 'before' | 'after') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const dataUrl = reader.result as string;
-      update({ [key]: dataUrl });
-      if (key === 'after' && parsed.before) {
-        setAiError('');
-        setAiLoading('compare');
-        try {
-          const { comment } = await api.comparePhotos(parsed.before, dataUrl, 'factory cleaning checklist');
-          update({ after: dataUrl, aiComparison: comment });
-        } catch (err: any) {
-          setAiError(`AI comparison unavailable (${err?.message || 'unknown error'}) — you can still add a manual comment.`);
-        } finally {
-          setAiLoading(null);
-        }
+    const dataUrl = await resizeImageFile(file);
+    update({ [key]: dataUrl });
+    if (key === 'after' && parsed.before) {
+      setAiError('');
+      setAiLoading('compare');
+      try {
+        const { comment } = await api.comparePhotos(parsed.before, dataUrl, 'factory cleaning checklist');
+        update({ after: dataUrl, aiComparison: comment });
+      } catch (err: any) {
+        setAiError(`AI comparison unavailable (${err?.message || 'unknown error'}) — you can still add a manual comment.`);
+      } finally {
+        setAiLoading(null);
       }
-    };
-    reader.readAsDataURL(file);
+    }
   };
 
   const runAiOnBefore = async () => {
@@ -212,10 +209,14 @@ function FileUploadField({ value, onChange, accept, label }: { value: string; on
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
 
-  const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
+    if (file.type.startsWith('image/')) {
+      onChange(await resizeImageFile(file));
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => onChange(reader.result as string);
     reader.readAsDataURL(file);
