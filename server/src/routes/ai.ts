@@ -2,6 +2,7 @@ import { Router } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
 const router = Router();
+const MODEL = 'claude-haiku-4-5-20251001';
 
 function getClient(): Anthropic | null {
   const key = process.env.ANTHROPIC_API_KEY;
@@ -15,6 +16,14 @@ function parseDataUrl(dataUrl: string): { mediaType: string; data: string } | nu
   return { mediaType: match[1], data: match[2] };
 }
 
+function textOf(message: Anthropic.Message): string {
+  return message.content.filter(b => b.type === 'text').map(b => (b as any).text).join(' ');
+}
+
+function logAiError(label: string, err: any) {
+  console.error(`[${label}] failed:`, err?.status, err?.message, err?.error);
+}
+
 router.post('/analyze-photo', async (req, res) => {
   const client = getClient();
   if (!client) { res.status(503).json({ error: 'AI unavailable — ANTHROPIC_API_KEY not configured' }); return; }
@@ -25,7 +34,7 @@ router.post('/analyze-photo', async (req, res) => {
 
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL,
       max_tokens: 300,
       messages: [{
         role: 'user',
@@ -35,10 +44,9 @@ router.post('/analyze-photo', async (req, res) => {
         ],
       }],
     });
-    const text = message.content.filter(b => b.type === 'text').map(b => (b as any).text).join(' ');
-    res.json({ comment: text });
+    res.json({ comment: textOf(message) });
   } catch (err: any) {
-    console.error('[ai/analyze-photo] failed:', err?.status, err?.message, err?.error);
+    logAiError('ai/analyze-photo', err);
     res.status(502).json({ error: 'AI request failed', detail: err?.message });
   }
 });
@@ -54,7 +62,7 @@ router.post('/compare-photos', async (req, res) => {
 
   try {
     const message = await client.messages.create({
-      model: 'claude-haiku-4-5-20251001',
+      model: MODEL,
       max_tokens: 400,
       messages: [{
         role: 'user',
@@ -67,10 +75,42 @@ router.post('/compare-photos', async (req, res) => {
         ],
       }],
     });
-    const text = message.content.filter(b => b.type === 'text').map(b => (b as any).text).join(' ');
-    res.json({ comment: text });
+    res.json({ comment: textOf(message) });
   } catch (err: any) {
-    console.error('[ai/compare-photos] failed:', err?.status, err?.message, err?.error);
+    logAiError('ai/compare-photos', err);
+    res.status(502).json({ error: 'AI request failed', detail: err?.message });
+  }
+});
+
+router.post('/score-checklist-photo', async (req, res) => {
+  const client = getClient();
+  if (!client) { res.status(503).json({ error: 'AI unavailable — ANTHROPIC_API_KEY not configured' }); return; }
+
+  const { photo, items, context } = req.body as { photo?: string; items?: string[]; context?: string };
+  const parsed = photo ? parseDataUrl(photo) : null;
+  if (!parsed || !items || items.length === 0) { res.status(400).json({ error: 'photo (data URL) and items (non-empty array) are required' }); return; }
+
+  try {
+    const message = await client.messages.create({
+      model: MODEL,
+      max_tokens: 600,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'image', source: { type: 'base64', media_type: parsed.mediaType as any, data: parsed.data } },
+          {
+            type: 'text',
+            text: `This photo is from an area inspection${context ? ` (${context})` : ''}. For each checklist item below, decide if it is satisfied ("found") based on what's visible in the photo, and give a one-sentence note.\n\nChecklist items:\n${items.map((it, i) => `${i + 1}. ${it}`).join('\n')}\n\nRespond with ONLY a JSON array (no markdown, no other text), one object per item in the same order, each shaped exactly like: {"item": string, "found": boolean, "note": string}`,
+          },
+        ],
+      }],
+    });
+    const raw = textOf(message).trim();
+    const jsonText = raw.startsWith('[') ? raw : raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1);
+    const results = JSON.parse(jsonText);
+    res.json({ results });
+  } catch (err: any) {
+    logAiError('ai/score-checklist-photo', err);
     res.status(502).json({ error: 'AI request failed', detail: err?.message });
   }
 });

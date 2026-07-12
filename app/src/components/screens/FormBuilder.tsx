@@ -9,7 +9,7 @@ import {
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule } from '../../store/types';
 
-const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox'];
+const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox', 'photochecklist'];
 
 interface FieldTypeDef {
   type: string;
@@ -72,6 +72,7 @@ const FIELD_CATEGORIES: FieldCategory[] = [
       { type: 'image', label: 'Image', icon: Image },
       { type: 'camera', label: 'Camera', icon: Camera },
       { type: 'beforeafter', label: 'Before/After', icon: Sliders },
+      { type: 'photochecklist', label: 'Photo Checklist', icon: ListChecks },
       { type: 'video', label: 'Video', icon: Video },
       { type: 'audio', label: 'Audio', icon: Music },
       { type: 'upload', label: 'File', icon: Upload },
@@ -643,6 +644,8 @@ function FieldPreview({ field }: { field: FormField }) {
           <DashedPlaceholder icon={Camera} text="After" />
         </div>
       );
+    case 'photochecklist':
+      return <DashedPlaceholder icon={ListChecks} text="Upload photo — AI checks against checklist items" />;
     case 'video':
       return <DashedPlaceholder icon={Video} text="Upload or record video" />;
     case 'audio':
@@ -955,7 +958,7 @@ function PropertiesTab({ field }: { field: FormField }) {
       </PropField>
 
       {hasOptions && (
-        <PropField label="Options">
+        <PropField label={field.type === 'photochecklist' ? 'Checklist Items' : 'Options'}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {field.options.map((opt, idx) => (
               <div key={idx} style={{ display: 'flex', gap: 6 }}>

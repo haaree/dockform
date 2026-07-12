@@ -205,6 +205,101 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
   );
 }
 
+type ChecklistResult = { item: string; found: boolean; note: string };
+type ChecklistAttempt = { photo: string; timestamp: string; results?: ChecklistResult[]; error?: string };
+
+function PhotoChecklistField({ value, onChange, items, accent }: { value: string; onChange: (v: string) => void; items: string[]; accent: string }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  let attempts: ChecklistAttempt[] = [];
+  try { attempts = JSON.parse(value || '[]'); } catch { /* empty */ }
+  const [loading, setLoading] = useState(false);
+
+  const latest = attempts[attempts.length - 1];
+  const allFoundInLatest = latest?.results && latest.results.every(r => r.found);
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || items.length === 0) return;
+    const photo = await resizeImageFile(file);
+    const timestamp = new Date().toISOString();
+    setLoading(true);
+    try {
+      const { results } = await api.scoreChecklistPhoto(photo, items, 'area inspection checklist');
+      onChange(JSON.stringify([...attempts, { photo, timestamp, results }]));
+    } catch (err: any) {
+      onChange(JSON.stringify([...attempts, { photo, timestamp, error: err?.message || 'AI scoring unavailable' }]));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
+
+      {items.length === 0 && (
+        <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 8 }}>No checklist items configured for this field.</div>
+      )}
+
+      <button type="button" onClick={() => inputRef.current?.click()} disabled={loading || items.length === 0}
+        style={{ width: '100%', padding: '14px 12px', fontSize: 13, fontWeight: 600, color: loading ? 'var(--muted)' : accent, background: 'var(--surface2)', border: `2px dashed ${loading ? 'var(--border)' : accent}`, borderRadius: 8, cursor: loading ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <Upload size={18} />
+        {loading ? 'Checking against checklist…' : attempts.length > 0 ? 'Upload New Photo (Re-check)' : 'Upload Photo'}
+      </button>
+
+      {latest && (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+              Latest Check {attempts.length > 1 ? `(Attempt ${attempts.length})` : ''}
+            </div>
+            {latest.results && (
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: allFoundInLatest ? '#DCFCE7' : '#FEF3C7', color: allFoundInLatest ? '#15803D' : '#92400E' }}>
+                {allFoundInLatest ? 'All Clear' : 'Issues Remain'}
+              </span>
+            )}
+          </div>
+          <img src={latest.photo} alt="Latest check" style={{ width: '100%', maxHeight: 220, objectFit: 'cover', borderRadius: 8, border: '1px solid var(--border)', marginBottom: 8 }} />
+
+          {latest.error && <div style={{ fontSize: 12, color: '#DC2626' }}>{latest.error}</div>}
+
+          {latest.results && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {latest.results.map((r, i) => (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', background: 'var(--surface2)', borderRadius: 6 }}>
+                  <span style={{ fontSize: 13, flexShrink: 0 }}>{r.found ? '✅' : '❌'}</span>
+                  <div>
+                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{r.item}</div>
+                    <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{r.note}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {attempts.length > 1 && (
+        <details style={{ marginTop: 10 }}>
+          <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer', fontWeight: 600 }}>
+            View {attempts.length - 1} earlier attempt{attempts.length - 1 > 1 ? 's' : ''}
+          </summary>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+            {attempts.slice(0, -1).reverse().map((a, i) => (
+              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 8px', background: 'var(--surface2)', borderRadius: 6 }}>
+                <img src={a.photo} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                  {new Date(a.timestamp).toLocaleString()} — {a.results ? `${a.results.filter(r => r.found).length}/${a.results.length} found` : (a.error || 'no result')}
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
+      )}
+    </div>
+  );
+}
+
 function FileUploadField({ value, onChange, accept, label }: { value: string; onChange: (v: string) => void; accept: string; label: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
@@ -353,6 +448,9 @@ function FieldInput({ field, value, onChange }: { field: FormField; value: strin
 
     case 'beforeafter':
       return <BeforeAfterField value={value} onChange={onChange} accent={accent} />;
+
+    case 'photochecklist':
+      return <PhotoChecklistField value={value} onChange={onChange} items={field.options} accent={accent} />;
 
     case 'upload':
       return <FileUploadField value={value} onChange={onChange} accept="*/*" label="Tap to upload file" />;

@@ -34,6 +34,20 @@ export function downloadAuditReport(
             </div>`;
         } catch { return ''; }
       }
+      if (f.type === 'photochecklist') {
+        try {
+          const attempts = JSON.parse(v);
+          const latest = attempts[attempts.length - 1];
+          if (!latest) return '';
+          const rows = (latest.results || []).map((r: any) => `<div style="font-size:11px;color:#1f2937;margin-top:2px;">${r.found ? '✅' : '❌'} <strong>${r.item}</strong> — ${r.note}</div>`).join('');
+          return `
+            <div style="margin:10px 0;">
+              <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}${attempts.length > 1 ? ` (attempt ${attempts.length})` : ''}</div>
+              <img src="${latest.photo}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />
+              ${rows}
+            </div>`;
+        } catch { return ''; }
+      }
       if (!v) return '';
       if (v.startsWith('data:image')) {
         return `<div style="margin:6px 0;"><div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;">${f.label}</div><img src="${v}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;" /></div>`;

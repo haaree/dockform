@@ -174,6 +174,26 @@ export default function FormResponses() {
         );
       } catch { /* fall through */ }
     }
+    if (type === 'photochecklist') {
+      try {
+        const attempts = JSON.parse(val);
+        const latest = attempts[attempts.length - 1];
+        if (!latest) return <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Not answered</span>;
+        return (
+          <div>
+            <img src={latest.photo} alt="Checklist photo" onClick={() => setImageModal(latest.photo)}
+              style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)', marginBottom: 8 }} />
+            {latest.error && <div style={{ fontSize: 12, color: '#DC2626' }}>{latest.error}</div>}
+            {(latest.results || []).map((r: any, i: number) => (
+              <div key={i} style={{ fontSize: 12, color: 'var(--text)', marginTop: 4 }}>
+                {r.found ? '✅' : '❌'} <strong>{r.item}</strong> — <span style={{ color: 'var(--muted)' }}>{r.note}</span>
+              </div>
+            ))}
+            {attempts.length > 1 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{attempts.length} attempts total</div>}
+          </div>
+        );
+      } catch { /* fall through */ }
+    }
     if (val.startsWith('data:image')) {
       return (
         <img src={val} alt="Uploaded" onClick={() => setImageModal(val)}

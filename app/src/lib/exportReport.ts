@@ -22,6 +22,13 @@ export function downloadHTMLReport(formName: string, description: string, fieldD
           const ba = JSON.parse(v);
           display = `<div style="display:flex;gap:8px;margin-top:4px;">${ba.before ? `<div style="flex:1;"><img src="${ba.before}" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}${ba.after ? `<div style="flex:1;"><img src="${ba.after}" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}</div>${ba.observation ? `<div style="margin-top:6px;padding:8px;background:#f9fafb;border-radius:6px;font-size:12px;color:#374151;"><strong>Observation:</strong> ${ba.observation}</div>` : ''}`;
         } catch { display = v; }
+      } else if (f.type === 'photochecklist') {
+        try {
+          const attempts = JSON.parse(v);
+          const latest = attempts[attempts.length - 1];
+          const rows = (latest?.results || []).map((r: any) => `<div style="font-size:12px;color:#374151;">${r.found ? '✅' : '❌'} <strong>${r.item}</strong> — ${r.note}</div>`).join('');
+          display = `${latest?.photo ? `<img src="${latest.photo}" style="max-width:250px;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />` : ''}${rows}${attempts.length > 1 ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">${attempts.length} attempts total</div>` : ''}`;
+        } catch { display = v; }
       } else if (v.startsWith('data:image')) {
         display = `<img src="${v}" style="max-width:300px;max-height:200px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />`;
       } else if (v.startsWith('data:')) {

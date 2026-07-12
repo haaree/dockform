@@ -71,6 +71,8 @@ export const api = {
 
   analyzePhoto: (photo: string, context?: string) => request<{ comment: string }>('/ai/analyze-photo', { method: 'POST', body: JSON.stringify({ photo, context }) }),
   comparePhotos: (before: string, after: string, context?: string) => request<{ comment: string }>('/ai/compare-photos', { method: 'POST', body: JSON.stringify({ before, after, context }) }),
+  scoreChecklistPhoto: (photo: string, items: string[], context?: string) =>
+    request<{ results: { item: string; found: boolean; note: string }[] }>('/ai/score-checklist-photo', { method: 'POST', body: JSON.stringify({ photo, items, context }) }),
 
   // Email (best-effort, errors silently ignored)
   sendWelcomeEmail: (to: string, fullName: string) =>
