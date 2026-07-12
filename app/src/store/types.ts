@@ -58,7 +58,7 @@ export interface FormItem {
   category: string;
   description?: string;
   fieldDefs?: FormField[];
-  assignedUserIds?: string[];
+  assignedUserIds?: string[] | null;
   schedule?: FormSchedule;
   companyId?: number | string;
 }

@@ -8,7 +8,8 @@ function toListItem(f: any) {
     id: f.id, name: f.name, fields: f._count?.fields ?? f.fields?.length ?? 0,
     responses: f._count?.responses ?? 0, status: f.status, updated: f.updatedAt.toISOString(),
     category: f.domain || 'General', companyId: f.companyId,
-    assignedUserIds: f.assignedUserIds || [], schedule: f.scheduleMeta || undefined,
+    assignedUserIds: f.assignedUserIds === null || f.assignedUserIds === undefined ? null : f.assignedUserIds,
+    schedule: f.scheduleMeta || undefined,
   };
 }
 
@@ -105,8 +106,24 @@ router.put('/:id', async (req, res) => {
 router.patch('/:id/assignment', async (req, res) => {
   const existing = await prisma.form.findUnique({ where: { id: req.params.id } });
   if (!existing || existing.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
-  const { assignedUserIds } = req.body;
-  const form = await prisma.form.update({ where: { id: req.params.id }, data: { assignedUserIds: assignedUserIds || [] } });
+  const { assignedUserIds } = req.body as { assignedUserIds?: string[] };
+  const nextIds: string[] = Array.isArray(assignedUserIds) ? assignedUserIds : [];
+  const form = await prisma.form.update({ where: { id: req.params.id }, data: { assignedUserIds: nextIds } });
+
+  // If the form is restricted to a specific set of users, clear any in-progress
+  // response assignment for users who were just revoked, so it stops appearing
+  // in their Pending list.
+  const previousIds: string[] = Array.isArray(existing.assignedUserIds) ? existing.assignedUserIds as string[] : [];
+  if (nextIds.length > 0) {
+    const revokedIds = previousIds.filter((id) => !nextIds.includes(id));
+    if (revokedIds.length > 0) {
+      await prisma.response.updateMany({
+        where: { formId: req.params.id, assignedToId: { in: revokedIds }, status: { in: ['draft', 'awaiting_supervisor'] } },
+        data: { assignedToId: null },
+      });
+    }
+  }
+
   res.json(toListItem({ ...form, _count: undefined }));
 });
 

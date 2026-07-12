@@ -617,7 +617,7 @@ export const useStore = create<AppState>((set) => ({
     const { api } = await import('../lib/api');
     await api.updateFormAssignment(formId, userIds);
     set((s) => ({
-      forms: s.forms.map(f => f.id === formId ? { ...f, assignedUserIds: userIds.length > 0 ? userIds : undefined } : f),
+      forms: s.forms.map(f => f.id === formId ? { ...f, assignedUserIds: userIds } : f),
     }));
   },
 

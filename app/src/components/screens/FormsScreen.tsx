@@ -61,7 +61,7 @@ export default function FormsScreen() {
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
   const isViewer = currentUserRole === 'viewer';
   const visibleForms = isAdmin ? forms : forms.filter(f =>
-    !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId as string))
+    f.assignedUserIds == null || (currentUserId && f.assignedUserIds.includes(currentUserId as string))
   );
   const filtered = visibleForms.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||

@@ -64,7 +64,7 @@ export default function Dashboard() {
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
   const companyForms = activeCompanyId ? allForms.filter(f => !f.companyId || f.companyId === activeCompanyId) : allForms;
   const forms = isAdmin ? companyForms : companyForms.filter(f =>
-    !f.assignedUserIds || f.assignedUserIds.length === 0 || (currentUserId && f.assignedUserIds.includes(currentUserId as string))
+    f.assignedUserIds == null || (currentUserId && f.assignedUserIds.includes(currentUserId as string))
   );
   const users = activeCompanyId ? allUsers.filter(u => !u.companyId || u.companyId === activeCompanyId) : allUsers;
   const accentText = legibleAccent(accent, dark);
