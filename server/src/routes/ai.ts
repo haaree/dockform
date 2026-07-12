@@ -100,7 +100,7 @@ router.post('/score-checklist-photo', async (req, res) => {
           { type: 'image', source: { type: 'base64', media_type: parsed.mediaType as any, data: parsed.data } },
           {
             type: 'text',
-            text: `This photo is from an area inspection${context ? ` (${context})` : ''}. For each checklist item below, decide if it is satisfied ("found") based on what's visible in the photo, and give a one-sentence note.\n\nChecklist items:\n${items.map((it, i) => `${i + 1}. ${it}`).join('\n')}\n\nRespond with ONLY a JSON array (no markdown, no other text), one object per item in the same order, each shaped exactly like: {"item": string, "found": boolean, "note": string}`,
+            text: `This photo is from an area inspection${context ? ` (${context})` : ''}. Be strict and skeptical — only mark an item "found" (true) if the photo gives CLEAR, DIRECT visual evidence it is satisfied. If the relevant part of the image is unclear, not visible, ambiguous, or only partially addressed, mark it false. Do not assume something is done just because nothing looks obviously wrong — absence of evidence is not evidence of completion.\n\nChecklist items:\n${items.map((it, i) => `${i + 1}. ${it}`).join('\n')}\n\nFor each item, respond with ONLY a JSON array (no markdown, no other text), one object per item in the same order, each shaped exactly like: {"item": string, "found": boolean, "note": string}. The "note" must state the specific visual evidence (or lack of it) you based the decision on, in under 15 words.`,
           },
         ],
       }],

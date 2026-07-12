@@ -344,7 +344,7 @@ function FileUploadField({ value, onChange, accept, label }: { value: string; on
   );
 }
 
-function FieldInput({ field, value, onChange }: { field: FormField; value: string; onChange: (v: string) => void }) {
+function FieldInput({ field, value, onChange, lockToToday }: { field: FormField; value: string; onChange: (v: string) => void; lockToToday?: boolean }) {
   const dark = useStore((s) => s.dark);
   const accent = useStore((s) => s.accent);
   const inputStyle: React.CSSProperties = {
@@ -369,8 +369,11 @@ function FieldInput({ field, value, onChange }: { field: FormField; value: strin
     case 'phone':
       return <input type="tel" value={value} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder || '+91 98765 43210'} style={inputStyle} />;
 
-    case 'date':
-      return <input type="date" value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />;
+    case 'date': {
+      const today = new Date().toISOString().split('T')[0];
+      return <input type="date" value={lockToToday ? today : value} onChange={(e) => onChange(e.target.value)}
+        min={lockToToday ? today : undefined} max={lockToToday ? today : undefined} disabled={lockToToday} style={{ ...inputStyle, opacity: lockToToday ? 0.7 : 1 }} />;
+    }
 
     case 'time':
       return <input type="time" value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />;
@@ -643,7 +646,8 @@ export default function FormFiller() {
                 {required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
               </label>
               {field.helpText && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{field.helpText}</div>}
-              <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={(v) => setValue(field.id, v)} />
+              <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={(v) => setValue(field.id, v)}
+                lockToToday={field.type === 'date' && form.schedule?.frequency === 'daily'} />
             </div>
             );
           })}
