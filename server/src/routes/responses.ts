@@ -7,17 +7,22 @@ const router = Router();
 
 router.get('/', async (req, res) => {
   if (!req.auth?.companyId) { res.json([]); return; }
-  const responses = await prisma.response.findMany({
-    where: { form: { companyId: req.auth.companyId } },
-    orderBy: { submittedAt: 'desc' },
-    include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true },
-  });
-  res.json(responses.map((r: any) => ({
-    id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
-    assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
-    plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
-    values: Object.fromEntries(r.values.map((v: any) => [v.fieldId, v.value])),
-  })));
+  try {
+    const responses = await prisma.response.findMany({
+      where: { form: { companyId: req.auth.companyId } },
+      orderBy: { submittedAt: 'desc' },
+      include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true },
+    });
+    res.json(responses.map((r: any) => ({
+      id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
+      assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
+      plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
+      values: Object.fromEntries(r.values.map((v: any) => [v.fieldId, v.value])),
+    })));
+  } catch (err: any) {
+    console.error('[GET /responses] failed:', err?.message, err?.meta);
+    res.status(500).json({ error: 'Failed to load responses', detail: err?.message });
+  }
 });
 
 router.get('/:id', async (req, res) => {

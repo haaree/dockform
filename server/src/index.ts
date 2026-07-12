@@ -19,6 +19,13 @@ import { authMiddleware } from './middleware/auth.js';
 
 export const prisma = new PrismaClient();
 
+process.on('unhandledRejection', (reason) => {
+  console.error('[unhandledRejection]', reason);
+});
+process.on('uncaughtException', (err) => {
+  console.error('[uncaughtException]', err);
+});
+
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
@@ -43,6 +50,11 @@ app.use('/api/users', usersRouter);
 app.use('/api/forms', formsRouter);
 app.use('/api/responses', responsesRouter);
 app.use('/api/ai', aiRouter);
+
+app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  console.error('[unhandled route error]', err?.message, err?.stack);
+  if (!res.headersSent) res.status(500).json({ error: 'Internal server error' });
+});
 
 const PORT = parseInt(process.env.PORT || '3000', 10);
 app.listen(PORT, '0.0.0.0', () => {
