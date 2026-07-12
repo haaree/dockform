@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
 import { sendResponseSubmittedEmail } from '../lib/email.js';
+import { isWithinDailyWindow } from '../lib/schedule.js';
 
 const router = Router();
 
@@ -36,6 +37,11 @@ router.post('/', async (req, res) => {
   const form = await prisma.form.findUnique({ where: { id: formId } });
   if (!form || form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Form not found' }); return; }
 
+  if (status !== 'draft' && !isWithinDailyWindow(form.scheduleMeta as any)) {
+    res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
+    return;
+  }
+
   const valueEntries = values ? Object.entries(values) : [];
   const response = await prisma.response.create({
     data: {
@@ -61,6 +67,12 @@ router.patch('/:id', async (req, res) => {
   if (existing.submittedBy !== req.auth?.userId) { res.status(403).json({ error: 'Not your response' }); return; }
 
   const { values, status } = req.body as { values?: Record<string, string>; status?: string };
+
+  if (status && status !== 'draft' && !isWithinDailyWindow(existing.form.scheduleMeta as any)) {
+    res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
+    return;
+  }
+
   if (values) {
     const valueEntries = Object.entries(values);
     await prisma.responseValue.deleteMany({ where: { responseId: req.params.id } });

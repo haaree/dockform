@@ -503,6 +503,7 @@ export default function FormFiller() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [submitError, setSubmitError] = useState('');
 
   useEffect(() => {
     if (activeResponseValues) setValues(activeResponseValues);
@@ -582,8 +583,13 @@ export default function FormFiller() {
 
   const handleSubmit = async () => {
     if (missingRequired.length > 0) return;
-    await submitResponse(form.id, values);
-    setSubmitted(true);
+    setSubmitError('');
+    try {
+      await submitResponse(form.id, values);
+      setSubmitted(true);
+    } catch (err: any) {
+      setSubmitError(err?.message || 'Failed to submit response');
+    }
   };
 
   const handleSaveDraft = async () => {
@@ -643,6 +649,7 @@ export default function FormFiller() {
           })}
 
           <div style={{ padding: '16px 0' }}>
+            {submitError && <div style={{ fontSize: 12.5, color: '#DC2626', marginBottom: 10, textAlign: 'center' }}>{submitError}</div>}
             <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
               style={{
                 width: '100%', padding: '14px 20px', borderRadius: 10, border: 'none',
