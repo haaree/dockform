@@ -51,22 +51,40 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-  const existing = await prisma.form.findUnique({ where: { id: req.params.id } });
+  const existing = await prisma.form.findUnique({ where: { id: req.params.id }, include: { fields: { include: { _count: { select: { responseValues: true } } } } } });
   if (!existing || existing.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
 
   const { name, description, domain, status, fields, schedule } = req.body as { name?: string; description?: string; domain?: string; status?: string; fields?: any[]; schedule?: unknown };
   try {
     if (fields) {
-      await prisma.formField.deleteMany({ where: { formId: req.params.id } });
-      await prisma.formField.createMany({
-        data: fields.map((f: any, i: number) => ({
-          formId: req.params.id, sortOrder: i, type: f.type, label: f.label,
+      const existingIds = new Set(existing.fields.map(f => f.id));
+      const incomingIds = new Set(fields.map((f: any) => f.id).filter((id: string) => existingIds.has(id)));
+
+      // Fields removed in the editor: delete if unanswered, otherwise keep (hidden) so existing responses stay valid.
+      for (const f of existing.fields) {
+        if (incomingIds.has(f.id)) continue;
+        if (f._count.responseValues === 0) {
+          await prisma.formField.delete({ where: { id: f.id } });
+        } else {
+          await prisma.formField.update({ where: { id: f.id }, data: { isHidden: true } });
+        }
+      }
+
+      for (let i = 0; i < fields.length; i++) {
+        const f = fields[i];
+        const data = {
+          sortOrder: i, type: f.type, label: f.label,
           placeholder: f.placeholder || '', helpText: f.helpText || '', defaultValue: f.defaultValue || '',
           options: f.options || [], validation: f.validation || {}, isRequired: f.required || false,
           isReadOnly: f.readOnly || false, isHidden: f.hidden || false,
           isSearchable: f.searchable || false, isIndexed: f.indexed || false, logic: f.logic || [],
-        })),
-      });
+        };
+        if (existingIds.has(f.id)) {
+          await prisma.formField.update({ where: { id: f.id }, data });
+        } else {
+          await prisma.formField.create({ data: { ...data, formId: req.params.id } });
+        }
+      }
     }
     const form = await prisma.form.update({
       where: { id: req.params.id },
