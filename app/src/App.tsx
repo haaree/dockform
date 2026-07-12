@@ -133,10 +133,18 @@ function AssignUsersModal() {
     !search || u.name.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase())
   );
 
+  const [publishError, setPublishError] = useState('');
+
   const handlePublish = async () => {
+    setPublishError('');
     const schedule: FormSchedule | undefined = frequency !== 'once' ? { frequency, startDate, dueDay, time: scheduleTime } : undefined;
     const formName = useStore.getState().currentFormName;
-    await publishForm(selectedIds, schedule);
+    try {
+      await publishForm(selectedIds, schedule);
+    } catch (err: any) {
+      setPublishError(err?.message || 'Failed to publish form');
+      return;
+    }
     if (selectedIds.length > 0) {
       const state = useStore.getState();
       const currentForm = state.forms.find(f => f.name === formName);
@@ -278,6 +286,7 @@ function AssignUsersModal() {
           </div>
         )}
 
+        {publishError && <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 10 }}>{publishError}</div>}
         <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', flexShrink: 0 }}>
           <button onClick={handleClose} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
           <button onClick={handlePublish} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>

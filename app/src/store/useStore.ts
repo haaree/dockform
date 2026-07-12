@@ -131,7 +131,7 @@ interface AppState {
   deleteForm: (id: string) => Promise<void>;
   refreshForms: () => Promise<void>;
   openNewForm: () => void;
-  editForm: (id: string) => void;
+  editForm: (id: string) => Promise<void>;
   saveDraft: () => Promise<void>;
   publishForm: (assignedUserIds?: string[], schedule?: FormSchedule) => Promise<void>;
   showAssignModal: boolean;
@@ -155,6 +155,17 @@ interface AppState {
   activateAccount: (id: number, subscription: AccountSubscription) => void;
   suspendAccount: (id: number) => void;
   updateAccountSubscription: (id: number, updates: Partial<AccountSubscription>) => void;
+}
+
+function toFieldDefs(apiFields: any[] | undefined): FormField[] {
+  return (apiFields || []).map((f: any) => ({
+    id: f.id, type: f.type, label: f.label, placeholder: f.placeholder || '',
+    helpText: f.helpText || '', defaultValue: f.defaultValue || '',
+    required: f.isRequired, readOnly: f.isReadOnly, hidden: f.isHidden,
+    searchable: f.isSearchable, indexed: f.isIndexed,
+    options: f.options || [], validation: f.validation || { min: '', max: '', pattern: '', message: '' },
+    logic: f.logic || [],
+  }));
 }
 
 const FIELD_LABELS: Record<string, string> = {
@@ -487,19 +498,21 @@ export const useStore = create<AppState>((set) => ({
     nav: 'builder',
   }),
 
-  editForm: (id) => set((s) => {
-    const form = s.forms.find(f => f.id === id);
-    if (!form) return {};
-    return {
+  editForm: async (id: string) => {
+    const form = useStore.getState().forms.find(f => f.id === id);
+    if (!form) return;
+    const { api } = await import('../lib/api');
+    const full = await api.getForm(id);
+    set({
       currentFormId: form.id,
       currentFormName: form.name,
       currentFormDesc: form.description ?? `${form.category} form — ${form.fields} fields`,
-      fields: form.fieldDefs ? [...form.fieldDefs] : [],
+      fields: toFieldDefs(full.fields),
       activePackId: null,
       builderTab: 'build',
       nav: 'builder',
-    };
-  }),
+    });
+  },
 
   saveDraft: async () => {
     const { api } = await import('../lib/api');
@@ -554,14 +567,7 @@ export const useStore = create<AppState>((set) => ({
     set({ fillingFormId: id, nav: 'fill', activeResponseId: null, activeResponseValues: null });
     const { api } = await import('../lib/api');
     const full = await api.getForm(id);
-    const fieldDefs: FormField[] = (full.fields || []).map((f: any) => ({
-      id: f.id, type: f.type, label: f.label, placeholder: f.placeholder || '',
-      helpText: f.helpText || '', defaultValue: f.defaultValue || '',
-      required: f.isRequired, readOnly: f.isReadOnly, hidden: f.isHidden,
-      searchable: f.isSearchable, indexed: f.isIndexed,
-      options: f.options || [], validation: f.validation || { min: '', max: '', pattern: '', message: '' },
-      logic: f.logic || [],
-    }));
+    const fieldDefs = toFieldDefs(full.fields);
     set((s) => ({ forms: s.forms.map(fm => fm.id === id ? { ...fm, fieldDefs } : fm) }));
 
     const { currentUserId, responses } = useStore.getState();
