@@ -23,6 +23,24 @@ export interface FormField {
   logic: LogicRule[];
 }
 
+export interface ChecklistItemDef {
+  id: string;
+  text: string;
+  direction: 'present' | 'absent';
+}
+
+// For photochecklist fields: baseline items are seeded from the field's defaultValue
+// (JSON-encoded ChecklistItemDef[]) and stored/appended per-response alongside AI/manual items.
+export interface ChecklistItem extends ChecklistItemDef {
+  source: 'builder' | 'ai' | 'manual';
+}
+
+export interface ChecklistResult {
+  itemId: string;
+  found: boolean;
+  note: string;
+}
+
 export interface FormSchedule {
   frequency: 'once' | 'daily' | 'weekly' | 'monthly' | 'quarterly' | 'yearly';
   startDate: string;

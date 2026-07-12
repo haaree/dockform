@@ -24,9 +24,15 @@ export function downloadHTMLReport(formName: string, description: string, fieldD
         } catch { display = v; }
       } else if (f.type === 'photochecklist') {
         try {
-          const attempts = JSON.parse(v);
+          const data = JSON.parse(v);
+          const items = data.items || [];
+          const attempts = data.attempts || [];
           const latest = attempts[attempts.length - 1];
-          const rows = (latest?.results || []).map((r: any) => `<div style="font-size:12px;color:#374151;">${r.found ? '✅' : '❌'} <strong>${r.item}</strong> — ${r.note}</div>`).join('');
+          const rows = items.map((item: any) => {
+            const r = (latest?.results || []).find((res: any) => res.itemId === item.id);
+            if (!r) return '';
+            return `<div style="font-size:12px;color:#374151;">${r.found ? '✅' : '❌'} <strong>${item.text}</strong> (${item.direction === 'absent' ? 'must be absent' : 'must be present'}) — ${r.note}</div>`;
+          }).join('');
           display = `${latest?.photo ? `<img src="${latest.photo}" style="max-width:250px;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />` : ''}${rows}${attempts.length > 1 ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">${attempts.length} attempts total</div>` : ''}`;
         } catch { display = v; }
       } else if (v.startsWith('data:image')) {

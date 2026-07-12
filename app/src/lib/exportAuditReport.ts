@@ -36,10 +36,16 @@ export function downloadAuditReport(
       }
       if (f.type === 'photochecklist') {
         try {
-          const attempts = JSON.parse(v);
+          const data = JSON.parse(v);
+          const items = data.items || [];
+          const attempts = data.attempts || [];
           const latest = attempts[attempts.length - 1];
           if (!latest) return '';
-          const rows = (latest.results || []).map((r: any) => `<div style="font-size:11px;color:#1f2937;margin-top:2px;">${r.found ? '✅' : '❌'} <strong>${r.item}</strong> — ${r.note}</div>`).join('');
+          const rows = items.map((item: any) => {
+            const r = (latest.results || []).find((res: any) => res.itemId === item.id);
+            if (!r) return '';
+            return `<div style="font-size:11px;color:#1f2937;margin-top:2px;">${r.found ? '✅' : '❌'} <strong>${item.text}</strong> (${item.direction === 'absent' ? 'must be absent' : 'must be present'}) — ${r.note}</div>`;
+          }).join('');
           return `
             <div style="margin:10px 0;">
               <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}${attempts.length > 1 ? ` (attempt ${attempts.length})` : ''}</div>

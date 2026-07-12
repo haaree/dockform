@@ -205,29 +205,53 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
   );
 }
 
-type ChecklistResult = { item: string; found: boolean; note: string };
+type ChecklistItem = { id: string; text: string; direction: 'present' | 'absent'; source: 'builder' | 'ai' | 'manual' };
+// found already reflects "satisfied" (AI is told each item's direction and scores accordingly), not raw presence/absence.
+type ChecklistResult = { itemId: string; found: boolean; note: string };
 type ChecklistAttempt = { photo: string; timestamp: string; results?: ChecklistResult[]; error?: string };
+type ChecklistFieldValue = { items: ChecklistItem[]; attempts: ChecklistAttempt[] };
 
-function PhotoChecklistField({ value, onChange, items, accent }: { value: string; onChange: (v: string) => void; items: string[]; accent: string }) {
+function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value: string; onChange: (v: string) => void; baselineItems: ChecklistItem[]; accent: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
-  let attempts: ChecklistAttempt[] = [];
-  try { attempts = JSON.parse(value || '[]'); } catch { /* empty */ }
-  const [loading, setLoading] = useState(false);
+  let data: ChecklistFieldValue = { items: [], attempts: [] };
+  try {
+    const parsed = JSON.parse(value || '{}');
+    data = { items: parsed.items || [], attempts: parsed.attempts || [] };
+  } catch { /* empty */ }
 
-  const latest = attempts[attempts.length - 1];
-  const allFoundInLatest = latest?.results && latest.results.every(r => r.found);
+  if (data.items.length === 0 && baselineItems.length > 0) {
+    data = { ...data, items: baselineItems };
+  }
+
+  const [loading, setLoading] = useState(false);
+  const [newItemText, setNewItemText] = useState('');
+  const [newItemDirection, setNewItemDirection] = useState<'present' | 'absent'>('present');
+
+  const save = (next: Partial<ChecklistFieldValue>) => onChange(JSON.stringify({ ...data, ...next }));
+
+  const addManualItem = () => {
+    if (!newItemText.trim()) return;
+    save({ items: [...data.items, { id: 'ci' + Date.now(), text: newItemText.trim(), direction: newItemDirection, source: 'manual' }] });
+    setNewItemText('');
+  };
+
+  const latest = data.attempts[data.attempts.length - 1];
+  const allSatisfiedInLatest = latest?.results && data.items.every(item => {
+    const r = latest.results!.find(res => res.itemId === item.id);
+    return r && r.found;
+  });
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || items.length === 0) return;
+    if (!file || data.items.length === 0) return;
     const photo = await resizeImageFile(file);
     const timestamp = new Date().toISOString();
     setLoading(true);
     try {
-      const { results } = await api.scoreChecklistPhoto(photo, items, 'area inspection checklist');
-      onChange(JSON.stringify([...attempts, { photo, timestamp, results }]));
+      const { results } = await api.scoreChecklistPhoto(photo, data.items.map(i => ({ id: i.id, text: i.text, direction: i.direction })), 'area inspection checklist');
+      save({ attempts: [...data.attempts, { photo, timestamp, results }] });
     } catch (err: any) {
-      onChange(JSON.stringify([...attempts, { photo, timestamp, error: err?.message || 'AI scoring unavailable' }]));
+      save({ attempts: [...data.attempts, { photo, timestamp, error: err?.message || 'AI scoring unavailable' }] });
     } finally {
       setLoading(false);
     }
@@ -237,25 +261,42 @@ function PhotoChecklistField({ value, onChange, items, accent }: { value: string
     <div>
       <input ref={inputRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
 
-      {items.length === 0 && (
-        <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 8 }}>No checklist items configured for this field.</div>
-      )}
+      <div style={{ marginBottom: 10 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Checklist Items</div>
+        {data.items.length === 0 && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 6 }}>No items yet — add one below, or upload a photo and AI will suggest items.</div>}
+        {data.items.map(item => (
+          <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--text)', padding: '4px 0' }}>
+            <span style={{ flex: 1 }}>{item.text}</span>
+            <span style={{ fontSize: 10, color: 'var(--muted)', fontWeight: 600 }}>{item.direction === 'absent' ? 'must be absent' : 'must be present'}</span>
+          </div>
+        ))}
+        <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
+          <input value={newItemText} onChange={(e) => setNewItemText(e.target.value)} placeholder="Add a checklist item…"
+            style={{ flex: 1, padding: '6px 8px', fontSize: 12, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none' }} />
+          <select value={newItemDirection} onChange={(e) => setNewItemDirection(e.target.value as 'present' | 'absent')}
+            style={{ fontSize: 11, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)' }}>
+            <option value="present">Present</option>
+            <option value="absent">Absent</option>
+          </select>
+          <button type="button" onClick={addManualItem} style={{ padding: '6px 10px', fontSize: 11, fontWeight: 600, border: 'none', borderRadius: 6, background: accent, color: '#fff', cursor: 'pointer' }}>Add</button>
+        </div>
+      </div>
 
-      <button type="button" onClick={() => inputRef.current?.click()} disabled={loading || items.length === 0}
+      <button type="button" onClick={() => inputRef.current?.click()} disabled={loading || data.items.length === 0}
         style={{ width: '100%', padding: '14px 12px', fontSize: 13, fontWeight: 600, color: loading ? 'var(--muted)' : accent, background: 'var(--surface2)', border: `2px dashed ${loading ? 'var(--border)' : accent}`, borderRadius: 8, cursor: loading ? 'default' : 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
         <Upload size={18} />
-        {loading ? 'Checking against checklist…' : attempts.length > 0 ? 'Upload New Photo (Re-check)' : 'Upload Photo'}
+        {loading ? 'Checking against checklist…' : data.attempts.length > 0 ? 'Upload New Photo (Re-check)' : 'Upload Photo'}
       </button>
 
       {latest && (
         <div style={{ marginTop: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
-              Latest Check {attempts.length > 1 ? `(Attempt ${attempts.length})` : ''}
+              Latest Check {data.attempts.length > 1 ? `(Attempt ${data.attempts.length})` : ''}
             </div>
             {latest.results && (
-              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: allFoundInLatest ? '#DCFCE7' : '#FEF3C7', color: allFoundInLatest ? '#15803D' : '#92400E' }}>
-                {allFoundInLatest ? 'All Clear' : 'Issues Remain'}
+              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: allSatisfiedInLatest ? '#DCFCE7' : '#FEF3C7', color: allSatisfiedInLatest ? '#15803D' : '#92400E' }}>
+                {allSatisfiedInLatest ? 'All Clear' : 'Issues Remain'}
               </span>
             )}
           </div>
@@ -265,34 +306,45 @@ function PhotoChecklistField({ value, onChange, items, accent }: { value: string
 
           {latest.results && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {latest.results.map((r, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', background: 'var(--surface2)', borderRadius: 6 }}>
-                  <span style={{ fontSize: 13, flexShrink: 0 }}>{r.found ? '✅' : '❌'}</span>
-                  <div>
-                    <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{r.item}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{r.note}</div>
+              {data.items.map(item => {
+                const r = latest.results!.find(res => res.itemId === item.id);
+                if (!r) return null;
+                const satisfied = r.found;
+                return (
+                  <div key={item.id} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', padding: '8px 10px', background: 'var(--surface2)', borderRadius: 6 }}>
+                    <span style={{ fontSize: 13, flexShrink: 0 }}>{satisfied ? '✅' : '❌'}</span>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--text)' }}>{item.text} <span style={{ fontWeight: 400, color: 'var(--muted)' }}>({item.direction === 'absent' ? 'must be absent' : 'must be present'})</span></div>
+                      <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{r.note}</div>
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
       )}
 
-      {attempts.length > 1 && (
+      {data.attempts.length > 1 && (
         <details style={{ marginTop: 10 }}>
           <summary style={{ fontSize: 11.5, color: 'var(--muted)', cursor: 'pointer', fontWeight: 600 }}>
-            View {attempts.length - 1} earlier attempt{attempts.length - 1 > 1 ? 's' : ''}
+            View {data.attempts.length - 1} earlier attempt{data.attempts.length - 1 > 1 ? 's' : ''}
           </summary>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
-            {attempts.slice(0, -1).reverse().map((a, i) => (
-              <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 8px', background: 'var(--surface2)', borderRadius: 6 }}>
-                <img src={a.photo} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
-                <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                  {new Date(a.timestamp).toLocaleString()} — {a.results ? `${a.results.filter(r => r.found).length}/${a.results.length} found` : (a.error || 'no result')}
+            {data.attempts.slice(0, -1).reverse().map((a, i) => {
+              const satisfiedCount = a.results ? data.items.filter(item => {
+                const r = a.results!.find(res => res.itemId === item.id);
+                return r && r.found;
+              }).length : 0;
+              return (
+                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 8px', background: 'var(--surface2)', borderRadius: 6 }}>
+                  <img src={a.photo} alt="" style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 4, flexShrink: 0 }} />
+                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>
+                    {new Date(a.timestamp).toLocaleString()} — {a.results ? `${satisfiedCount}/${data.items.length} satisfied` : (a.error || 'no result')}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </details>
       )}
@@ -452,8 +504,14 @@ function FieldInput({ field, value, onChange, lockToToday }: { field: FormField;
     case 'beforeafter':
       return <BeforeAfterField value={value} onChange={onChange} accent={accent} />;
 
-    case 'photochecklist':
-      return <PhotoChecklistField value={value} onChange={onChange} items={field.options} accent={accent} />;
+    case 'photochecklist': {
+      let baselineItems: ChecklistItem[] = [];
+      try {
+        baselineItems = (JSON.parse(field.defaultValue || '[]') as { id: string; text: string; direction: 'present' | 'absent' }[])
+          .map(i => ({ ...i, source: 'builder' as const }));
+      } catch { /* empty */ }
+      return <PhotoChecklistField value={value} onChange={onChange} baselineItems={baselineItems} accent={accent} />;
+    }
 
     case 'upload':
       return <FileUploadField value={value} onChange={onChange} accept="*/*" label="Tap to upload file" />;

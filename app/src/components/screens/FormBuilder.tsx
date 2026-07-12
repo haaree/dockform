@@ -7,9 +7,9 @@ import {
   Sliders, Zap, Plus, type LucideIcon,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import type { FormField, LogicRule } from '../../store/types';
+import type { FormField, LogicRule, ChecklistItemDef } from '../../store/types';
 
-const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox', 'photochecklist'];
+const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox'];
 
 interface FieldTypeDef {
   type: string;
@@ -904,6 +904,51 @@ function ToggleRow({ label, on, onChange }: { label: string; on: boolean; onChan
   );
 }
 
+function ChecklistItemsEditor({ field }: { field: FormField }) {
+  const updateField = useStore((s) => s.updateField);
+  let items: ChecklistItemDef[] = [];
+  try { items = JSON.parse(field.defaultValue || '[]'); } catch { /* empty */ }
+
+  const save = (next: ChecklistItemDef[]) => updateField(field.id, 'defaultValue', JSON.stringify(next));
+
+  const addItem = () => save([...items, { id: 'ci' + Date.now(), text: '', direction: 'present' }]);
+  const updateItem = (idx: number, patch: Partial<ChecklistItemDef>) => {
+    const next = [...items];
+    next[idx] = { ...next[idx], ...patch };
+    save(next);
+  };
+  const removeItem = (idx: number) => save(items.filter((_, i) => i !== idx));
+
+  return (
+    <PropField label="Baseline Checklist Items (optional)">
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
+        AI will also generate items from the uploaded photo — these are added on top as a starting baseline.
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {items.map((item, idx) => (
+          <div key={item.id} style={{ display: 'flex', gap: 6 }}>
+            <input value={item.text} onChange={(e) => updateItem(idx, { text: e.target.value })}
+              placeholder="e.g. Fire extinguisher present" style={inputStyle()} />
+            <select value={item.direction} onChange={(e) => updateItem(idx, { direction: e.target.value as 'present' | 'absent' })}
+              style={{ ...inputStyle(), width: 110, flexShrink: 0 }}>
+              <option value="present">Must be present</option>
+              <option value="absent">Must be absent</option>
+            </select>
+            <button type="button" onClick={() => removeItem(idx)} aria-label="Remove item"
+              style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, color: '#DC2626', cursor: 'pointer', width: 30, flexShrink: 0 }}>
+              <Trash2 size={13} style={{ margin: 'auto' }} />
+            </button>
+          </div>
+        ))}
+        <button type="button" onClick={addItem}
+          style={{ border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '7px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          <Plus size={12} /> Add Baseline Item
+        </button>
+      </div>
+    </PropField>
+  );
+}
+
 function PropertiesTab({ field }: { field: FormField }) {
   const updateField = useStore((s) => s.updateField);
   const hasPlaceholder = !['dropdown', 'multiselect', 'checkbox', 'radio', 'toggle', 'rating', 'color', 'signature', 'image', 'camera', 'video', 'audio', 'upload', 'gps', 'qr', 'barcode', 'formula', 'hidden', 'system'].includes(field.type);
@@ -949,16 +994,20 @@ function PropertiesTab({ field }: { field: FormField }) {
         />
       </PropField>
 
-      <PropField label="Default Value">
-        <input
-          value={field.defaultValue}
-          onChange={(e) => updateField(field.id, 'defaultValue', e.target.value)}
-          style={inputStyle()}
-        />
-      </PropField>
+      {field.type !== 'photochecklist' && (
+        <PropField label="Default Value">
+          <input
+            value={field.defaultValue}
+            onChange={(e) => updateField(field.id, 'defaultValue', e.target.value)}
+            style={inputStyle()}
+          />
+        </PropField>
+      )}
+
+      {field.type === 'photochecklist' && <ChecklistItemsEditor field={field} />}
 
       {hasOptions && (
-        <PropField label={field.type === 'photochecklist' ? 'Checklist Items' : 'Options'}>
+        <PropField label="Options">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {field.options.map((opt, idx) => (
               <div key={idx} style={{ display: 'flex', gap: 6 }}>

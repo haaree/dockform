@@ -39,11 +39,12 @@ export function downloadExcelReport(formName: string, description: string, field
         } catch { display = v; }
       } else if (f.type === 'photochecklist') {
         try {
-          const attempts = JSON.parse(v);
+          const data = JSON.parse(v);
+          const attempts = data.attempts || [];
           const latest = attempts[attempts.length - 1];
-          const found = latest?.results?.filter((r: any) => r.found).length ?? 0;
+          const satisfied = latest?.results?.filter((r: any) => r.found).length ?? 0;
           const total = latest?.results?.length ?? 0;
-          display = `${latest?.photo ? `<img src="${latest.photo}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''} ${total ? `${found}/${total} found` : ''}`;
+          display = `${latest?.photo ? `<img src="${latest.photo}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''} ${total ? `${satisfied}/${total} satisfied` : ''}`;
         } catch { display = v; }
       } else if (v.startsWith('data:image')) {
         display = `<img src="${v}" style="max-width:160px;max-height:120px;border-radius:4px;border:1px solid #e2e8f0;display:block;" />`;

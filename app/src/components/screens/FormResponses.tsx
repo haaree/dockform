@@ -176,7 +176,9 @@ export default function FormResponses() {
     }
     if (type === 'photochecklist') {
       try {
-        const attempts = JSON.parse(val);
+        const data = JSON.parse(val);
+        const items = data.items || [];
+        const attempts = data.attempts || [];
         const latest = attempts[attempts.length - 1];
         if (!latest) return <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Not answered</span>;
         return (
@@ -184,11 +186,15 @@ export default function FormResponses() {
             <img src={latest.photo} alt="Checklist photo" onClick={() => setImageModal(latest.photo)}
               style={{ width: '100%', maxHeight: 200, objectFit: 'cover', borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)', marginBottom: 8 }} />
             {latest.error && <div style={{ fontSize: 12, color: '#DC2626' }}>{latest.error}</div>}
-            {(latest.results || []).map((r: any, i: number) => (
-              <div key={i} style={{ fontSize: 12, color: 'var(--text)', marginTop: 4 }}>
-                {r.found ? '✅' : '❌'} <strong>{r.item}</strong> — <span style={{ color: 'var(--muted)' }}>{r.note}</span>
-              </div>
-            ))}
+            {items.map((item: any) => {
+              const r = (latest.results || []).find((res: any) => res.itemId === item.id);
+              if (!r) return null;
+              return (
+                <div key={item.id} style={{ fontSize: 12, color: 'var(--text)', marginTop: 4 }}>
+                  {r.found ? '✅' : '❌'} <strong>{item.text}</strong> <span style={{ color: 'var(--muted)' }}>({item.direction === 'absent' ? 'must be absent' : 'must be present'})</span> — <span style={{ color: 'var(--muted)' }}>{r.note}</span>
+                </div>
+              );
+            })}
             {attempts.length > 1 && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>{attempts.length} attempts total</div>}
           </div>
         );
