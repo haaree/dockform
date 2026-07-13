@@ -8,6 +8,12 @@ const bucket = process.env.R2_BUCKET || 'dockform-photos';
 
 export const storageConfigured = !!(accountId && accessKeyId && secretAccessKey);
 
+if (storageConfigured) {
+  console.log(`[storage] R2 configured — account=${accountId} bucket=${bucket}`);
+} else {
+  console.log('[storage] R2 not configured — falling back to embedded base64');
+}
+
 const client = storageConfigured
   ? new S3Client({
       region: 'auto',
@@ -36,7 +42,8 @@ export async function getObjectBuffer(key: string): Promise<{ buffer: Buffer; co
     const bytes = await result.Body?.transformToByteArray();
     if (!bytes) return null;
     return { buffer: Buffer.from(bytes), contentType: result.ContentType || 'application/octet-stream' };
-  } catch {
+  } catch (err: any) {
+    console.error('[storage] getObjectBuffer failed:', bucket, key, err?.name, err?.message, err?.$metadata?.httpStatusCode);
     return null;
   }
 }
