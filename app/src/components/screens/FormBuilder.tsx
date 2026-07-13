@@ -1064,8 +1064,8 @@ const SUBFIELD_PALETTE: { type: string; label: string }[] = [
 // Editor for one sub-field's own properties, rendered inline in the parent's sub-field list.
 // Deliberately has no Logic tab — cross-field logic referencing fields inside a repeated,
 // nested group has no well-defined resolution yet (deferred).
-function SubFieldEditor({ subField, onChange, onRemove, depth }: { subField: FormField; onChange: (next: FormField) => void; onRemove: () => void; depth: number }) {
-  const [expanded, setExpanded] = useState(false);
+function SubFieldEditor({ subField, onChange, onRemove, depth, startExpanded }: { subField: FormField; onChange: (next: FormField) => void; onRemove: () => void; depth: number; startExpanded?: boolean }) {
+  const [expanded, setExpanded] = useState(!!startExpanded);
   const hasOptions = CHOICE_TYPES.includes(subField.type);
   const hasPlaceholder = !['dropdown', 'multiselect', 'checkbox', 'radio', 'toggle', 'rating', 'color', 'signature', 'image', 'camera', 'video', 'audio', 'upload', 'gps', 'qr', 'barcode', 'formula', 'hidden', 'system', 'beforeafter', 'photochecklist', 'areagroup'].includes(subField.type);
 
@@ -1078,16 +1078,37 @@ function SubFieldEditor({ subField, onChange, onRemove, depth }: { subField: For
     try { checklistItems = JSON.parse(subField.defaultValue || '[]'); } catch { /* empty */ }
   }
 
+  const [editingLabel, setEditingLabel] = useState(false);
+
   return (
     <div style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', marginBottom: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', cursor: 'pointer' }} onClick={() => setExpanded(!expanded)}>
-        <TypeIcon type={subField.type} size={13} style={{ color: 'var(--muted)', flexShrink: 0 }} />
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subField.label || TYPE_LABEL_MAP[subField.type]}</span>
-        <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', flexShrink: 0 }}>{TYPE_LABEL_MAP[subField.type] || subField.type}</span>
-        <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} aria-label="Remove sub-field"
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px' }}>
+        <span style={{ cursor: 'pointer', display: 'flex' }} onClick={() => setExpanded(!expanded)}>
+          <TypeIcon type={subField.type} size={13} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+        </span>
+        {editingLabel ? (
+          <input
+            autoFocus
+            value={subField.label}
+            onChange={(e) => onChange({ ...subField, label: e.target.value })}
+            onBlur={() => setEditingLabel(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingLabel(false); }}
+            style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', outline: 'none', flex: 1, minWidth: 0 }}
+          />
+        ) : (
+          <span onClick={() => setEditingLabel(true)} title="Click to rename"
+            style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' }}>
+            {subField.label || TYPE_LABEL_MAP[subField.type]}
+          </span>
+        )}
+        <span onClick={() => setExpanded(!expanded)} style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', flexShrink: 0, cursor: 'pointer' }}>{TYPE_LABEL_MAP[subField.type] || subField.type}</span>
+        <button type="button" onClick={() => onRemove()} aria-label="Remove sub-field"
           style={{ border: 'none', background: 'transparent', color: '#DC2626', cursor: 'pointer', flexShrink: 0, display: 'flex' }}>
           <Trash2 size={13} />
         </button>
+      </div>
+      <div style={{ padding: '0 10px 10px' }} onClick={() => setExpanded(!expanded)}>
+        <FieldPreview field={subField} />
       </div>
       {expanded && (
         <div style={{ padding: '4px 10px 10px', borderTop: '1px solid var(--border)' }}>
@@ -1175,6 +1196,7 @@ function SubFieldEditor({ subField, onChange, onRemove, depth }: { subField: For
 function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: FormField[]; onChange: (next: FormField[]) => void; depth: number }) {
   const [showPalette, setShowPalette] = useState(false);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
   const accent = useStore((s) => s.accent);
 
   const addSubField = (type: string, atIndex?: number) => {
@@ -1186,6 +1208,7 @@ function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: F
       next.splice(Math.max(0, Math.min(atIndex, next.length)), 0, nf);
       onChange(next);
     }
+    setLastAddedId(nf.id);
     setShowPalette(false);
   };
   const updateSubField = (idx: number, next: FormField) => {
@@ -1235,7 +1258,7 @@ function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: F
       {subFields.map((sf, idx) => (
         <div key={sf.id} data-subfield-card>
           {dropIndex === idx && <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 8 }} />}
-          <SubFieldEditor subField={sf} depth={depth}
+          <SubFieldEditor subField={sf} depth={depth} startExpanded={sf.id === lastAddedId}
             onChange={(next) => updateSubField(idx, next)}
             onRemove={() => removeSubField(idx)} />
         </div>
