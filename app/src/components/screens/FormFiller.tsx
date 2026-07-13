@@ -683,7 +683,7 @@ export default function FormFiller() {
   };
 
   const handleHandoff = async () => {
-    if (!handoffTarget) { setHandoffError('Select a supervisor to hand off to.'); return; }
+    if (!handoffTarget) { setHandoffError('Select a person to send this to.'); return; }
     if (handoffSaving) return;
     setHandoffSaving(true);
     setHandoffError('');
@@ -714,7 +714,7 @@ export default function FormFiller() {
         {isAdmin && (
           <button type="button" onClick={openHandoff}
             style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <UserCheck size={13} /> Hand Off to Supervisor
+            <UserCheck size={13} /> Send for Completion
           </button>
         )}
         <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
@@ -779,11 +779,11 @@ export default function FormFiller() {
       {showHandoff && (
         <div onClick={() => setShowHandoff(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
           <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 420, maxWidth: '92%' }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Hand Off to Supervisor</div>
-            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 16 }}>Saves your current progress and assigns this response to the selected supervisor to complete.</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Send for Completion</div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 16 }}>Saves your current progress and sends this form to the selected person to finish.</div>
             <select value={handoffTarget} onChange={(e) => setHandoffTarget(e.target.value)}
               style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginBottom: 12 }}>
-              <option value="">Select a supervisor…</option>
+              <option value="">Select a person…</option>
               {handoffUsers.filter(u => u.status === 'active' && u.id !== currentUserId).map(u => (
                 <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
               ))}
@@ -791,7 +791,7 @@ export default function FormFiller() {
             {handoffError && <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 10 }}>{handoffError}</div>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowHandoff(false)} disabled={handoffSaving} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: handoffSaving ? 'default' : 'pointer', opacity: handoffSaving ? 0.6 : 1 }}>Cancel</button>
-              <button onClick={handleHandoff} disabled={handoffSaving} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: handoffSaving ? 'default' : 'pointer', opacity: handoffSaving ? 0.6 : 1 }}>{handoffSaving ? 'Handing off…' : 'Hand Off'}</button>
+              <button onClick={handleHandoff} disabled={handoffSaving} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: handoffSaving ? 'default' : 'pointer', opacity: handoffSaving ? 0.6 : 1 }}>{handoffSaving ? 'Sending…' : 'Send'}</button>
             </div>
           </div>
         </div>

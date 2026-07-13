@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock, Users, Link2, Check, UserMinus, X } from 'lucide-react';
+import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock, Users, Link2, Check, UserMinus, X, Send } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -87,6 +87,17 @@ export default function FormsScreen() {
     return inProgress.some(r => new Date(r.date) >= occurrenceStart);
   };
 
+  // The response someone else sent to the current user to finish, if any.
+  const getSentToMe = (form: typeof forms[number]) => {
+    if (isCompletedForViewer(form)) return null;
+    const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
+    const candidates = responses.filter(r =>
+      r.formId === form.id && r.status === 'awaiting_supervisor' && r.assignedToId === currentUserId && r.submittedById !== currentUserId
+    );
+    const inWindow = occurrenceStart ? candidates.filter(r => new Date(r.date) >= occurrenceStart) : candidates;
+    return inWindow[0] || null;
+  };
+
   const pendingForms = isViewer ? filtered.filter(f => !isCompletedForViewer(f)) : [];
   const completedForms = isViewer ? filtered.filter(f => isCompletedForViewer(f)) : [];
 
@@ -115,7 +126,7 @@ export default function FormsScreen() {
       <div style={{ flex: 1, overflow: 'auto', padding: pad }}>
         {isViewer ? (
           <>
-            <ViewerFormSection title="Pending" forms={pendingForms} accentText={accentText} fillForm={fillForm} isInProgress={isInProgressForViewer} />
+            <ViewerFormSection title="Pending" forms={pendingForms} accentText={accentText} fillForm={fillForm} isInProgress={isInProgressForViewer} getSentToMe={getSentToMe} />
             <div style={{ height: 24 }} />
             <ViewerFormSection title="Completed" forms={completedForms} accentText={accentText} fillForm={fillForm} completed />
           </>
@@ -317,8 +328,8 @@ export default function FormsScreen() {
   );
 }
 
-function ViewerFormSection({ title, forms, accentText, fillForm, completed, isInProgress }: {
-  title: string; forms: any[]; accentText: string; fillForm: (id: string) => void; completed?: boolean; isInProgress?: (form: any) => boolean;
+function ViewerFormSection({ title, forms, accentText, fillForm, completed, isInProgress, getSentToMe }: {
+  title: string; forms: any[]; accentText: string; fillForm: (id: string) => void; completed?: boolean; isInProgress?: (form: any) => boolean; getSentToMe?: (form: any) => { submittedBy: string } | null;
 }) {
   return (
     <div>
@@ -329,7 +340,9 @@ function ViewerFormSection({ title, forms, accentText, fillForm, completed, isIn
             {completed ? 'No forms completed yet.' : 'Nothing pending.'}
           </div>
         )}
-        {forms.map((form, i) => (
+        {forms.map((form, i) => {
+          const sentToMe = getSentToMe?.(form);
+          return (
           <div key={form.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', borderBottom: i < forms.length - 1 ? '1px solid var(--border)' : 'none' }}>
             <div style={{ width: 30, height: 30, borderRadius: 8, background: `${accentText}1A`, color: accentText, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
               <FileText size={15} />
@@ -343,7 +356,12 @@ function ViewerFormSection({ title, forms, accentText, fillForm, completed, isIn
                     <CalendarClock size={10} /> {form.schedule.frequency}
                   </span>
                 )}
-                {!completed && isInProgress?.(form) && (
+                {sentToMe && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#EDE9FE', color: '#6D28D9' }}>
+                    <Send size={10} /> Sent by {sentToMe.submittedBy}
+                  </span>
+                )}
+                {!completed && !sentToMe && isInProgress?.(form) && (
                   <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 7px', borderRadius: 10, background: '#FEF3C7', color: '#92400E' }}>
                     In Progress
                   </span>
@@ -363,11 +381,12 @@ function ViewerFormSection({ title, forms, accentText, fillForm, completed, isIn
             {!completed && (
               <button onClick={() => fillForm(form.id)}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: accentText, border: 'none', borderRadius: 6, padding: '6px 14px', fontSize: 12, fontWeight: 600, color: '#fff', cursor: 'pointer' }}>
-                <ClipboardList size={12} /> {isInProgress?.(form) ? 'Continue' : 'Fill Out'}
+                <ClipboardList size={12} /> {sentToMe ? 'Complete' : isInProgress?.(form) ? 'Continue' : 'Fill Out'}
               </button>
             )}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
