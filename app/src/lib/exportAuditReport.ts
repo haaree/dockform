@@ -57,7 +57,7 @@ function renderActivityField(f: FormField, v: string): string {
           <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}</div>
           ${instances.map((inst, i) => `
             <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
-              <div style="font-size:10px;font-weight:700;color:#9ca3af;margin-bottom:4px;">AREA ${i + 1}</div>
+              <div style="font-size:10px;font-weight:700;color:#9ca3af;margin-bottom:4px;">${(f.label || 'ITEM').toUpperCase()} ${i + 1}</div>
               ${subFields.filter(sf => !sf.hidden).map(sf => renderActivityField(sf, inst.values[sf.id] || '')).join('')}
             </div>`).join('')}
         </div>`;

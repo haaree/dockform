@@ -368,7 +368,7 @@ function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value
 
 type AreaInstance = { id: string; values: Record<string, string> };
 
-function AreaGroupField({ value, onChange, subFields, accent }: { value: string; onChange: (v: string) => void; subFields: FormField[]; accent: string }) {
+function AreaGroupField({ value, onChange, subFields, accent, sectionLabel }: { value: string; onChange: (v: string) => void; subFields: FormField[]; accent: string; sectionLabel: string }) {
   let instances: AreaInstance[] = [];
   try { instances = JSON.parse(value || '[]'); } catch { /* empty */ }
 
@@ -381,7 +381,7 @@ function AreaGroupField({ value, onChange, subFields, accent }: { value: string;
   };
 
   if (subFields.length === 0) {
-    return <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>No fields configured for this area group yet.</div>;
+    return <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>No fields configured for this section yet.</div>;
   }
 
   return (
@@ -389,7 +389,7 @@ function AreaGroupField({ value, onChange, subFields, accent }: { value: string;
       {instances.map((instance, idx) => (
         <div key={instance.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14, background: 'var(--surface2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>Area {idx + 1}</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{sectionLabel} {idx + 1}</div>
             <button type="button" onClick={() => removeInstance(instance.id)}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
               <X size={12} /> Remove
@@ -409,7 +409,7 @@ function AreaGroupField({ value, onChange, subFields, accent }: { value: string;
       ))}
       <button type="button" onClick={addInstance}
         style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: `1px dashed ${accent}`, background: 'transparent', borderRadius: 8, padding: '10px 0', color: accent, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-        <Plus size={14} /> Add Another Area
+        <Plus size={14} /> Add Another {sectionLabel}
       </button>
     </div>
   );
@@ -581,7 +581,7 @@ function FieldInput({ field, value, onChange, lockToToday }: { field: FormField;
     case 'areagroup': {
       let subFields: FormField[] = [];
       try { subFields = JSON.parse(field.defaultValue || '[]'); } catch { /* empty */ }
-      return <AreaGroupField value={value} onChange={onChange} subFields={subFields} accent={accent} />;
+      return <AreaGroupField value={value} onChange={onChange} subFields={subFields} accent={accent} sectionLabel={field.label || 'Item'} />;
     }
 
     case 'upload':

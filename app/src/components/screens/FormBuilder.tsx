@@ -106,7 +106,7 @@ const FIELD_CATEGORIES: FieldCategory[] = [
   {
     name: 'Structure',
     items: [
-      { type: 'areagroup', label: 'Area Group', icon: Layers },
+      { type: 'areagroup', label: 'Section', icon: Layers },
     ],
   },
 ];
@@ -655,7 +655,7 @@ function FieldPreview({ field }: { field: FormField }) {
     case 'areagroup': {
       let subFields: FormField[] = [];
       try { subFields = JSON.parse(field.defaultValue || '[]'); } catch { /* empty */ }
-      return <DashedPlaceholder icon={Layers} text={subFields.length > 0 ? `Repeatable group — ${subFields.length} field${subFields.length === 1 ? '' : 's'} per area, "Add Another Area" at fill time` : 'Repeatable group — configure sub-fields in Properties'} />;
+      return <DashedPlaceholder icon={Layers} text={subFields.length > 0 ? `Section — ${subFields.length} field${subFields.length === 1 ? '' : 's'}, repeats via "Add Another" at fill time` : 'Section — add fields in Properties'} />;
     }
     case 'video':
       return <DashedPlaceholder icon={Video} text="Upload or record video" />;
@@ -973,9 +973,8 @@ function newSubField(type: string): FormField {
   };
 }
 
-// Sub-field types available inside an Area Group. Excludes 'areagroup' from the initial
-// palette row (nesting is still possible — a sub-field CAN be an areagroup — but isn't
-// surfaced as a one-click default choice to avoid encouraging accidental deep nesting).
+// Field types available inside a Section. 'areagroup' (nested Section) is included but
+// listed last to avoid encouraging accidental deep nesting as the default choice.
 const SUBFIELD_PALETTE: { type: string; label: string }[] = [
   { type: 'textbox', label: 'Text' },
   { type: 'textarea', label: 'Textarea' },
@@ -989,7 +988,7 @@ const SUBFIELD_PALETTE: { type: string; label: string }[] = [
   { type: 'beforeafter', label: 'Before/After' },
   { type: 'photochecklist', label: 'Photo Checklist' },
   { type: 'signature', label: 'Signature' },
-  { type: 'areagroup', label: 'Area Group (nested)' },
+  { type: 'areagroup', label: 'Nested Section' },
 ];
 
 // Editor for one sub-field's own properties, rendered inline in the parent's sub-field list.
@@ -1086,7 +1085,7 @@ function SubFieldEditor({ subField, onChange, onRemove, depth }: { subField: For
           )}
 
           {subField.type === 'areagroup' && depth < 3 && (
-            <PropField label="Nested Area Sub-Fields">
+            <PropField label="Fields in this Nested Section">
               <AreaGroupSubFieldsEditor
                 subFields={nestedSubFields}
                 onChange={(next) => onChange({ ...subField, defaultValue: JSON.stringify(next) })}
@@ -1119,7 +1118,7 @@ function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: F
   return (
     <div>
       <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
-        These fields repeat as a set every time "Add Another Area" is used when filling out the form.
+        These fields repeat as a set every time "Add Another" is used when filling out the form.
       </div>
       {subFields.map((sf, idx) => (
         <SubFieldEditor key={sf.id} subField={sf} depth={depth}
@@ -1129,7 +1128,7 @@ function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: F
       <div style={{ position: 'relative' }}>
         <button type="button" onClick={() => setShowPalette(!showPalette)}
           style={{ width: '100%', border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '8px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-          <Plus size={12} /> Add Sub-Field
+          <Plus size={12} /> Add Field to Section
         </button>
         {showPalette && (
           <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.12)', zIndex: 10, maxHeight: 220, overflowY: 'auto' }}>
@@ -1205,7 +1204,7 @@ function PropertiesTab({ field }: { field: FormField }) {
       {field.type === 'photochecklist' && <ChecklistItemsEditor field={field} />}
 
       {field.type === 'areagroup' && (
-        <PropField label="Area Sub-Fields">
+        <PropField label="Fields in this Section">
           <AreaGroupSubFieldsEditor
             subFields={(() => { try { return JSON.parse(field.defaultValue || '[]'); } catch { return []; } })()}
             onChange={(next) => updateField(field.id, 'defaultValue', JSON.stringify(next))}

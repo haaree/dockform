@@ -38,10 +38,10 @@ function renderFieldDisplay(f: FormField, v: string): string {
       const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
       let subFields: FormField[] = [];
       try { subFields = JSON.parse(f.defaultValue || '[]'); } catch { /* empty */ }
-      if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">No areas added</span>';
+      if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">None added</span>';
       return instances.map((inst, i) => `
         <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
-          <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;">Area ${i + 1}</div>
+          <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;">${f.label || 'Item'} ${i + 1}</div>
           ${subFields.filter(sf => !sf.hidden).map(sf => `
             <div style="margin-bottom:6px;">
               <div style="font-size:10px;font-weight:600;color:#9ca3af;">${sf.label}</div>

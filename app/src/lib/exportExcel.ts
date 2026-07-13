@@ -34,10 +34,10 @@ function renderCellDisplay(f: FormField, v: string): string {
       const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
       let subFields: FormField[] = [];
       try { subFields = JSON.parse(f.defaultValue || '[]'); } catch { /* empty */ }
-      if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">No areas added</span>';
+      if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">None added</span>';
       return instances.map((inst, i) => `
         <div style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-bottom:4px;">
-          <div style="font-size:10px;font-weight:700;color:#6b7280;">Area ${i + 1}</div>
+          <div style="font-size:10px;font-weight:700;color:#6b7280;">${f.label || 'Item'} ${i + 1}</div>
           ${subFields.filter(sf => !sf.hidden).map(sf => `<div style="font-size:11px;"><strong>${sf.label}:</strong> ${renderCellDisplay(sf, inst.values[sf.id] || '')}</div>`).join('')}
         </div>`).join('');
     } catch { return v; }
