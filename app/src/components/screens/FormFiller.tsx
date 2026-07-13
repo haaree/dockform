@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2, Sparkles, UserCheck } from 'lucide-react';
+import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2, Sparkles, UserCheck, Plus } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule } from '../../store/types';
 import { api } from '../../lib/api';
@@ -366,6 +366,55 @@ function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value
   );
 }
 
+type AreaInstance = { id: string; values: Record<string, string> };
+
+function AreaGroupField({ value, onChange, subFields, accent }: { value: string; onChange: (v: string) => void; subFields: FormField[]; accent: string }) {
+  let instances: AreaInstance[] = [];
+  try { instances = JSON.parse(value || '[]'); } catch { /* empty */ }
+
+  const save = (next: AreaInstance[]) => onChange(JSON.stringify(next));
+
+  const addInstance = () => save([...instances, { id: 'area' + Date.now(), values: {} }]);
+  const removeInstance = (id: string) => save(instances.filter(a => a.id !== id));
+  const setInstanceValue = (instanceId: string, fieldId: string, v: string) => {
+    save(instances.map(a => a.id === instanceId ? { ...a, values: { ...a.values, [fieldId]: v } } : a));
+  };
+
+  if (subFields.length === 0) {
+    return <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>No fields configured for this area group yet.</div>;
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {instances.map((instance, idx) => (
+        <div key={instance.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14, background: 'var(--surface2)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>Area {idx + 1}</div>
+            <button type="button" onClick={() => removeInstance(instance.id)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+              <X size={12} /> Remove
+            </button>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {subFields.map((sf) => (
+              <div key={sf.id}>
+                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                  {sf.label}{sf.required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
+                </label>
+                <FieldInput field={sf} value={instance.values[sf.id] || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+      <button type="button" onClick={addInstance}
+        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: `1px dashed ${accent}`, background: 'transparent', borderRadius: 8, padding: '10px 0', color: accent, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+        <Plus size={14} /> Add Another Area
+      </button>
+    </div>
+  );
+}
+
 function FileUploadField({ value, onChange, accept, label }: { value: string; onChange: (v: string) => void; accept: string; label: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
@@ -527,6 +576,12 @@ function FieldInput({ field, value, onChange, lockToToday }: { field: FormField;
           .map(i => ({ ...i, source: 'builder' as const }));
       } catch { /* empty */ }
       return <PhotoChecklistField value={value} onChange={onChange} baselineItems={baselineItems} accent={accent} />;
+    }
+
+    case 'areagroup': {
+      let subFields: FormField[] = [];
+      try { subFields = JSON.parse(field.defaultValue || '[]'); } catch { /* empty */ }
+      return <AreaGroupField value={value} onChange={onChange} subFields={subFields} accent={accent} />;
     }
 
     case 'upload':

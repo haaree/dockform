@@ -11,6 +11,60 @@ interface ResponseData {
   values?: Record<string, string>;
 }
 
+function renderFieldDisplay(f: FormField, v: string): string {
+  if (!v) return '<span style="color:#9ca3af;font-style:italic;">Not answered</span>';
+  if (f.type === 'beforeafter') {
+    try {
+      const ba = JSON.parse(v);
+      return `<div style="display:flex;gap:8px;margin-top:4px;">${ba.before ? `<div style="flex:1;"><img src="${ba.before}" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}${ba.after ? `<div style="flex:1;"><img src="${ba.after}" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}</div>${ba.observation ? `<div style="margin-top:6px;padding:8px;background:#f9fafb;border-radius:6px;font-size:12px;color:#374151;"><strong>Observation:</strong> ${ba.observation}</div>` : ''}`;
+    } catch { return v; }
+  }
+  if (f.type === 'photochecklist') {
+    try {
+      const data = JSON.parse(v);
+      const items = data.items || [];
+      const attempts = data.attempts || [];
+      const latest = attempts[attempts.length - 1];
+      const rows = items.map((item: any) => {
+        const r = (latest?.results || []).find((res: any) => res.itemId === item.id);
+        if (!r) return '';
+        return `<div style="font-size:12px;color:#374151;">${r.found ? '✅' : '❌'} <strong>${item.text}</strong> (${item.direction === 'absent' ? 'must be absent' : 'must be present'}) — ${r.note}</div>`;
+      }).join('');
+      return `${latest?.photo ? `<img src="${latest.photo}" style="max-width:250px;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />` : ''}${rows}${attempts.length > 1 ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">${attempts.length} attempts total</div>` : ''}`;
+    } catch { return v; }
+  }
+  if (f.type === 'areagroup') {
+    try {
+      const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
+      let subFields: FormField[] = [];
+      try { subFields = JSON.parse(f.defaultValue || '[]'); } catch { /* empty */ }
+      if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">No areas added</span>';
+      return instances.map((inst, i) => `
+        <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
+          <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;">Area ${i + 1}</div>
+          ${subFields.filter(sf => !sf.hidden).map(sf => `
+            <div style="margin-bottom:6px;">
+              <div style="font-size:10px;font-weight:600;color:#9ca3af;">${sf.label}</div>
+              <div style="font-size:12px;color:#1f2937;">${renderFieldDisplay(sf, inst.values[sf.id] || '')}</div>
+            </div>`).join('')}
+        </div>`).join('');
+    } catch { return v; }
+  }
+  if (v.startsWith('data:image')) {
+    return `<img src="${v}" style="max-width:300px;max-height:200px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />`;
+  }
+  if (v.startsWith('data:')) return '<span style="color:#2563eb;">[File attached]</span>';
+  if (f.type === 'toggle') {
+    const yes = v === 'true';
+    return `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:${yes ? '#dcfce7' : '#fee2e2'};color:${yes ? '#15803d' : '#dc2626'};">${yes ? 'Yes' : 'No'}</span>`;
+  }
+  if (f.type === 'rating') {
+    const n = parseInt(v) || 0;
+    return `<span style="font-size:18px;letter-spacing:2px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span> <span style="color:#6b7280;">(${n}/5)</span>`;
+  }
+  return v.replace(/\|\|/g, ', ').replace(/</g, '&lt;');
+}
+
 export async function downloadHTMLReport(formName: string, description: string, fieldDefs: FormField[], formResponses: ResponseData[]) {
   const now = new Date().toLocaleString();
   const imageMap = await buildInlineImageMap(formResponses.flatMap(r => Object.values(r.values || {})));
@@ -18,41 +72,7 @@ export async function downloadHTMLReport(formName: string, description: string, 
   const responseCards = formResponses.map((r, i) => {
     const vals = r.values || {};
     const fieldRows = fieldDefs.filter(f => !f.hidden).map(f => {
-      const v = vals[f.id] || '';
-      let display: string;
-      if (!v) {
-        display = '<span style="color:#9ca3af;font-style:italic;">Not answered</span>';
-      } else if (f.type === 'beforeafter') {
-        try {
-          const ba = JSON.parse(v);
-          display = `<div style="display:flex;gap:8px;margin-top:4px;">${ba.before ? `<div style="flex:1;"><img src="${ba.before}" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}${ba.after ? `<div style="flex:1;"><img src="${ba.after}" style="max-width:100%;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}</div>${ba.observation ? `<div style="margin-top:6px;padding:8px;background:#f9fafb;border-radius:6px;font-size:12px;color:#374151;"><strong>Observation:</strong> ${ba.observation}</div>` : ''}`;
-        } catch { display = v; }
-      } else if (f.type === 'photochecklist') {
-        try {
-          const data = JSON.parse(v);
-          const items = data.items || [];
-          const attempts = data.attempts || [];
-          const latest = attempts[attempts.length - 1];
-          const rows = items.map((item: any) => {
-            const r = (latest?.results || []).find((res: any) => res.itemId === item.id);
-            if (!r) return '';
-            return `<div style="font-size:12px;color:#374151;">${r.found ? '✅' : '❌'} <strong>${item.text}</strong> (${item.direction === 'absent' ? 'must be absent' : 'must be present'}) — ${r.note}</div>`;
-          }).join('');
-          display = `${latest?.photo ? `<img src="${latest.photo}" style="max-width:250px;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />` : ''}${rows}${attempts.length > 1 ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">${attempts.length} attempts total</div>` : ''}`;
-        } catch { display = v; }
-      } else if (v.startsWith('data:image')) {
-        display = `<img src="${v}" style="max-width:300px;max-height:200px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />`;
-      } else if (v.startsWith('data:')) {
-        display = '<span style="color:#2563eb;">[File attached]</span>';
-      } else if (f.type === 'toggle') {
-        const yes = v === 'true';
-        display = `<span style="display:inline-block;padding:2px 10px;border-radius:12px;font-size:12px;font-weight:600;background:${yes ? '#dcfce7' : '#fee2e2'};color:${yes ? '#15803d' : '#dc2626'};">${yes ? 'Yes' : 'No'}</span>`;
-      } else if (f.type === 'rating') {
-        const n = parseInt(v) || 0;
-        display = `<span style="font-size:18px;letter-spacing:2px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span> <span style="color:#6b7280;">(${n}/5)</span>`;
-      } else {
-        display = v.replace(/\|\|/g, ', ').replace(/</g, '&lt;');
-      }
+      const display = renderFieldDisplay(f, vals[f.id] || '');
       return `
         <tr>
           <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#374151;background:#f9fafb;border-bottom:1px solid #f3f4f6;width:200px;vertical-align:top;">${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</td>

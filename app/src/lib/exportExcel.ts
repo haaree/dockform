@@ -11,6 +11,52 @@ interface ResponseData {
   values?: Record<string, string>;
 }
 
+function renderCellDisplay(f: FormField, v: string): string {
+  if (!v) return '<span style="color:#9ca3af;font-style:italic;">—</span>';
+  if (f.type === 'beforeafter') {
+    try {
+      const ba = JSON.parse(v);
+      return `<div style="display:flex;gap:4px;">${ba.before ? `<img src="${ba.before}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''}${ba.after ? `<img src="${ba.after}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''}</div>`;
+    } catch { return v; }
+  }
+  if (f.type === 'photochecklist') {
+    try {
+      const data = JSON.parse(v);
+      const attempts = data.attempts || [];
+      const latest = attempts[attempts.length - 1];
+      const satisfied = latest?.results?.filter((r: any) => r.found).length ?? 0;
+      const total = latest?.results?.length ?? 0;
+      return `${latest?.photo ? `<img src="${latest.photo}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''} ${total ? `${satisfied}/${total} satisfied` : ''}`;
+    } catch { return v; }
+  }
+  if (f.type === 'areagroup') {
+    try {
+      const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
+      let subFields: FormField[] = [];
+      try { subFields = JSON.parse(f.defaultValue || '[]'); } catch { /* empty */ }
+      if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">No areas added</span>';
+      return instances.map((inst, i) => `
+        <div style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-bottom:4px;">
+          <div style="font-size:10px;font-weight:700;color:#6b7280;">Area ${i + 1}</div>
+          ${subFields.filter(sf => !sf.hidden).map(sf => `<div style="font-size:11px;"><strong>${sf.label}:</strong> ${renderCellDisplay(sf, inst.values[sf.id] || '')}</div>`).join('')}
+        </div>`).join('');
+    } catch { return v; }
+  }
+  if (v.startsWith('data:image')) {
+    return `<img src="${v}" style="max-width:160px;max-height:120px;border-radius:4px;border:1px solid #e2e8f0;display:block;" />`;
+  }
+  if (v.startsWith('data:')) return '<span style="color:#2563eb;font-size:11px;">[File]</span>';
+  if (f.type === 'toggle') {
+    const yes = v === 'true';
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${yes ? '#dcfce7' : '#fee2e2'};color:${yes ? '#15803d' : '#dc2626'};">${yes ? 'Yes' : 'No'}</span>`;
+  }
+  if (f.type === 'rating') {
+    const n = parseInt(v) || 0;
+    return `<span style="font-size:14px;letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>`;
+  }
+  return v.replace(/\|\|/g, ', ').replace(/</g, '&lt;');
+}
+
 export async function downloadExcelReport(formName: string, description: string, fieldDefs: FormField[], formResponses: ResponseData[]) {
   const now = new Date().toLocaleString();
   const visibleFields = fieldDefs.filter(f => !f.hidden);
@@ -34,37 +80,7 @@ export async function downloadExcelReport(formName: string, description: string,
     ];
 
     const fieldCells = visibleFields.map(f => {
-      const v = vals[f.id] || '';
-      let display: string;
-      if (!v) {
-        display = '<span style="color:#9ca3af;font-style:italic;">—</span>';
-      } else if (f.type === 'beforeafter') {
-        try {
-          const ba = JSON.parse(v);
-          display = `<div style="display:flex;gap:4px;">${ba.before ? `<img src="${ba.before}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''}${ba.after ? `<img src="${ba.after}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''}</div>`;
-        } catch { display = v; }
-      } else if (f.type === 'photochecklist') {
-        try {
-          const data = JSON.parse(v);
-          const attempts = data.attempts || [];
-          const latest = attempts[attempts.length - 1];
-          const satisfied = latest?.results?.filter((r: any) => r.found).length ?? 0;
-          const total = latest?.results?.length ?? 0;
-          display = `${latest?.photo ? `<img src="${latest.photo}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''} ${total ? `${satisfied}/${total} satisfied` : ''}`;
-        } catch { display = v; }
-      } else if (v.startsWith('data:image')) {
-        display = `<img src="${v}" style="max-width:160px;max-height:120px;border-radius:4px;border:1px solid #e2e8f0;display:block;" />`;
-      } else if (v.startsWith('data:')) {
-        display = '<span style="color:#2563eb;font-size:11px;">[File]</span>';
-      } else if (f.type === 'toggle') {
-        const yes = v === 'true';
-        display = `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${yes ? '#dcfce7' : '#fee2e2'};color:${yes ? '#15803d' : '#dc2626'};">${yes ? 'Yes' : 'No'}</span>`;
-      } else if (f.type === 'rating') {
-        const n = parseInt(v) || 0;
-        display = `<span style="font-size:14px;letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>`;
-      } else {
-        display = v.replace(/\|\|/g, ', ').replace(/</g, '&lt;');
-      }
+      const display = renderCellDisplay(f, vals[f.id] || '');
       return `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#1f2937;vertical-align:top;">${display}</td>`;
     }).join('');
 

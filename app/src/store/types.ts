@@ -23,6 +23,15 @@ export interface FormField {
   logic: LogicRule[];
 }
 
+// For areagroup fields: the sub-field schema is seeded from the field's defaultValue
+// (JSON-encoded FormField[]) — the same "config lives in defaultValue" pattern used by
+// photochecklist's baseline items. Each response instance stores its own {id, values} bag,
+// keyed by a stable generated instance id (never array index).
+export interface AreaGroupInstance {
+  id: string;
+  values: Record<string, string>;
+}
+
 export interface ChecklistItemDef {
   id: string;
   text: string;

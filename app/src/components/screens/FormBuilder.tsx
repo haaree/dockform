@@ -4,7 +4,7 @@ import {
   Calendar, Clock, CalendarClock, List, ListChecks, CheckSquare, CircleDot, ToggleLeft,
   Search, Calculator, Image, Camera, Video, Music, Upload, PenTool, MapPin, QrCode,
   Barcode, Phone, Globe, Palette, EyeOff, Cpu, Sparkles, GripVertical, Copy, Trash2,
-  Sliders, Zap, Plus, type LucideIcon,
+  Sliders, Zap, Plus, Layers, type LucideIcon,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule, ChecklistItemDef } from '../../store/types';
@@ -101,6 +101,12 @@ const FIELD_CATEGORIES: FieldCategory[] = [
       { type: 'hidden', label: 'Hidden', icon: EyeOff },
       { type: 'system', label: 'System', icon: Cpu },
       { type: 'ai', label: 'AI Field', icon: Sparkles },
+    ],
+  },
+  {
+    name: 'Structure',
+    items: [
+      { type: 'areagroup', label: 'Area Group', icon: Layers },
     ],
   },
 ];
@@ -646,6 +652,11 @@ function FieldPreview({ field }: { field: FormField }) {
       );
     case 'photochecklist':
       return <DashedPlaceholder icon={ListChecks} text="Upload photo — AI checks against checklist items" />;
+    case 'areagroup': {
+      let subFields: FormField[] = [];
+      try { subFields = JSON.parse(field.defaultValue || '[]'); } catch { /* empty */ }
+      return <DashedPlaceholder icon={Layers} text={subFields.length > 0 ? `Repeatable group — ${subFields.length} field${subFields.length === 1 ? '' : 's'} per area, "Add Another Area" at fill time` : 'Repeatable group — configure sub-fields in Properties'} />;
+    }
     case 'video':
       return <DashedPlaceholder icon={Video} text="Upload or record video" />;
     case 'audio':
@@ -949,6 +960,193 @@ function ChecklistItemsEditor({ field }: { field: FormField }) {
   );
 }
 
+function newSubField(type: string): FormField {
+  const hasOpts = CHOICE_TYPES.includes(type);
+  return {
+    id: 'sf' + Date.now() + Math.floor(Math.random() * 1000),
+    type, label: TYPE_LABEL_MAP[type] || type,
+    placeholder: '', helpText: '', defaultValue: '',
+    required: false, readOnly: false, hidden: false, searchable: false, indexed: false,
+    options: hasOpts ? ['Option 1', 'Option 2', 'Option 3'] : [],
+    validation: { min: '', max: '', pattern: '', message: '' },
+    logic: [],
+  };
+}
+
+// Sub-field types available inside an Area Group. Excludes 'areagroup' from the initial
+// palette row (nesting is still possible — a sub-field CAN be an areagroup — but isn't
+// surfaced as a one-click default choice to avoid encouraging accidental deep nesting).
+const SUBFIELD_PALETTE: { type: string; label: string }[] = [
+  { type: 'textbox', label: 'Text' },
+  { type: 'textarea', label: 'Textarea' },
+  { type: 'number', label: 'Number' },
+  { type: 'dropdown', label: 'Dropdown' },
+  { type: 'checkbox', label: 'Checkbox' },
+  { type: 'toggle', label: 'Toggle' },
+  { type: 'rating', label: 'Rating' },
+  { type: 'image', label: 'Image' },
+  { type: 'camera', label: 'Camera' },
+  { type: 'beforeafter', label: 'Before/After' },
+  { type: 'photochecklist', label: 'Photo Checklist' },
+  { type: 'signature', label: 'Signature' },
+  { type: 'areagroup', label: 'Area Group (nested)' },
+];
+
+// Editor for one sub-field's own properties, rendered inline in the parent's sub-field list.
+// Deliberately has no Logic tab — cross-field logic referencing fields inside a repeated,
+// nested group has no well-defined resolution yet (deferred).
+function SubFieldEditor({ subField, onChange, onRemove, depth }: { subField: FormField; onChange: (next: FormField) => void; onRemove: () => void; depth: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const hasOptions = CHOICE_TYPES.includes(subField.type);
+  const hasPlaceholder = !['dropdown', 'multiselect', 'checkbox', 'radio', 'toggle', 'rating', 'color', 'signature', 'image', 'camera', 'video', 'audio', 'upload', 'gps', 'qr', 'barcode', 'formula', 'hidden', 'system', 'beforeafter', 'photochecklist', 'areagroup'].includes(subField.type);
+
+  let nestedSubFields: FormField[] = [];
+  if (subField.type === 'areagroup') {
+    try { nestedSubFields = JSON.parse(subField.defaultValue || '[]'); } catch { /* empty */ }
+  }
+  let checklistItems: ChecklistItemDef[] = [];
+  if (subField.type === 'photochecklist') {
+    try { checklistItems = JSON.parse(subField.defaultValue || '[]'); } catch { /* empty */ }
+  }
+
+  return (
+    <div style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px', cursor: 'pointer' }} onClick={() => setExpanded(!expanded)}>
+        <TypeIcon type={subField.type} size={13} style={{ color: 'var(--muted)', flexShrink: 0 }} />
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{subField.label || TYPE_LABEL_MAP[subField.type]}</span>
+        <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', flexShrink: 0 }}>{TYPE_LABEL_MAP[subField.type] || subField.type}</span>
+        <button type="button" onClick={(e) => { e.stopPropagation(); onRemove(); }} aria-label="Remove sub-field"
+          style={{ border: 'none', background: 'transparent', color: '#DC2626', cursor: 'pointer', flexShrink: 0, display: 'flex' }}>
+          <Trash2 size={13} />
+        </button>
+      </div>
+      {expanded && (
+        <div style={{ padding: '4px 10px 10px', borderTop: '1px solid var(--border)' }}>
+          <PropField label="Label">
+            <input value={subField.label} onChange={(e) => onChange({ ...subField, label: e.target.value })} style={inputStyle()} />
+          </PropField>
+          {hasPlaceholder && (
+            <PropField label="Placeholder">
+              <input value={subField.placeholder} onChange={(e) => onChange({ ...subField, placeholder: e.target.value })} style={inputStyle()} />
+            </PropField>
+          )}
+          <ToggleRow label="Required" on={subField.required} onChange={(v) => onChange({ ...subField, required: v })} />
+
+          {hasOptions && (
+            <PropField label="Options">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {subField.options.map((opt, idx) => (
+                  <div key={idx} style={{ display: 'flex', gap: 6 }}>
+                    <input value={opt} onChange={(e) => {
+                      const next = [...subField.options]; next[idx] = e.target.value;
+                      onChange({ ...subField, options: next });
+                    }} style={inputStyle()} />
+                    <button type="button" onClick={() => onChange({ ...subField, options: subField.options.filter((_, i) => i !== idx) })}
+                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, color: '#DC2626', cursor: 'pointer', width: 30, flexShrink: 0 }}>
+                      <Trash2 size={12} style={{ margin: 'auto' }} />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => onChange({ ...subField, options: [...subField.options, `Option ${subField.options.length + 1}`] })}
+                  style={{ border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '6px 0', cursor: 'pointer' }}>
+                  + Add Option
+                </button>
+              </div>
+            </PropField>
+          )}
+
+          {subField.type === 'photochecklist' && (
+            <PropField label="Baseline Checklist Items (optional)">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {checklistItems.map((item, idx) => (
+                  <div key={item.id} style={{ display: 'flex', gap: 6 }}>
+                    <input value={item.text} onChange={(e) => {
+                      const next = [...checklistItems]; next[idx] = { ...next[idx], text: e.target.value };
+                      onChange({ ...subField, defaultValue: JSON.stringify(next) });
+                    }} placeholder="e.g. Fire extinguisher present" style={inputStyle()} />
+                    <select value={item.direction} onChange={(e) => {
+                      const next = [...checklistItems]; next[idx] = { ...next[idx], direction: e.target.value as 'present' | 'absent' };
+                      onChange({ ...subField, defaultValue: JSON.stringify(next) });
+                    }} style={{ ...inputStyle(), width: 110, flexShrink: 0 }}>
+                      <option value="present">Must be present</option>
+                      <option value="absent">Must be absent</option>
+                    </select>
+                    <button type="button" onClick={() => onChange({ ...subField, defaultValue: JSON.stringify(checklistItems.filter((_, i) => i !== idx)) })}
+                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, color: '#DC2626', cursor: 'pointer', width: 30, flexShrink: 0 }}>
+                      <Trash2 size={12} style={{ margin: 'auto' }} />
+                    </button>
+                  </div>
+                ))}
+                <button type="button" onClick={() => onChange({ ...subField, defaultValue: JSON.stringify([...checklistItems, { id: 'ci' + Date.now(), text: '', direction: 'present' as const }]) })}
+                  style={{ border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '6px 0', cursor: 'pointer' }}>
+                  + Add Baseline Item
+                </button>
+              </div>
+            </PropField>
+          )}
+
+          {subField.type === 'areagroup' && depth < 3 && (
+            <PropField label="Nested Area Sub-Fields">
+              <AreaGroupSubFieldsEditor
+                subFields={nestedSubFields}
+                onChange={(next) => onChange({ ...subField, defaultValue: JSON.stringify(next) })}
+                depth={depth + 1}
+              />
+            </PropField>
+          )}
+          {subField.type === 'areagroup' && depth >= 3 && (
+            <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>Nesting limit reached (3 levels).</div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: FormField[]; onChange: (next: FormField[]) => void; depth: number }) {
+  const [showPalette, setShowPalette] = useState(false);
+
+  const addSubField = (type: string) => {
+    onChange([...subFields, newSubField(type)]);
+    setShowPalette(false);
+  };
+  const updateSubField = (idx: number, next: FormField) => {
+    const updated = [...subFields]; updated[idx] = next;
+    onChange(updated);
+  };
+  const removeSubField = (idx: number) => onChange(subFields.filter((_, i) => i !== idx));
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
+        These fields repeat as a set every time "Add Another Area" is used when filling out the form.
+      </div>
+      {subFields.map((sf, idx) => (
+        <SubFieldEditor key={sf.id} subField={sf} depth={depth}
+          onChange={(next) => updateSubField(idx, next)}
+          onRemove={() => removeSubField(idx)} />
+      ))}
+      <div style={{ position: 'relative' }}>
+        <button type="button" onClick={() => setShowPalette(!showPalette)}
+          style={{ width: '100%', border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '8px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
+          <Plus size={12} /> Add Sub-Field
+        </button>
+        {showPalette && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.12)', zIndex: 10, maxHeight: 220, overflowY: 'auto' }}>
+            {SUBFIELD_PALETTE.map((opt) => (
+              <button key={opt.type} type="button" onClick={() => addSubField(opt.type)}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '8px 10px', border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 12.5, cursor: 'pointer' }}>
+                <TypeIcon type={opt.type} size={13} style={{ color: 'var(--muted)' }} />
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function PropertiesTab({ field }: { field: FormField }) {
   const updateField = useStore((s) => s.updateField);
   const hasPlaceholder = !['dropdown', 'multiselect', 'checkbox', 'radio', 'toggle', 'rating', 'color', 'signature', 'image', 'camera', 'video', 'audio', 'upload', 'gps', 'qr', 'barcode', 'formula', 'hidden', 'system'].includes(field.type);
@@ -994,7 +1192,7 @@ function PropertiesTab({ field }: { field: FormField }) {
         />
       </PropField>
 
-      {field.type !== 'photochecklist' && (
+      {field.type !== 'photochecklist' && field.type !== 'areagroup' && (
         <PropField label="Default Value">
           <input
             value={field.defaultValue}
@@ -1005,6 +1203,16 @@ function PropertiesTab({ field }: { field: FormField }) {
       )}
 
       {field.type === 'photochecklist' && <ChecklistItemsEditor field={field} />}
+
+      {field.type === 'areagroup' && (
+        <PropField label="Area Sub-Fields">
+          <AreaGroupSubFieldsEditor
+            subFields={(() => { try { return JSON.parse(field.defaultValue || '[]'); } catch { return []; } })()}
+            onChange={(next) => updateField(field.id, 'defaultValue', JSON.stringify(next))}
+            depth={0}
+          />
+        </PropField>
+      )}
 
       {hasOptions && (
         <PropField label="Options">

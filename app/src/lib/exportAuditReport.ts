@@ -11,6 +11,74 @@ interface AuditResponseData {
   values?: Record<string, string>;
 }
 
+function renderActivityField(f: FormField, v: string): string {
+  if (f.type === 'beforeafter') {
+    try {
+      const ba = JSON.parse(v);
+      return `
+        <div style="margin:10px 0;">
+          <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}</div>
+          <div style="display:flex;gap:10px;">
+            ${ba.before ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">BEFORE</div><img src="${ba.before}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}
+            ${ba.after ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">AFTER</div><img src="${ba.after}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}
+          </div>
+          ${ba.observation ? `<div style="margin-top:8px;padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;border-left:3px solid #3b82f6;"><strong>Observation:</strong> ${ba.observation}</div>` : ''}
+        </div>`;
+    } catch { return ''; }
+  }
+  if (f.type === 'photochecklist') {
+    try {
+      const data = JSON.parse(v);
+      const items = data.items || [];
+      const attempts = data.attempts || [];
+      const latest = attempts[attempts.length - 1];
+      if (!latest) return '';
+      const rows = items.map((item: any) => {
+        const r = (latest.results || []).find((res: any) => res.itemId === item.id);
+        if (!r) return '';
+        return `<div style="font-size:11px;color:#1f2937;margin-top:2px;">${r.found ? '✅' : '❌'} <strong>${item.text}</strong> (${item.direction === 'absent' ? 'must be absent' : 'must be present'}) — ${r.note}</div>`;
+      }).join('');
+      return `
+        <div style="margin:10px 0;">
+          <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}${attempts.length > 1 ? ` (attempt ${attempts.length})` : ''}</div>
+          <img src="${latest.photo}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />
+          ${rows}
+        </div>`;
+    } catch { return ''; }
+  }
+  if (f.type === 'areagroup') {
+    try {
+      const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
+      let subFields: FormField[] = [];
+      try { subFields = JSON.parse(f.defaultValue || '[]'); } catch { /* empty */ }
+      if (instances.length === 0) return '';
+      return `
+        <div style="margin:10px 0;">
+          <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}</div>
+          ${instances.map((inst, i) => `
+            <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
+              <div style="font-size:10px;font-weight:700;color:#9ca3af;margin-bottom:4px;">AREA ${i + 1}</div>
+              ${subFields.filter(sf => !sf.hidden).map(sf => renderActivityField(sf, inst.values[sf.id] || '')).join('')}
+            </div>`).join('')}
+        </div>`;
+    } catch { return ''; }
+  }
+  if (!v) return '';
+  if (v.startsWith('data:image')) {
+    return `<div style="margin:6px 0;"><div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;">${f.label}</div><img src="${v}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;" /></div>`;
+  }
+  if (v.startsWith('data:')) return '';
+  if (f.type === 'toggle') {
+    const yes = v === 'true';
+    return `<div style="margin:4px 0;display:flex;gap:8px;align-items:center;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${yes ? '#dcfce7' : '#fee2e2'};color:${yes ? '#15803d' : '#dc2626'};">${yes ? 'Yes' : 'No'}</span></div>`;
+  }
+  if (f.type === 'rating') {
+    const n = parseInt(v) || 0;
+    return `<div style="margin:4px 0;display:flex;gap:8px;align-items:center;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:14px;letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span></div>`;
+  }
+  return `<div style="margin:4px 0;display:flex;gap:8px;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:12px;color:#1f2937;">${v.replace(/\|\|/g, ', ').replace(/</g, '&lt;')}</span></div>`;
+}
+
 export async function downloadAuditReport(
   formName: string,
   description: string,
@@ -23,57 +91,7 @@ export async function downloadAuditReport(
 
   const activityRows = responses.map((r, i) => {
     const vals = r.values || {};
-    const fields = fieldDefs.filter(f => !f.hidden).map(f => {
-      const v = vals[f.id] || '';
-      if (f.type === 'beforeafter') {
-        try {
-          const ba = JSON.parse(v);
-          return `
-            <div style="margin:10px 0;">
-              <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}</div>
-              <div style="display:flex;gap:10px;">
-                ${ba.before ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">BEFORE</div><img src="${ba.before}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}
-                ${ba.after ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">AFTER</div><img src="${ba.after}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}
-              </div>
-              ${ba.observation ? `<div style="margin-top:8px;padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;border-left:3px solid #3b82f6;"><strong>Observation:</strong> ${ba.observation}</div>` : ''}
-            </div>`;
-        } catch { return ''; }
-      }
-      if (f.type === 'photochecklist') {
-        try {
-          const data = JSON.parse(v);
-          const items = data.items || [];
-          const attempts = data.attempts || [];
-          const latest = attempts[attempts.length - 1];
-          if (!latest) return '';
-          const rows = items.map((item: any) => {
-            const r = (latest.results || []).find((res: any) => res.itemId === item.id);
-            if (!r) return '';
-            return `<div style="font-size:11px;color:#1f2937;margin-top:2px;">${r.found ? '✅' : '❌'} <strong>${item.text}</strong> (${item.direction === 'absent' ? 'must be absent' : 'must be present'}) — ${r.note}</div>`;
-          }).join('');
-          return `
-            <div style="margin:10px 0;">
-              <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}${attempts.length > 1 ? ` (attempt ${attempts.length})` : ''}</div>
-              <img src="${latest.photo}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />
-              ${rows}
-            </div>`;
-        } catch { return ''; }
-      }
-      if (!v) return '';
-      if (v.startsWith('data:image')) {
-        return `<div style="margin:6px 0;"><div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;">${f.label}</div><img src="${v}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;" /></div>`;
-      }
-      if (v.startsWith('data:')) return '';
-      if (f.type === 'toggle') {
-        const yes = v === 'true';
-        return `<div style="margin:4px 0;display:flex;gap:8px;align-items:center;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${yes ? '#dcfce7' : '#fee2e2'};color:${yes ? '#15803d' : '#dc2626'};">${yes ? 'Yes' : 'No'}</span></div>`;
-      }
-      if (f.type === 'rating') {
-        const n = parseInt(v) || 0;
-        return `<div style="margin:4px 0;display:flex;gap:8px;align-items:center;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:14px;letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span></div>`;
-      }
-      return `<div style="margin:4px 0;display:flex;gap:8px;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:12px;color:#1f2937;">${v.replace(/\|\|/g, ', ').replace(/</g, '&lt;')}</span></div>`;
-    }).filter(Boolean).join('');
+    const fields = fieldDefs.filter(f => !f.hidden).map(f => renderActivityField(f, vals[f.id] || '')).filter(Boolean).join('');
 
     return `
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;overflow:hidden;page-break-inside:avoid;">
