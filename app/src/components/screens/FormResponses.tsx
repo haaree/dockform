@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport } from '../../lib/exportExcel';
 import { downloadAuditReport } from '../../lib/exportAuditReport';
+import { formatDate } from '../../lib/format';
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -327,7 +328,7 @@ export default function FormResponses() {
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{r.submittedBy}</div>
-                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.plant} · {r.date}</div>
+                      <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.plant} · {formatDate(r.date)}</div>
                     </div>
                     {r.values && Object.values(r.values).some(v => v.startsWith('data:image') || (v.startsWith('{') && v.includes('"before"'))) && (
                       <ImageIcon size={14} color={accent} style={{ flexShrink: 0 }} />

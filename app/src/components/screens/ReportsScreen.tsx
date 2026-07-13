@@ -2,6 +2,7 @@ import { Upload } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { StatusBadge } from '../ui/StatusBadge';
 import { toCSV, downloadCSV } from '../../lib/csv';
+import { formatDate } from '../../lib/format';
 
 export default function ReportsScreen() {
   const responses = useStore((s) => s.responses);
@@ -50,7 +51,7 @@ export default function ReportsScreen() {
                   <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{r.form}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{r.submittedBy}</td>
                   <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{r.plant}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{r.date}</td>
+                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{formatDate(r.date)}</td>
                   <td style={{ padding: '12px 16px' }}><StatusBadge status={r.status} /></td>
                   <td style={{ padding: '12px 16px' }}>
                     <button

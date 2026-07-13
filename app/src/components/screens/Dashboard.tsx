@@ -3,6 +3,7 @@ import { FileText, Users, CheckCircle, Send } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
+import { formatDate } from '../../lib/format';
 
 function StatCard({
   label, value, change, icon, iconColor,
@@ -203,7 +204,7 @@ export default function Dashboard() {
                   <td style={{ padding: '12px 20px' }}>
                     <StatusBadge status={form.status} />
                   </td>
-                  <td style={{ padding: '12px 20px', fontSize: 13, color: 'var(--muted)' }}>{form.updated}</td>
+                  <td style={{ padding: '12px 20px', fontSize: 13, color: 'var(--muted)' }}>{formatDate(form.updated)}</td>
                   <td style={{ padding: '12px 20px', textAlign: 'right' }}>
                     <button
                       onClick={() => editForm(form.id)}

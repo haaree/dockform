@@ -5,6 +5,7 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport } from '../../lib/exportExcel';
 import { downloadAuditReport } from '../../lib/exportAuditReport';
+import { formatDate } from '../../lib/format';
 import { FileText } from 'lucide-react';
 
 function exportReport(formId: string) {
@@ -102,7 +103,7 @@ export default function ResponsesScreen() {
                     <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>{r.form}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{r.submittedBy}</td>
                     <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{r.plant}</td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{r.date}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{formatDate(r.date)}</td>
                     <td style={{ padding: '12px 16px' }}><StatusBadge status={r.status} /></td>
                     <td style={{ padding: '12px 16px' }}>
                       {r.formId && (

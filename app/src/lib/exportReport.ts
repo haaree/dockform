@@ -1,4 +1,5 @@
 import type { FormField } from '../store/types';
+import { formatDate } from './format';
 
 interface ResponseData {
   submittedBy: string;
@@ -62,7 +63,7 @@ export function downloadHTMLReport(formName: string, description: string, fieldD
             <span style="font-size:15px;font-weight:700;color:#111827;">Response #${i + 1}</span>
             <span style="margin-left:12px;font-size:13px;color:#6b7280;">${r.submittedBy}</span>
           </div>
-          <div style="font-size:12px;color:#9ca3af;">${r.plant} &middot; ${r.date}</div>
+          <div style="font-size:12px;color:#9ca3af;">${r.plant} &middot; ${formatDate(r.date)}</div>
         </div>
         <table style="width:100%;border-collapse:collapse;">
           ${fieldRows}

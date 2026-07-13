@@ -1,4 +1,5 @@
 import type { FormField } from '../store/types';
+import { formatDate } from './format';
 
 interface ResponseData {
   submittedBy: string;
@@ -24,7 +25,7 @@ export function downloadExcelReport(formName: string, description: string, field
       `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#374151;text-align:center;background:#f8fafc;">${i + 1}</td>`,
       `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#1f2937;">${r.submittedBy}</td>`,
       `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#1f2937;">${r.plant}</td>`,
-      `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#6b7280;white-space:nowrap;">${r.date}</td>`,
+      `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#6b7280;white-space:nowrap;">${formatDate(r.date)}</td>`,
     ];
 
     const fieldCells = visibleFields.map(f => {

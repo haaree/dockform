@@ -5,6 +5,7 @@ import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
 import { api } from '../../lib/api';
 import { getCurrentOccurrenceStart, getOccurrenceDueDate } from '../../lib/schedule';
+import { formatDate } from '../../lib/format';
 
 export default function FormsScreen() {
   const forms = useStore((s) => s.forms);
@@ -153,7 +154,7 @@ export default function FormsScreen() {
                         )}
                       </div>
                     </td>
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{form.updated}</td>
+                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--muted)' }}>{formatDate(form.updated)}</td>
                     <td style={{ padding: '12px 16px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         {form.status === 'published' && (
