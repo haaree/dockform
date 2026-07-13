@@ -762,6 +762,11 @@ export default function FormFiller() {
 
           <div style={{ padding: '16px 0' }}>
             {submitError && <div style={{ fontSize: 12.5, color: '#DC2626', marginBottom: 10, textAlign: 'center' }}>{submitError}</div>}
+            {missingRequired.length > 0 && (
+              <div style={{ fontSize: 12.5, color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 14px', marginBottom: 10 }}>
+                Complete these required fields before submitting: {missingRequired.map(f => f.label).join(', ')}
+              </div>
+            )}
             <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
               style={{
                 width: '100%', padding: '14px 20px', borderRadius: 10, border: 'none',

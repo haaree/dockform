@@ -3,6 +3,8 @@ import { formatDate } from './format';
 
 interface ResponseData {
   submittedBy: string;
+  assignedToName?: string | null;
+  status?: string;
   plant: string;
   date: string;
   values?: Record<string, string>;
@@ -61,7 +63,9 @@ export function downloadHTMLReport(formName: string, description: string, fieldD
         <div style="padding:14px 18px;background:#f9fafb;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
           <div>
             <span style="font-size:15px;font-weight:700;color:#111827;">Response #${i + 1}</span>
-            <span style="margin-left:12px;font-size:13px;color:#6b7280;">${r.submittedBy}</span>
+            <span style="margin-left:12px;font-size:13px;color:#6b7280;">
+              ${r.assignedToName ? `Assigned by ${r.submittedBy} &rarr; ${r.status === 'submitted' ? 'Completed' : 'Pending with'} ${r.assignedToName}` : r.submittedBy}
+            </span>
           </div>
           <div style="font-size:12px;color:#9ca3af;">${r.plant} &middot; ${formatDate(r.date)}</div>
         </div>

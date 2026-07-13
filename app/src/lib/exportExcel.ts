@@ -3,6 +3,8 @@ import { formatDate } from './format';
 
 interface ResponseData {
   submittedBy: string;
+  assignedToName?: string | null;
+  status?: string;
   plant: string;
   date: string;
   values?: Record<string, string>;
@@ -12,9 +14,9 @@ export function downloadExcelReport(formName: string, description: string, field
   const now = new Date().toLocaleString();
   const visibleFields = fieldDefs.filter(f => !f.hidden);
 
-  const headerCells = ['#', 'Submitted By', 'Plant', 'Date', ...visibleFields.map(f =>
+  const headerCells = ['#', 'Assigned By', 'Completed By', 'Plant', 'Date', ...visibleFields.map(f =>
     `<th style="padding:8px 12px;font-size:11px;font-weight:700;color:#374151;background:#f1f5f9;border:1px solid #e2e8f0;white-space:nowrap;text-align:left;">${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</th>`
-  )].map((h, i) => i < 4
+  )].map((h, i) => i < 5
     ? `<th style="padding:8px 12px;font-size:11px;font-weight:700;color:#374151;background:#e2e8f0;border:1px solid #cbd5e1;white-space:nowrap;text-align:left;">${h}</th>`
     : h
   ).join('');
@@ -24,6 +26,7 @@ export function downloadExcelReport(formName: string, description: string, field
     const metaCells = [
       `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;font-weight:700;color:#374151;text-align:center;background:#f8fafc;">${i + 1}</td>`,
       `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#1f2937;">${r.submittedBy}</td>`,
+      `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#1f2937;">${r.assignedToName || (r.status === 'submitted' ? r.submittedBy : '—')}</td>`,
       `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#1f2937;">${r.plant}</td>`,
       `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#6b7280;white-space:nowrap;">${formatDate(r.date)}</td>`,
     ];
@@ -107,7 +110,7 @@ export function downloadExcelReport(formName: string, description: string, field
   </div>
 
   <div class="sheet" style="background:#fff;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.08);overflow-x:auto;">
-    <table style="width:100%;min-width:${4 * 120 + visibleFields.length * 150}px;">
+    <table style="width:100%;min-width:${5 * 120 + visibleFields.length * 150}px;">
       <thead><tr>${headerCells}</tr></thead>
       <tbody>${rows}</tbody>
     </table>

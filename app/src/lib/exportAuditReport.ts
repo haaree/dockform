@@ -3,6 +3,8 @@ import { formatDate } from './format';
 
 interface AuditResponseData {
   submittedBy: string;
+  assignedToName?: string | null;
+  status?: string;
   plant: string;
   date: string;
   values?: Record<string, string>;
@@ -75,7 +77,7 @@ export function downloadAuditReport(
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;overflow:hidden;page-break-inside:avoid;">
         <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
           <span style="font-size:13px;font-weight:700;color:#111827;">Activity #${i + 1}</span>
-          <div style="font-size:11px;color:#9ca3af;">${r.submittedBy} · ${r.plant} · ${formatDate(r.date)}</div>
+          <div style="font-size:11px;color:#9ca3af;">${r.assignedToName ? `Assigned by ${r.submittedBy} &rarr; ${r.status === 'submitted' ? 'Completed' : 'Pending with'} ${r.assignedToName}` : r.submittedBy} · ${r.plant} · ${formatDate(r.date)}</div>
         </div>
         <div style="padding:12px 14px;">${fields}</div>
       </div>`;
