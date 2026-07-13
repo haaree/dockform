@@ -543,13 +543,15 @@ export default function FormFiller() {
   const winWidth = useStore((s) => s.winWidth);
   const currentUserId = useStore((s) => s.currentUserId);
   const currentUserRole = useStore((s) => s.currentUserRole);
+  const responses = useStore((s) => s.responses);
 
   const form = forms.find(f => f.id === fillingFormId);
   const fields = form?.fieldDefs || [];
   const isMobile = winWidth < 720;
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
+  const sentToMe = !!form && responses.some(r => r.formId === form.id && r.assignedToId === currentUserId && r.status === 'awaiting_supervisor');
 
-  if (form && form.assignedUserIds != null && !isAdmin && !(currentUserId && form.assignedUserIds.includes(currentUserId as string))) {
+  if (form && form.assignedUserIds != null && !isAdmin && !sentToMe && !(currentUserId && form.assignedUserIds.includes(currentUserId as string))) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', padding: 32 }}>
         <div style={{ textAlign: 'center', maxWidth: 400 }}>

@@ -61,8 +61,11 @@ export default function FormsScreen() {
   const pad = isMobile ? '16px' : '24px 32px';
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
   const isViewer = currentUserRole === 'viewer';
+  const formIdsAssignedToMe = new Set(
+    currentUserId ? responses.filter(r => r.assignedToId === currentUserId && r.status === 'awaiting_supervisor').map(r => r.formId) : []
+  );
   const visibleForms = isAdmin ? forms : forms.filter(f =>
-    f.assignedUserIds == null || (currentUserId && f.assignedUserIds.includes(currentUserId as string))
+    f.assignedUserIds == null || (currentUserId && f.assignedUserIds.includes(currentUserId as string)) || formIdsAssignedToMe.has(f.id)
   );
   const filtered = visibleForms.filter((f) =>
     f.name.toLowerCase().includes(search.toLowerCase()) ||

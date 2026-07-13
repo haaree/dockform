@@ -342,7 +342,8 @@ function App() {
         const form = state.forms.find(f => f.id === fillId);
         if (form) {
           const isAdm = state.currentUserRole === 'Admin' || state.currentUserRole === 'admin';
-          const hasAccess = isAdm || form.assignedUserIds == null || (state.currentUserId && form.assignedUserIds.includes(state.currentUserId as string));
+          const sentToMe = state.responses.some(r => r.formId === fillId && r.assignedToId === state.currentUserId && r.status === 'awaiting_supervisor');
+          const hasAccess = isAdm || form.assignedUserIds == null || (state.currentUserId && form.assignedUserIds.includes(state.currentUserId as string)) || sentToMe;
           if (hasAccess) fillForm(fillId);
         }
       });
