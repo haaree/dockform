@@ -89,6 +89,7 @@ interface AppState {
   setFormDesc: (desc: string) => void;
 
   addField: (type: string) => void;
+  addFieldAt: (type: string, index: number) => void;
   selectField: (id: string | null) => void;
   updateField: (id: string, key: string, value: unknown) => void;
   updateValidation: (id: string, key: string, value: string) => void;
@@ -330,6 +331,22 @@ export const useStore = create<AppState>((set) => ({
       logic: [],
     };
     return { fields: [...s.fields, newField], selectedId: id, fieldCounter: s.fieldCounter + 1 };
+  }),
+
+  addFieldAt: (type, index) => set((s) => {
+    const id = 'f' + (s.fieldCounter + 1);
+    const hasOpts = CHOICE_TYPES.includes(type);
+    const newField: FormField = {
+      id, type, label: FIELD_LABELS[type] || type,
+      placeholder: '', helpText: '', defaultValue: '',
+      required: false, readOnly: false, hidden: false, searchable: false, indexed: false,
+      options: hasOpts ? ['Option 1', 'Option 2', 'Option 3'] : [],
+      validation: { min: '', max: '', pattern: '', message: '' },
+      logic: [],
+    };
+    const nf = [...s.fields];
+    nf.splice(Math.max(0, Math.min(index, nf.length)), 0, newField);
+    return { fields: nf, selectedId: id, fieldCounter: s.fieldCounter + 1 };
   }),
 
   selectField: (id) => set({ selectedId: id }),

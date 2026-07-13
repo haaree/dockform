@@ -409,6 +409,11 @@ function FieldLibrary() {
                 <button
                   key={item.type}
                   type="button"
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData('application/x-dockform-field-type', item.type);
+                    e.dataTransfer.effectAllowed = 'copy';
+                  }}
                   onClick={() => addField(item.type)}
                   title={item.label}
                   style={{
@@ -720,6 +725,11 @@ function FieldPreview({ field }: { field: FormField }) {
 
 /* ---------- Canvas (center panel) ---------- */
 
+function DropIndicator() {
+  const accent = useStore((s) => s.accent);
+  return <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 12 }} />;
+}
+
 function FieldCard({ field, index }: { field: FormField; index: number }) {
   const selectedId = useStore((s) => s.selectedId);
   const accent = useStore((s) => s.accent);
@@ -729,12 +739,15 @@ function FieldCard({ field, index }: { field: FormField; index: number }) {
   const setDragSrcIdx = useStore((s) => s.setDragSrcIdx);
   const dragSrcIdx = useStore((s) => s.dragSrcIdx);
   const reorderFields = useStore((s) => s.reorderFields);
+  const updateField = useStore((s) => s.updateField);
+  const [editingLabel, setEditingLabel] = useState(false);
 
   const selected = selectedId === field.id;
 
   return (
     <div
       draggable
+      data-field-card
       onClick={() => selectField(field.id)}
       onDragStart={() => setDragSrcIdx(index)}
       onDragOver={(e) => e.preventDefault()}
@@ -760,10 +773,28 @@ function FieldCard({ field, index }: { field: FormField; index: number }) {
         <span style={{ color: 'var(--muted)', display: 'flex' }}>
           <TypeIcon type={field.type} size={15} />
         </span>
-        <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
-          {field.label}
-          {field.required && <span style={{ color: '#DC2626' }}> *</span>}
-        </span>
+        {editingLabel ? (
+          <input
+            autoFocus
+            value={field.label}
+            onClick={(e) => e.stopPropagation()}
+            onChange={(e) => updateField(field.id, 'label', e.target.value)}
+            onBlur={() => setEditingLabel(false)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingLabel(false); }}
+            style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', background: 'var(--surface2)', border: `1px solid ${accent}`, borderRadius: 4, padding: '2px 6px', outline: 'none', minWidth: 0, flex: '0 1 auto' }}
+          />
+        ) : (
+          <span
+            onClick={(e) => { e.stopPropagation(); selectField(field.id); setEditingLabel(true); }}
+            title="Click to rename"
+            style={{ fontSize: 13, fontWeight: 500, color: 'var(--text)', cursor: 'text', borderBottom: '1px dashed transparent' }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = 'var(--muted)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; }}
+          >
+            {field.label}
+            {field.required && <span style={{ color: '#DC2626' }}> *</span>}
+          </span>
+        )}
 
         <div style={{ flex: 1 }} />
 
@@ -818,6 +849,30 @@ function Canvas() {
   const setFormName = useStore((s) => s.setFormName);
   const setFormDesc = useStore((s) => s.setFormDesc);
   const addField = useStore((s) => s.addField);
+  const addFieldAt = useStore((s) => s.addFieldAt);
+  const accent = useStore((s) => s.accent);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+
+  const handleListDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('application/x-dockform-field-type')) return;
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+    const container = e.currentTarget as HTMLElement;
+    const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-field-card]'));
+    let idx = cards.length;
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) { idx = i; break; }
+    }
+    setDropIndex(idx);
+  };
+  const handleListDrop = (e: React.DragEvent) => {
+    const type = e.dataTransfer.getData('application/x-dockform-field-type');
+    if (!type) return;
+    e.preventDefault();
+    addFieldAt(type, dropIndex ?? fields.length);
+    setDropIndex(null);
+  };
 
   return (
     <div style={{ flex: 1, background: 'var(--surface2)', overflowY: 'auto' }}>
@@ -845,27 +900,42 @@ function Canvas() {
           />
         </div>
 
-        {fields.length === 0 ? (
-          <div
-            style={{
-              border: '2px dashed var(--border)',
-              borderRadius: 12,
-              padding: '56px 20px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 8,
-              color: 'var(--muted)',
-              textAlign: 'center',
-            }}
-          >
-            <Sliders size={32} style={{ opacity: 0.5 }} />
-            <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Start building your form</div>
-            <div style={{ fontSize: 12.5 }}>Click any field type from the palette on the left.</div>
-          </div>
-        ) : (
-          fields.map((f, i) => <FieldCard key={f.id} field={f} index={i} />)
-        )}
+        <div
+          onDragOver={handleListDragOver}
+          onDragLeave={(e) => {
+            const next = e.relatedTarget as Node | null;
+            if (!next || !e.currentTarget.contains(next)) setDropIndex(null);
+          }}
+          onDrop={handleListDrop}
+        >
+          {fields.length === 0 ? (
+            <div
+              style={{
+                border: dropIndex !== null ? `2px dashed ${accent}` : '2px dashed var(--border)',
+                borderRadius: 12,
+                padding: '56px 20px',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+                color: 'var(--muted)',
+                textAlign: 'center',
+              }}
+            >
+              <Sliders size={32} style={{ opacity: 0.5 }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Start building your form</div>
+              <div style={{ fontSize: 12.5 }}>Click, or drag, any field type from the palette on the left.</div>
+            </div>
+          ) : (
+            fields.map((f, i) => (
+              <div key={f.id}>
+                {dropIndex === i && <DropIndicator />}
+                <FieldCard field={f} index={i} />
+              </div>
+            ))
+          )}
+          {dropIndex === fields.length && fields.length > 0 && <DropIndicator />}
+        </div>
 
         <button
           type="button"
