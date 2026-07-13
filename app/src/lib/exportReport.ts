@@ -11,7 +11,17 @@ interface ResponseData {
   values?: Record<string, string>;
 }
 
-function renderFieldDisplay(f: FormField, v: string): string {
+// Given the full ordered field list and a section marker field, returns the member
+// fields that belong to it (the run of ordinary fields up to the next section marker).
+function sectionMembers(allFields: FormField[], marker: FormField): FormField[] {
+  const idx = allFields.findIndex(f => f.id === marker.id);
+  if (idx === -1) return [];
+  const members: FormField[] = [];
+  for (let i = idx + 1; i < allFields.length && allFields[i].type !== 'section'; i++) members.push(allFields[i]);
+  return members;
+}
+
+function renderFieldDisplay(f: FormField, v: string, allFields: FormField[]): string {
   if (!v) return '<span style="color:#9ca3af;font-style:italic;">Not answered</span>';
   if (f.type === 'beforeafter') {
     try {
@@ -33,19 +43,18 @@ function renderFieldDisplay(f: FormField, v: string): string {
       return `${latest?.photo ? `<img src="${latest.photo}" style="max-width:250px;max-height:180px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />` : ''}${rows}${attempts.length > 1 ? `<div style="font-size:11px;color:#9ca3af;margin-top:4px;">${attempts.length} attempts total</div>` : ''}`;
     } catch { return v; }
   }
-  if (f.type === 'areagroup') {
+  if (f.type === 'section' && f.repeatable) {
     try {
       const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
-      let subFields: FormField[] = [];
-      try { subFields = JSON.parse(f.defaultValue || '[]'); } catch { /* empty */ }
+      const members = sectionMembers(allFields, f);
       if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">None added</span>';
       return instances.map((inst, i) => `
         <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
           <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;">${f.label || 'Item'} ${i + 1}</div>
-          ${subFields.filter(sf => !sf.hidden).map(sf => `
+          ${members.filter(sf => !sf.hidden).map(sf => `
             <div style="margin-bottom:6px;">
               <div style="font-size:10px;font-weight:600;color:#9ca3af;">${sf.label}</div>
-              <div style="font-size:12px;color:#1f2937;">${renderFieldDisplay(sf, inst.values[sf.id] || '')}</div>
+              <div style="font-size:12px;color:#1f2937;">${renderFieldDisplay(sf, inst.values[sf.id] || '', allFields)}</div>
             </div>`).join('')}
         </div>`).join('');
     } catch { return v; }
@@ -69,10 +78,15 @@ export async function downloadHTMLReport(formName: string, description: string, 
   const now = new Date().toLocaleString();
   const imageMap = await buildInlineImageMap(formResponses.flatMap(r => Object.values(r.values || {})));
 
+  const repeatableMemberIds = new Set<string>();
+  fieldDefs.forEach((f) => { if (f.type === 'section' && f.repeatable) sectionMembers(fieldDefs, f).forEach(m => repeatableMemberIds.add(m.id)); });
+  const rowFields = fieldDefs.filter(f => !f.hidden && f.type !== 'section' && !repeatableMemberIds.has(f.id));
+  const repeatableSectionMarkers = fieldDefs.filter(f => f.type === 'section' && f.repeatable && !f.hidden);
+
   const responseCards = formResponses.map((r, i) => {
     const vals = r.values || {};
-    const fieldRows = fieldDefs.filter(f => !f.hidden).map(f => {
-      const display = renderFieldDisplay(f, vals[f.id] || '');
+    const fieldRows = [...rowFields, ...repeatableSectionMarkers].map(f => {
+      const display = renderFieldDisplay(f, vals[f.id] || '', fieldDefs);
       return `
         <tr>
           <td style="padding:10px 14px;font-size:12px;font-weight:600;color:#374151;background:#f9fafb;border-bottom:1px solid #f3f4f6;width:200px;vertical-align:top;">${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</td>

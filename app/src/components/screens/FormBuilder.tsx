@@ -106,7 +106,7 @@ const FIELD_CATEGORIES: FieldCategory[] = [
   {
     name: 'Structure',
     items: [
-      { type: 'areagroup', label: 'Section', icon: Layers },
+      { type: 'section', label: 'Section', icon: Layers },
     ],
   },
 ];
@@ -657,11 +657,6 @@ function FieldPreview({ field }: { field: FormField }) {
       );
     case 'photochecklist':
       return <DashedPlaceholder icon={ListChecks} text="Upload photo — AI checks against checklist items" />;
-    case 'areagroup': {
-      let subFields: FormField[] = [];
-      try { subFields = JSON.parse(field.defaultValue || '[]'); } catch { /* empty */ }
-      return <DashedPlaceholder icon={Layers} text={subFields.length > 0 ? `Section — ${subFields.length} field${subFields.length === 1 ? '' : 's'}, repeats via "Add Another" at fill time` : 'Section — add fields in Properties'} />;
-    }
     case 'video':
       return <DashedPlaceholder icon={Video} text="Upload or record video" />;
     case 'audio':
@@ -728,6 +723,73 @@ function FieldPreview({ field }: { field: FormField }) {
 function DropIndicator() {
   const accent = useStore((s) => s.accent);
   return <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 12 }} />;
+}
+
+function SectionHeader({ field }: { field: FormField }) {
+  const selectedId = useStore((s) => s.selectedId);
+  const accent = useStore((s) => s.accent);
+  const selectField = useStore((s) => s.selectField);
+  const deleteField = useStore((s) => s.deleteField);
+  const updateField = useStore((s) => s.updateField);
+  const [editingLabel, setEditingLabel] = useState(false);
+
+  const selected = selectedId === field.id;
+
+  // Not draggable: reordering would move only the marker, silently orphaning/reparenting
+  // its member fields to whichever section precedes it. Whole-section reordering isn't
+  // supported yet — data-field-card is kept so the palette-drop-position calc still treats
+  // this row as a boundary, but this element itself can't be picked up as a drag source.
+  return (
+    <div
+      data-field-card
+      onClick={() => selectField(field.id)}
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        padding: '10px 4px',
+        marginTop: 20,
+        marginBottom: 8,
+        borderBottom: `2px solid ${selected ? accent : 'var(--border)'}`,
+        cursor: 'pointer',
+      }}
+    >
+      <Layers size={16} style={{ color: accent, flexShrink: 0 }} />
+      {editingLabel ? (
+        <input
+          autoFocus
+          value={field.label}
+          onClick={(e) => e.stopPropagation()}
+          onChange={(e) => updateField(field.id, 'label', e.target.value)}
+          onBlur={() => setEditingLabel(false)}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingLabel(false); }}
+          style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', background: 'var(--surface2)', border: `1px solid ${accent}`, borderRadius: 4, padding: '2px 6px', outline: 'none', minWidth: 0, flex: '0 1 auto' }}
+        />
+      ) : (
+        <span
+          onClick={(e) => { e.stopPropagation(); selectField(field.id); setEditingLabel(true); }}
+          title="Click to rename"
+          style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', cursor: 'text' }}
+        >
+          {field.label}
+        </span>
+      )}
+      {field.repeatable && (
+        <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4, padding: '2px 7px', borderRadius: 4, background: 'var(--surface2)', color: 'var(--muted)' }}>
+          Repeats
+        </span>
+      )}
+      <div style={{ flex: 1 }} />
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); deleteField(field.id); }}
+        aria-label="Delete section"
+        style={{ border: 'none', background: 'transparent', color: '#DC2626', cursor: 'pointer', display: 'flex' }}
+      >
+        <Trash2 size={14} />
+      </button>
+    </div>
+  );
 }
 
 function FieldCard({ field, index }: { field: FormField; index: number }) {
@@ -927,12 +989,48 @@ function Canvas() {
               <div style={{ fontSize: 12.5 }}>Click, or drag, any field type from the palette on the left.</div>
             </div>
           ) : (
-            fields.map((f, i) => (
-              <div key={f.id}>
-                {dropIndex === i && <DropIndicator />}
-                <FieldCard field={f} index={i} />
-              </div>
-            ))
+            (() => {
+              const rows: ReactNode[] = [];
+              let i = 0;
+              while (i < fields.length) {
+                const f = fields[i];
+                if (f.type === 'section') {
+                  let end = i + 1;
+                  while (end < fields.length && fields[end].type !== 'section') end++;
+                  const memberIndices: number[] = [];
+                  for (let j = i + 1; j < end; j++) memberIndices.push(j);
+                  rows.push(
+                    <div key={f.id}>
+                      {dropIndex === i && <DropIndicator />}
+                      <SectionHeader field={f} />
+                      <div style={{ marginLeft: 16, paddingLeft: 14, borderLeft: '2px solid var(--border)' }}>
+                        {memberIndices.length === 0 && dropIndex === null && (
+                          <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', padding: '4px 0 12px' }}>
+                            Drag fields here to add them to this section.
+                          </div>
+                        )}
+                        {memberIndices.map((idx) => (
+                          <div key={fields[idx].id}>
+                            {dropIndex === idx && <DropIndicator />}
+                            <FieldCard field={fields[idx]} index={idx} />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                  i = end;
+                } else {
+                  rows.push(
+                    <div key={f.id}>
+                      {dropIndex === i && <DropIndicator />}
+                      <FieldCard field={f} index={i} />
+                    </div>
+                  );
+                  i++;
+                }
+              }
+              return rows;
+            })()
           )}
           {dropIndex === fields.length && fields.length > 0 && <DropIndicator />}
         </div>
@@ -1030,266 +1128,9 @@ function ChecklistItemsEditor({ field }: { field: FormField }) {
   );
 }
 
-function newSubField(type: string): FormField {
-  const hasOpts = CHOICE_TYPES.includes(type);
-  return {
-    id: 'sf' + Date.now() + Math.floor(Math.random() * 1000),
-    type, label: TYPE_LABEL_MAP[type] || type,
-    placeholder: '', helpText: '', defaultValue: '',
-    required: false, readOnly: false, hidden: false, searchable: false, indexed: false,
-    options: hasOpts ? ['Option 1', 'Option 2', 'Option 3'] : [],
-    validation: { min: '', max: '', pattern: '', message: '' },
-    logic: [],
-  };
-}
-
-// Field types available inside a Section. 'areagroup' (nested Section) is included but
-// listed last to avoid encouraging accidental deep nesting as the default choice.
-const SUBFIELD_PALETTE: { type: string; label: string }[] = [
-  { type: 'textbox', label: 'Text' },
-  { type: 'textarea', label: 'Textarea' },
-  { type: 'number', label: 'Number' },
-  { type: 'dropdown', label: 'Dropdown' },
-  { type: 'checkbox', label: 'Checkbox' },
-  { type: 'toggle', label: 'Toggle' },
-  { type: 'rating', label: 'Rating' },
-  { type: 'image', label: 'Image' },
-  { type: 'camera', label: 'Camera' },
-  { type: 'beforeafter', label: 'Before/After' },
-  { type: 'photochecklist', label: 'Photo Checklist' },
-  { type: 'signature', label: 'Signature' },
-  { type: 'areagroup', label: 'Nested Section' },
-];
-
-// Editor for one sub-field's own properties, rendered inline in the parent's sub-field list.
-// Deliberately has no Logic tab — cross-field logic referencing fields inside a repeated,
-// nested group has no well-defined resolution yet (deferred).
-function SubFieldEditor({ subField, onChange, onRemove, depth, startExpanded }: { subField: FormField; onChange: (next: FormField) => void; onRemove: () => void; depth: number; startExpanded?: boolean }) {
-  const [expanded, setExpanded] = useState(!!startExpanded);
-  const hasOptions = CHOICE_TYPES.includes(subField.type);
-  const hasPlaceholder = !['dropdown', 'multiselect', 'checkbox', 'radio', 'toggle', 'rating', 'color', 'signature', 'image', 'camera', 'video', 'audio', 'upload', 'gps', 'qr', 'barcode', 'formula', 'hidden', 'system', 'beforeafter', 'photochecklist', 'areagroup'].includes(subField.type);
-
-  let nestedSubFields: FormField[] = [];
-  if (subField.type === 'areagroup') {
-    try { nestedSubFields = JSON.parse(subField.defaultValue || '[]'); } catch { /* empty */ }
-  }
-  let checklistItems: ChecklistItemDef[] = [];
-  if (subField.type === 'photochecklist') {
-    try { checklistItems = JSON.parse(subField.defaultValue || '[]'); } catch { /* empty */ }
-  }
-
-  const [editingLabel, setEditingLabel] = useState(false);
-
-  return (
-    <div style={{ border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', marginBottom: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 10px' }}>
-        <span style={{ cursor: 'pointer', display: 'flex' }} onClick={() => setExpanded(!expanded)}>
-          <TypeIcon type={subField.type} size={13} style={{ color: 'var(--muted)', flexShrink: 0 }} />
-        </span>
-        {editingLabel ? (
-          <input
-            autoFocus
-            value={subField.label}
-            onChange={(e) => onChange({ ...subField, label: e.target.value })}
-            onBlur={() => setEditingLabel(false)}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingLabel(false); }}
-            style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 4, padding: '2px 6px', outline: 'none', flex: 1, minWidth: 0 }}
-          />
-        ) : (
-          <span onClick={() => setEditingLabel(true)} title="Click to rename"
-            style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'text' }}>
-            {subField.label || TYPE_LABEL_MAP[subField.type]}
-          </span>
-        )}
-        <span onClick={() => setExpanded(!expanded)} style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', color: 'var(--muted)', flexShrink: 0, cursor: 'pointer' }}>{TYPE_LABEL_MAP[subField.type] || subField.type}</span>
-        <button type="button" onClick={() => onRemove()} aria-label="Remove sub-field"
-          style={{ border: 'none', background: 'transparent', color: '#DC2626', cursor: 'pointer', flexShrink: 0, display: 'flex' }}>
-          <Trash2 size={13} />
-        </button>
-      </div>
-      <div style={{ padding: '0 10px 10px' }} onClick={() => setExpanded(!expanded)}>
-        <FieldPreview field={subField} />
-      </div>
-      {expanded && (
-        <div style={{ padding: '4px 10px 10px', borderTop: '1px solid var(--border)' }}>
-          <PropField label="Label">
-            <input value={subField.label} onChange={(e) => onChange({ ...subField, label: e.target.value })} style={inputStyle()} />
-          </PropField>
-          {hasPlaceholder && (
-            <PropField label="Placeholder">
-              <input value={subField.placeholder} onChange={(e) => onChange({ ...subField, placeholder: e.target.value })} style={inputStyle()} />
-            </PropField>
-          )}
-          <ToggleRow label="Required" on={subField.required} onChange={(v) => onChange({ ...subField, required: v })} />
-
-          {hasOptions && (
-            <PropField label="Options">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {subField.options.map((opt, idx) => (
-                  <div key={idx} style={{ display: 'flex', gap: 6 }}>
-                    <input value={opt} onChange={(e) => {
-                      const next = [...subField.options]; next[idx] = e.target.value;
-                      onChange({ ...subField, options: next });
-                    }} style={inputStyle()} />
-                    <button type="button" onClick={() => onChange({ ...subField, options: subField.options.filter((_, i) => i !== idx) })}
-                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, color: '#DC2626', cursor: 'pointer', width: 30, flexShrink: 0 }}>
-                      <Trash2 size={12} style={{ margin: 'auto' }} />
-                    </button>
-                  </div>
-                ))}
-                <button type="button" onClick={() => onChange({ ...subField, options: [...subField.options, `Option ${subField.options.length + 1}`] })}
-                  style={{ border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '6px 0', cursor: 'pointer' }}>
-                  + Add Option
-                </button>
-              </div>
-            </PropField>
-          )}
-
-          {subField.type === 'photochecklist' && (
-            <PropField label="Baseline Checklist Items (optional)">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {checklistItems.map((item, idx) => (
-                  <div key={item.id} style={{ display: 'flex', gap: 6 }}>
-                    <input value={item.text} onChange={(e) => {
-                      const next = [...checklistItems]; next[idx] = { ...next[idx], text: e.target.value };
-                      onChange({ ...subField, defaultValue: JSON.stringify(next) });
-                    }} placeholder="e.g. Fire extinguisher present" style={inputStyle()} />
-                    <select value={item.direction} onChange={(e) => {
-                      const next = [...checklistItems]; next[idx] = { ...next[idx], direction: e.target.value as 'present' | 'absent' };
-                      onChange({ ...subField, defaultValue: JSON.stringify(next) });
-                    }} style={{ ...inputStyle(), width: 110, flexShrink: 0 }}>
-                      <option value="present">Must be present</option>
-                      <option value="absent">Must be absent</option>
-                    </select>
-                    <button type="button" onClick={() => onChange({ ...subField, defaultValue: JSON.stringify(checklistItems.filter((_, i) => i !== idx)) })}
-                      style={{ border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: 6, color: '#DC2626', cursor: 'pointer', width: 30, flexShrink: 0 }}>
-                      <Trash2 size={12} style={{ margin: 'auto' }} />
-                    </button>
-                  </div>
-                ))}
-                <button type="button" onClick={() => onChange({ ...subField, defaultValue: JSON.stringify([...checklistItems, { id: 'ci' + Date.now(), text: '', direction: 'present' as const }]) })}
-                  style={{ border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '6px 0', cursor: 'pointer' }}>
-                  + Add Baseline Item
-                </button>
-              </div>
-            </PropField>
-          )}
-
-          {subField.type === 'areagroup' && depth < 3 && (
-            <PropField label="Fields in this Nested Section">
-              <AreaGroupSubFieldsEditor
-                subFields={nestedSubFields}
-                onChange={(next) => onChange({ ...subField, defaultValue: JSON.stringify(next) })}
-                depth={depth + 1}
-              />
-            </PropField>
-          )}
-          {subField.type === 'areagroup' && depth >= 3 && (
-            <div style={{ fontSize: 11, color: 'var(--muted)', fontStyle: 'italic' }}>Nesting limit reached (3 levels).</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: FormField[]; onChange: (next: FormField[]) => void; depth: number }) {
-  const [showPalette, setShowPalette] = useState(false);
-  const [dropIndex, setDropIndex] = useState<number | null>(null);
-  const [lastAddedId, setLastAddedId] = useState<string | null>(null);
-  const accent = useStore((s) => s.accent);
-
-  const addSubField = (type: string, atIndex?: number) => {
-    const nf = newSubField(type);
-    if (atIndex === undefined) {
-      onChange([...subFields, nf]);
-    } else {
-      const next = [...subFields];
-      next.splice(Math.max(0, Math.min(atIndex, next.length)), 0, nf);
-      onChange(next);
-    }
-    setLastAddedId(nf.id);
-    setShowPalette(false);
-  };
-  const updateSubField = (idx: number, next: FormField) => {
-    const updated = [...subFields]; updated[idx] = next;
-    onChange(updated);
-  };
-  const removeSubField = (idx: number) => onChange(subFields.filter((_, i) => i !== idx));
-
-  const handleDragOver = (e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes('application/x-dockform-field-type')) return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.dataTransfer.dropEffect = 'copy';
-    const container = e.currentTarget as HTMLElement;
-    const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-subfield-card]'));
-    let idx = cards.length;
-    for (let i = 0; i < cards.length; i++) {
-      const rect = cards[i].getBoundingClientRect();
-      if (e.clientY < rect.top + rect.height / 2) { idx = i; break; }
-    }
-    setDropIndex(idx);
-  };
-  const handleDrop = (e: React.DragEvent) => {
-    const type = e.dataTransfer.getData('application/x-dockform-field-type');
-    if (!type) return;
-    e.preventDefault();
-    e.stopPropagation();
-    addSubField(type, dropIndex ?? subFields.length);
-    setDropIndex(null);
-  };
-
-  return (
-    <div
-      onDragOver={handleDragOver}
-      onDragLeave={(e) => {
-        const next = e.relatedTarget as Node | null;
-        if (!next || !e.currentTarget.contains(next)) setDropIndex(null);
-      }}
-      onDrop={handleDrop}
-    >
-      <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
-        These fields repeat as a set every time "Add Another" is used when filling out the form. You can also drag a field type here from the library on the left.
-      </div>
-      {subFields.length === 0 && dropIndex === 0 && (
-        <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 8 }} />
-      )}
-      {subFields.map((sf, idx) => (
-        <div key={sf.id} data-subfield-card>
-          {dropIndex === idx && <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 8 }} />}
-          <SubFieldEditor subField={sf} depth={depth} startExpanded={sf.id === lastAddedId}
-            onChange={(next) => updateSubField(idx, next)}
-            onRemove={() => removeSubField(idx)} />
-        </div>
-      ))}
-      {dropIndex === subFields.length && subFields.length > 0 && (
-        <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 8 }} />
-      )}
-      <div style={{ position: 'relative' }}>
-        <button type="button" onClick={() => setShowPalette(!showPalette)}
-          style={{ width: '100%', border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '8px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
-          <Plus size={12} /> Add Field to Section
-        </button>
-        {showPalette && (
-          <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.12)', zIndex: 10, maxHeight: 220, overflowY: 'auto' }}>
-            {SUBFIELD_PALETTE.map((opt) => (
-              <button key={opt.type} type="button" onClick={() => addSubField(opt.type)}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', textAlign: 'left', padding: '8px 10px', border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 12.5, cursor: 'pointer' }}>
-                <TypeIcon type={opt.type} size={13} style={{ color: 'var(--muted)' }} />
-                {opt.label}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
 function PropertiesTab({ field }: { field: FormField }) {
   const updateField = useStore((s) => s.updateField);
-  const hasPlaceholder = !['dropdown', 'multiselect', 'checkbox', 'radio', 'toggle', 'rating', 'color', 'signature', 'image', 'camera', 'video', 'audio', 'upload', 'gps', 'qr', 'barcode', 'formula', 'hidden', 'system'].includes(field.type);
+  const hasPlaceholder = !['dropdown', 'multiselect', 'checkbox', 'radio', 'toggle', 'rating', 'color', 'signature', 'image', 'camera', 'video', 'audio', 'upload', 'gps', 'qr', 'barcode', 'formula', 'hidden', 'system', 'section'].includes(field.type);
   const hasOptions = CHOICE_TYPES.includes(field.type);
 
   const setOption = (idx: number, value: string) => {
@@ -1332,7 +1173,7 @@ function PropertiesTab({ field }: { field: FormField }) {
         />
       </PropField>
 
-      {field.type !== 'photochecklist' && field.type !== 'areagroup' && (
+      {field.type !== 'photochecklist' && field.type !== 'section' && (
         <PropField label="Default Value">
           <input
             value={field.defaultValue}
@@ -1344,13 +1185,12 @@ function PropertiesTab({ field }: { field: FormField }) {
 
       {field.type === 'photochecklist' && <ChecklistItemsEditor field={field} />}
 
-      {field.type === 'areagroup' && (
-        <PropField label="Fields in this Section">
-          <AreaGroupSubFieldsEditor
-            subFields={(() => { try { return JSON.parse(field.defaultValue || '[]'); } catch { return []; } })()}
-            onChange={(next) => updateField(field.id, 'defaultValue', JSON.stringify(next))}
-            depth={0}
-          />
+      {field.type === 'section' && (
+        <PropField label="Repeats">
+          <ToggleRow label='Allow "Add Another" at fill time' on={!!field.repeatable} onChange={(v) => updateField(field.id, 'repeatable', v)} />
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            When on, everyone filling the form can duplicate this whole section (e.g. one set per area/room) using "Add Another" — the fields below belong to this section directly on the canvas.
+          </div>
         </PropField>
       )}
 
@@ -1394,13 +1234,17 @@ function PropertiesTab({ field }: { field: FormField }) {
         </PropField>
       )}
 
-      <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 4px' }} />
+      {field.type !== 'section' && (
+        <>
+          <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 4px' }} />
 
-      <ToggleRow label="Required" on={field.required} onChange={(v) => updateField(field.id, 'required', v)} />
-      <ToggleRow label="Read Only" on={field.readOnly} onChange={(v) => updateField(field.id, 'readOnly', v)} />
-      <ToggleRow label="Hidden" on={field.hidden} onChange={(v) => updateField(field.id, 'hidden', v)} />
-      <ToggleRow label="Searchable" on={field.searchable} onChange={(v) => updateField(field.id, 'searchable', v)} />
-      <ToggleRow label="Indexed" on={field.indexed} onChange={(v) => updateField(field.id, 'indexed', v)} />
+          <ToggleRow label="Required" on={field.required} onChange={(v) => updateField(field.id, 'required', v)} />
+          <ToggleRow label="Read Only" on={field.readOnly} onChange={(v) => updateField(field.id, 'readOnly', v)} />
+          <ToggleRow label="Hidden" on={field.hidden} onChange={(v) => updateField(field.id, 'hidden', v)} />
+          <ToggleRow label="Searchable" on={field.searchable} onChange={(v) => updateField(field.id, 'searchable', v)} />
+          <ToggleRow label="Indexed" on={field.indexed} onChange={(v) => updateField(field.id, 'indexed', v)} />
+        </>
+      )}
     </div>
   );
 }

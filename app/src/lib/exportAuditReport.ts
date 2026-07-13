@@ -11,7 +11,15 @@ interface AuditResponseData {
   values?: Record<string, string>;
 }
 
-function renderActivityField(f: FormField, v: string): string {
+function sectionMembers(allFields: FormField[], marker: FormField): FormField[] {
+  const idx = allFields.findIndex(f => f.id === marker.id);
+  if (idx === -1) return [];
+  const members: FormField[] = [];
+  for (let i = idx + 1; i < allFields.length && allFields[i].type !== 'section'; i++) members.push(allFields[i]);
+  return members;
+}
+
+function renderActivityField(f: FormField, v: string, allFields: FormField[]): string {
   if (f.type === 'beforeafter') {
     try {
       const ba = JSON.parse(v);
@@ -46,11 +54,10 @@ function renderActivityField(f: FormField, v: string): string {
         </div>`;
     } catch { return ''; }
   }
-  if (f.type === 'areagroup') {
+  if (f.type === 'section' && f.repeatable) {
     try {
       const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
-      let subFields: FormField[] = [];
-      try { subFields = JSON.parse(f.defaultValue || '[]'); } catch { /* empty */ }
+      const members = sectionMembers(allFields, f);
       if (instances.length === 0) return '';
       return `
         <div style="margin:10px 0;">
@@ -58,7 +65,7 @@ function renderActivityField(f: FormField, v: string): string {
           ${instances.map((inst, i) => `
             <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
               <div style="font-size:10px;font-weight:700;color:#9ca3af;margin-bottom:4px;">${(f.label || 'ITEM').toUpperCase()} ${i + 1}</div>
-              ${subFields.filter(sf => !sf.hidden).map(sf => renderActivityField(sf, inst.values[sf.id] || '')).join('')}
+              ${members.filter(sf => !sf.hidden).map(sf => renderActivityField(sf, inst.values[sf.id] || '', allFields)).join('')}
             </div>`).join('')}
         </div>`;
     } catch { return ''; }
@@ -89,9 +96,12 @@ export async function downloadAuditReport(
   const now = new Date().toLocaleString();
   const imageMap = await buildInlineImageMap(responses.flatMap(r => Object.values(r.values || {})));
 
+  const repeatableMemberIds = new Set<string>();
+  fieldDefs.forEach((f) => { if (f.type === 'section' && f.repeatable) sectionMembers(fieldDefs, f).forEach(m => repeatableMemberIds.add(m.id)); });
   const activityRows = responses.map((r, i) => {
     const vals = r.values || {};
-    const fields = fieldDefs.filter(f => !f.hidden).map(f => renderActivityField(f, vals[f.id] || '')).filter(Boolean).join('');
+    const rowFields = fieldDefs.filter(f => !f.hidden && !repeatableMemberIds.has(f.id) && (f.type !== 'section' || f.repeatable));
+    const fields = rowFields.map(f => renderActivityField(f, vals[f.id] || '', fieldDefs)).filter(Boolean).join('');
 
     return `
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;overflow:hidden;page-break-inside:avoid;">

@@ -366,22 +366,34 @@ function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value
   );
 }
 
-type AreaInstance = { id: string; values: Record<string, string> };
+type SectionInstance = { id: string; values: Record<string, string> };
 
-function AreaGroupField({ value, onChange, subFields, accent, sectionLabel }: { value: string; onChange: (v: string) => void; subFields: FormField[]; accent: string; sectionLabel: string }) {
-  let instances: AreaInstance[] = [];
+// Renders a repeatable Section's member fields once per instance. Instance data is stored
+// as a JSON array under the section marker field's own response value; member fields are
+// the ordinary top-level fields between this marker and the next (or end of form).
+function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLabel }: { value: string; onChange: (v: string) => void; memberFields: FormField[]; accent: string; sectionLabel: string }) {
+  let instances: SectionInstance[] = [];
   try { instances = JSON.parse(value || '[]'); } catch { /* empty */ }
 
-  const save = (next: AreaInstance[]) => onChange(JSON.stringify(next));
+  const save = (next: SectionInstance[]) => onChange(JSON.stringify(next));
 
-  const addInstance = () => save([...instances, { id: 'area' + Date.now(), values: {} }]);
+  const addInstance = () => save([...instances, { id: 'sec' + Date.now(), values: {} }]);
   const removeInstance = (id: string) => save(instances.filter(a => a.id !== id));
   const setInstanceValue = (instanceId: string, fieldId: string, v: string) => {
     save(instances.map(a => a.id === instanceId ? { ...a, values: { ...a.values, [fieldId]: v } } : a));
   };
 
-  if (subFields.length === 0) {
-    return <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>No fields configured for this section yet.</div>;
+  // Start with one instance already visible — an empty "Add Another" button with no fields
+  // showing reads as broken, not as "click here to begin".
+  useEffect(() => {
+    if (instances.length === 0 && memberFields.length > 0) {
+      onChange(JSON.stringify([{ id: 'sec' + Date.now(), values: {} }]));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  if (memberFields.length === 0) {
+    return <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>No fields added to this section yet.</div>;
   }
 
   return (
@@ -396,12 +408,12 @@ function AreaGroupField({ value, onChange, subFields, accent, sectionLabel }: { 
             </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {subFields.map((sf) => (
+            {memberFields.map((sf) => (
               <div key={sf.id}>
                 <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
                   {sf.label}{sf.required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
                 </label>
-                <FieldInput field={sf} value={instance.values[sf.id] || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
+                <FieldInput field={sf} value={instance.values[sf.id] || sf.defaultValue || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
               </div>
             ))}
           </div>
@@ -578,12 +590,6 @@ function FieldInput({ field, value, onChange, lockToToday }: { field: FormField;
       return <PhotoChecklistField value={value} onChange={onChange} baselineItems={baselineItems} accent={accent} />;
     }
 
-    case 'areagroup': {
-      let subFields: FormField[] = [];
-      try { subFields = JSON.parse(field.defaultValue || '[]'); } catch { /* empty */ }
-      return <AreaGroupField value={value} onChange={onChange} subFields={subFields} accent={accent} sectionLabel={field.label || 'Item'} />;
-    }
-
     case 'upload':
       return <FileUploadField value={value} onChange={onChange} accept="*/*" label="Tap to upload file" />;
 
@@ -738,7 +744,19 @@ export default function FormFiller() {
   }
 
   const visibleFields = fields.filter(f => isFieldVisible(f));
-  const missingRequired = visibleFields.filter(f => isFieldRequired(f) && !values[f.id]?.trim());
+
+  // Fields that belong to a repeatable section are validated per-instance inside
+  // SectionInstanceGroup's own UI, not here — their required-ness has no single flat
+  // values[f.id] to check against (the marker holds a JSON array of instances instead).
+  const repeatableMemberIds = new Set<string>();
+  for (let i = 0; i < visibleFields.length; i++) {
+    if (visibleFields[i].type === 'section' && visibleFields[i].repeatable) {
+      let end = i + 1;
+      while (end < visibleFields.length && visibleFields[end].type !== 'section') end++;
+      for (let j = i + 1; j < end; j++) repeatableMemberIds.add(visibleFields[j].id);
+    }
+  }
+  const missingRequired = visibleFields.filter(f => f.type !== 'section' && !repeatableMemberIds.has(f.id) && isFieldRequired(f) && !values[f.id]?.trim());
 
   const handleSubmit = async () => {
     if (missingRequired.length > 0) return;
@@ -835,20 +853,68 @@ export default function FormFiller() {
             </div>
           </div>
 
-          {visibleFields.map((field) => {
-            const required = isFieldRequired(field);
-            return (
-            <div key={field.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 12 }}>
-              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
-                {field.label}
-                {required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
-              </label>
-              {field.helpText && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{field.helpText}</div>}
-              <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={(v) => setValue(field.id, v)}
-                lockToToday={field.type === 'date' && form.schedule?.frequency === 'daily'} />
-            </div>
-            );
-          })}
+          {(() => {
+            const rows: React.ReactNode[] = [];
+            let i = 0;
+            while (i < visibleFields.length) {
+              const field = visibleFields[i];
+              if (field.type === 'section') {
+                let end = i + 1;
+                while (end < visibleFields.length && visibleFields[end].type !== 'section') end++;
+                const memberFields = visibleFields.slice(i + 1, end);
+                rows.push(
+                  <div key={field.id} style={{ marginTop: 20, marginBottom: 12 }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 4, paddingBottom: 8, borderBottom: '2px solid var(--border)' }}>
+                      {field.label}
+                    </div>
+                    {field.helpText && <div style={{ fontSize: 12.5, color: 'var(--muted)', margin: '6px 0 10px' }}>{field.helpText}</div>}
+                    {field.repeatable ? (
+                      <div style={{ marginTop: 10 }}>
+                        <SectionInstanceGroup
+                          value={values[field.id] || field.defaultValue || ''}
+                          onChange={(v) => setValue(field.id, v)}
+                          memberFields={memberFields}
+                          accent={accent}
+                          sectionLabel={field.label || 'Item'}
+                        />
+                      </div>
+                    ) : (
+                      memberFields.map((mf) => {
+                        const required = isFieldRequired(mf);
+                        return (
+                          <div key={mf.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 12 }}>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
+                              {mf.label}
+                              {required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
+                            </label>
+                            {mf.helpText && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{mf.helpText}</div>}
+                            <FieldInput field={mf} value={values[mf.id] || mf.defaultValue || ''} onChange={(v) => setValue(mf.id, v)}
+                              lockToToday={mf.type === 'date' && form.schedule?.frequency === 'daily'} />
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+                );
+                i = end;
+              } else {
+                const required = isFieldRequired(field);
+                rows.push(
+                  <div key={field.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 12 }}>
+                    <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
+                      {field.label}
+                      {required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
+                    </label>
+                    {field.helpText && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{field.helpText}</div>}
+                    <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={(v) => setValue(field.id, v)}
+                      lockToToday={field.type === 'date' && form.schedule?.frequency === 'daily'} />
+                  </div>
+                );
+                i++;
+              }
+            }
+            return rows;
+          })()}
 
           <div style={{ padding: '16px 0' }}>
             {submitError && <div style={{ fontSize: 12.5, color: '#DC2626', marginBottom: 10, textAlign: 'center' }}>{submitError}</div>}

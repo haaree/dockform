@@ -11,7 +11,15 @@ interface ResponseData {
   values?: Record<string, string>;
 }
 
-function renderCellDisplay(f: FormField, v: string): string {
+function sectionMembers(allFields: FormField[], marker: FormField): FormField[] {
+  const idx = allFields.findIndex(f => f.id === marker.id);
+  if (idx === -1) return [];
+  const members: FormField[] = [];
+  for (let i = idx + 1; i < allFields.length && allFields[i].type !== 'section'; i++) members.push(allFields[i]);
+  return members;
+}
+
+function renderCellDisplay(f: FormField, v: string, allFields: FormField[]): string {
   if (!v) return '<span style="color:#9ca3af;font-style:italic;">—</span>';
   if (f.type === 'beforeafter') {
     try {
@@ -29,16 +37,15 @@ function renderCellDisplay(f: FormField, v: string): string {
       return `${latest?.photo ? `<img src="${latest.photo}" style="max-width:80px;max-height:80px;border-radius:4px;" />` : ''} ${total ? `${satisfied}/${total} satisfied` : ''}`;
     } catch { return v; }
   }
-  if (f.type === 'areagroup') {
+  if (f.type === 'section' && f.repeatable) {
     try {
       const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
-      let subFields: FormField[] = [];
-      try { subFields = JSON.parse(f.defaultValue || '[]'); } catch { /* empty */ }
+      const members = sectionMembers(allFields, f);
       if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">None added</span>';
       return instances.map((inst, i) => `
         <div style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-bottom:4px;">
           <div style="font-size:10px;font-weight:700;color:#6b7280;">${f.label || 'Item'} ${i + 1}</div>
-          ${subFields.filter(sf => !sf.hidden).map(sf => `<div style="font-size:11px;"><strong>${sf.label}:</strong> ${renderCellDisplay(sf, inst.values[sf.id] || '')}</div>`).join('')}
+          ${members.filter(sf => !sf.hidden).map(sf => `<div style="font-size:11px;"><strong>${sf.label}:</strong> ${renderCellDisplay(sf, inst.values[sf.id] || '', allFields)}</div>`).join('')}
         </div>`).join('');
     } catch { return v; }
   }
@@ -59,7 +66,10 @@ function renderCellDisplay(f: FormField, v: string): string {
 
 export async function downloadExcelReport(formName: string, description: string, fieldDefs: FormField[], formResponses: ResponseData[]) {
   const now = new Date().toLocaleString();
-  const visibleFields = fieldDefs.filter(f => !f.hidden);
+  const repeatableMemberIds = new Set<string>();
+  fieldDefs.forEach((f) => { if (f.type === 'section' && f.repeatable) sectionMembers(fieldDefs, f).forEach(m => repeatableMemberIds.add(m.id)); });
+  const visibleFields = fieldDefs.filter(f => !f.hidden && f.type !== 'section' && !repeatableMemberIds.has(f.id))
+    .concat(fieldDefs.filter(f => f.type === 'section' && f.repeatable && !f.hidden));
   const imageMap = await buildInlineImageMap(formResponses.flatMap(r => Object.values(r.values || {})));
 
   const headerCells = ['#', 'Assigned By', 'Completed By', 'Plant', 'Date', ...visibleFields.map(f =>
@@ -80,7 +90,7 @@ export async function downloadExcelReport(formName: string, description: string,
     ];
 
     const fieldCells = visibleFields.map(f => {
-      const display = renderCellDisplay(f, vals[f.id] || '');
+      const display = renderCellDisplay(f, vals[f.id] || '', fieldDefs);
       return `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#1f2937;vertical-align:top;">${display}</td>`;
     }).join('');
 

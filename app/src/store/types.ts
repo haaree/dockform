@@ -21,13 +21,19 @@ export interface FormField {
   options: string[];
   validation: { min: string; max: string; pattern: string; message: string };
   logic: LogicRule[];
+  // Only meaningful for type === 'section': whether this section repeats at fill time
+  // ("Add Another"). Member fields are the ordinary top-level fields that follow this
+  // marker up to the next section marker (or end of form) — they are edited in place on
+  // the canvas like any other field, not in a separate config editor.
+  repeatable?: boolean;
 }
 
-// For areagroup fields: the sub-field schema is seeded from the field's defaultValue
-// (JSON-encoded FormField[]) — the same "config lives in defaultValue" pattern used by
-// photochecklist's baseline items. Each response instance stores its own {id, values} bag,
-// keyed by a stable generated instance id (never array index).
-export interface AreaGroupInstance {
+// For a repeatable section: instances are stored as a JSON array under the section
+// marker field's own response id. Each instance holds one value per member-field id.
+// Member-field schema is derived by walking the fields between this marker and the next,
+// not read from defaultValue. Stable instance ids (never array index) so values don't
+// scramble when instances are added/removed/reordered.
+export interface SectionInstance {
   id: string;
   values: Record<string, string>;
 }

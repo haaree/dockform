@@ -180,7 +180,7 @@ const FIELD_LABELS: Record<string, string> = {
   radio: 'Radio', toggle: 'Toggle', lookup: 'Lookup', formula: 'Formula', image: 'Image', camera: 'Camera', video: 'Video',
   beforeafter: 'Before/After Photo', photochecklist: 'Photo Checklist', audio: 'Audio', upload: 'File Upload', signature: 'Signature', gps: 'GPS Location', qr: 'QR Code', barcode: 'Barcode',
   email: 'Email', phone: 'Phone', url: 'URL', rating: 'Rating', color: 'Color Picker', hidden: 'Hidden Field', system: 'System Field', ai: 'AI Field',
-  areagroup: 'Section',
+  section: 'Section',
 };
 
 const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox'];
