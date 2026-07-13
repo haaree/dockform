@@ -35,6 +35,7 @@ interface AppState {
   selectedId: string | null;
   fieldCounter: number;
   dragSrcIdx: number | null;
+  dragSrcSectionId: string | null;
 
   // Templates
   activePackId: string | null;
@@ -96,7 +97,10 @@ interface AppState {
   deleteField: (id: string) => void;
   duplicateField: (id: string) => void;
   reorderFields: (from: number, to: number) => void;
+  duplicateSectionBlock: (sectionId: string) => void;
+  moveSectionBlock: (sectionId: string, toIndex: number) => void;
   setDragSrcIdx: (idx: number | null) => void;
+  setDragSrcSectionId: (id: string | null) => void;
   addLogicRule: (fieldId: string) => void;
   updateLogicRule: (fieldId: string, ruleId: string, updates: Partial<LogicRule>) => void;
   deleteLogicRule: (fieldId: string, ruleId: string) => void;
@@ -216,6 +220,7 @@ export const useStore = create<AppState>((set) => ({
   selectedId: null,
   fieldCounter: 0,
   dragSrcIdx: null,
+  dragSrcSectionId: null,
   activePackId: null,
   previewPackId: null,
   packSearch: '',
@@ -382,7 +387,40 @@ export const useStore = create<AppState>((set) => ({
     return { fields: nf, dragSrcIdx: null };
   }),
 
+  duplicateSectionBlock: (sectionId) => set((s) => {
+    const idx = s.fields.findIndex(f => f.id === sectionId);
+    if (idx === -1) return {};
+    let end = idx + 1;
+    while (end < s.fields.length && s.fields[end].type !== 'section') end++;
+    const block = s.fields.slice(idx, end);
+    let counter = s.fieldCounter;
+    const copy = block.map((f) => {
+      counter++;
+      return { ...f, id: 'f' + counter, options: [...f.options], label: f.type === 'section' ? f.label + ' (Copy)' : f.label };
+    });
+    const nf = [...s.fields];
+    nf.splice(end, 0, ...copy);
+    return { fields: nf, fieldCounter: counter, selectedId: copy[0].id };
+  }),
+
+  moveSectionBlock: (sectionId, toIndex) => set((s) => {
+    const idx = s.fields.findIndex(f => f.id === sectionId);
+    if (idx === -1) return {};
+    let end = idx + 1;
+    while (end < s.fields.length && s.fields[end].type !== 'section') end++;
+    const block = s.fields.slice(idx, end);
+    const rest = [...s.fields.slice(0, idx), ...s.fields.slice(end)];
+    // toIndex was computed against the original array; shift it to account for the
+    // removed block if the target position was after it.
+    const adjustedTo = toIndex > idx ? toIndex - block.length : toIndex;
+    const clamped = Math.max(0, Math.min(adjustedTo, rest.length));
+    const nf = [...rest];
+    nf.splice(clamped, 0, ...block);
+    return { fields: nf, dragSrcSectionId: null };
+  }),
+
   setDragSrcIdx: (dragSrcIdx) => set({ dragSrcIdx }),
+  setDragSrcSectionId: (dragSrcSectionId) => set({ dragSrcSectionId }),
 
   addLogicRule: (fieldId) => set((s) => ({
     fields: s.fields.map(f => f.id === fieldId ? {

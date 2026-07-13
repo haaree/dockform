@@ -4,7 +4,7 @@ import {
   Calendar, Clock, CalendarClock, List, ListChecks, CheckSquare, CircleDot, ToggleLeft,
   Search, Calculator, Image, Camera, Video, Music, Upload, PenTool, MapPin, QrCode,
   Barcode, Phone, Globe, Palette, EyeOff, Cpu, Sparkles, GripVertical, Copy, Trash2,
-  Sliders, Zap, Plus, Layers, type LucideIcon,
+  Sliders, Zap, Plus, Layers, ChevronRight, ChevronDown, type LucideIcon,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule, ChecklistItemDef } from '../../store/types';
@@ -725,24 +725,36 @@ function DropIndicator() {
   return <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 12 }} />;
 }
 
-function SectionHeader({ field }: { field: FormField }) {
+const SECTION_DRAG_TYPE = 'application/x-dockform-section-id';
+
+function SectionHeader({ field, collapsed, onToggleCollapse }: { field: FormField; collapsed: boolean; onToggleCollapse: () => void }) {
   const selectedId = useStore((s) => s.selectedId);
   const accent = useStore((s) => s.accent);
   const selectField = useStore((s) => s.selectField);
   const deleteField = useStore((s) => s.deleteField);
   const updateField = useStore((s) => s.updateField);
+  const duplicateSectionBlock = useStore((s) => s.duplicateSectionBlock);
+  const setDragSrcSectionId = useStore((s) => s.setDragSrcSectionId);
   const [editingLabel, setEditingLabel] = useState(false);
 
   const selected = selectedId === field.id;
 
-  // Not draggable: reordering would move only the marker, silently orphaning/reparenting
-  // its member fields to whichever section precedes it. Whole-section reordering isn't
-  // supported yet — data-field-card is kept so the palette-drop-position calc still treats
-  // this row as a boundary, but this element itself can't be picked up as a drag source.
+  // Dragged via a dedicated dataTransfer type (not dragSrcIdx) so the drop is handled by
+  // Canvas as a whole-block move (marker + all its member fields), instead of FieldCard's
+  // ordinary single-field reorder, which would otherwise orphan the section's members.
   return (
     <div
+      draggable
       data-field-card
+      data-field-id={field.id}
+      data-section-header
       onClick={() => selectField(field.id)}
+      onDragStart={(e) => {
+        e.dataTransfer.setData(SECTION_DRAG_TYPE, field.id);
+        e.dataTransfer.effectAllowed = 'move';
+        setDragSrcSectionId(field.id);
+      }}
+      onDragEnd={() => setDragSrcSectionId(null)}
       style={{
         display: 'flex',
         alignItems: 'center',
@@ -751,10 +763,19 @@ function SectionHeader({ field }: { field: FormField }) {
         marginTop: 20,
         marginBottom: 8,
         borderBottom: `2px solid ${selected ? accent : 'var(--border)'}`,
-        cursor: 'pointer',
+        cursor: 'grab',
       }}
     >
-      <Layers size={16} style={{ color: accent, flexShrink: 0 }} />
+      <GripVertical size={15} style={{ color: 'var(--muted2)', flexShrink: 0 }} />
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); onToggleCollapse(); }}
+        aria-label={collapsed ? 'Expand section' : 'Collapse section'}
+        style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', display: 'flex', flexShrink: 0 }}
+      >
+        {collapsed ? <ChevronRight size={16} /> : <ChevronDown size={16} />}
+      </button>
+      <Layers size={17} style={{ color: accent, flexShrink: 0 }} />
       {editingLabel ? (
         <input
           autoFocus
@@ -763,13 +784,13 @@ function SectionHeader({ field }: { field: FormField }) {
           onChange={(e) => updateField(field.id, 'label', e.target.value)}
           onBlur={() => setEditingLabel(false)}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingLabel(false); }}
-          style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', background: 'var(--surface2)', border: `1px solid ${accent}`, borderRadius: 4, padding: '2px 6px', outline: 'none', minWidth: 0, flex: '0 1 auto' }}
+          style={{ fontSize: 17, fontWeight: 800, fontStyle: 'italic', color: 'var(--text)', background: 'var(--surface2)', border: `1px solid ${accent}`, borderRadius: 4, padding: '2px 6px', outline: 'none', minWidth: 0, flex: '0 1 auto' }}
         />
       ) : (
         <span
           onClick={(e) => { e.stopPropagation(); selectField(field.id); setEditingLabel(true); }}
           title="Click to rename"
-          style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', cursor: 'text' }}
+          style={{ fontSize: 17, fontWeight: 800, fontStyle: 'italic', color: 'var(--text)', cursor: 'text' }}
         >
           {field.label}
         </span>
@@ -780,6 +801,14 @@ function SectionHeader({ field }: { field: FormField }) {
         </span>
       )}
       <div style={{ flex: 1 }} />
+      <button
+        type="button"
+        onClick={(e) => { e.stopPropagation(); duplicateSectionBlock(field.id); }}
+        aria-label="Duplicate section"
+        style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', display: 'flex' }}
+      >
+        <Copy size={14} />
+      </button>
       <button
         type="button"
         onClick={(e) => { e.stopPropagation(); deleteField(field.id); }}
@@ -810,6 +839,7 @@ function FieldCard({ field, index }: { field: FormField; index: number }) {
     <div
       draggable
       data-field-card
+      data-field-id={field.id}
       onClick={() => selectField(field.id)}
       onDragStart={() => setDragSrcIdx(index)}
       onDragOver={(e) => e.preventDefault()}
@@ -912,23 +942,48 @@ function Canvas() {
   const setFormDesc = useStore((s) => s.setFormDesc);
   const addField = useStore((s) => s.addField);
   const addFieldAt = useStore((s) => s.addFieldAt);
+  const moveSectionBlock = useStore((s) => s.moveSectionBlock);
   const accent = useStore((s) => s.accent);
   const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set());
+
+  const toggleCollapse = (id: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
 
   const handleListDragOver = (e: React.DragEvent) => {
-    if (!e.dataTransfer.types.includes('application/x-dockform-field-type')) return;
+    if (!e.dataTransfer.types.includes('application/x-dockform-field-type') && !e.dataTransfer.types.includes(SECTION_DRAG_TYPE)) return;
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
+    e.dataTransfer.dropEffect = e.dataTransfer.types.includes(SECTION_DRAG_TYPE) ? 'move' : 'copy';
     const container = e.currentTarget as HTMLElement;
     const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-field-card]'));
-    let idx = cards.length;
+    // dropIndex must be a real index into `fields`, not into the rendered card list — a
+    // collapsed section renders fewer cards than there are fields, so the two lengths can
+    // diverge and a positional index would silently misalign every field after it.
+    let idx = fields.length;
     for (let i = 0; i < cards.length; i++) {
       const rect = cards[i].getBoundingClientRect();
-      if (e.clientY < rect.top + rect.height / 2) { idx = i; break; }
+      if (e.clientY < rect.top + rect.height / 2) {
+        const id = cards[i].getAttribute('data-field-id');
+        const fieldIdx = id ? fields.findIndex(f => f.id === id) : -1;
+        idx = fieldIdx !== -1 ? fieldIdx : fields.length;
+        break;
+      }
     }
     setDropIndex(idx);
   };
   const handleListDrop = (e: React.DragEvent) => {
+    const sectionId = e.dataTransfer.getData(SECTION_DRAG_TYPE);
+    if (sectionId) {
+      e.preventDefault();
+      moveSectionBlock(sectionId, dropIndex ?? fields.length);
+      setDropIndex(null);
+      return;
+    }
     const type = e.dataTransfer.getData('application/x-dockform-field-type');
     if (!type) return;
     e.preventDefault();
@@ -999,23 +1054,31 @@ function Canvas() {
                   while (end < fields.length && fields[end].type !== 'section') end++;
                   const memberIndices: number[] = [];
                   for (let j = i + 1; j < end; j++) memberIndices.push(j);
+                  const isCollapsed = collapsedIds.has(f.id);
                   rows.push(
                     <div key={f.id}>
                       {dropIndex === i && <DropIndicator />}
-                      <SectionHeader field={f} />
-                      <div style={{ marginLeft: 16, paddingLeft: 14, borderLeft: '2px solid var(--border)' }}>
-                        {memberIndices.length === 0 && dropIndex === null && (
-                          <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', padding: '4px 0 12px' }}>
-                            Drag fields here to add them to this section.
-                          </div>
-                        )}
-                        {memberIndices.map((idx) => (
-                          <div key={fields[idx].id}>
-                            {dropIndex === idx && <DropIndicator />}
-                            <FieldCard field={fields[idx]} index={idx} />
-                          </div>
-                        ))}
-                      </div>
+                      <SectionHeader field={f} collapsed={isCollapsed} onToggleCollapse={() => toggleCollapse(f.id)} />
+                      {!isCollapsed && (
+                        <div style={{ marginLeft: 16, paddingLeft: 14, borderLeft: '2px solid var(--border)' }}>
+                          {memberIndices.length === 0 && dropIndex === null && (
+                            <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', padding: '4px 0 12px' }}>
+                              Drag fields here to add them to this section.
+                            </div>
+                          )}
+                          {memberIndices.map((idx) => (
+                            <div key={fields[idx].id}>
+                              {dropIndex === idx && <DropIndicator />}
+                              <FieldCard field={fields[idx]} index={idx} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {isCollapsed && memberIndices.length > 0 && (
+                        <div style={{ marginLeft: 16, paddingLeft: 14, borderLeft: '2px solid var(--border)', fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', padding: '2px 0 10px' }}>
+                          {memberIndices.length} field{memberIndices.length === 1 ? '' : 's'} hidden — click to expand
+                        </div>
+                      )}
                     </div>
                   );
                   i = end;
