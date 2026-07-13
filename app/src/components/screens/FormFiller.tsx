@@ -422,7 +422,8 @@ function FieldInput({ field, value, onChange, lockToToday }: { field: FormField;
       return <input type="tel" value={value} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder || '+91 98765 43210'} style={inputStyle} />;
 
     case 'date': {
-      const today = new Date().toISOString().split('T')[0];
+      const now = new Date();
+      const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
       return <input type="date" value={lockToToday ? today : value} onChange={(e) => onChange(e.target.value)}
         min={lockToToday ? today : undefined} max={lockToToday ? today : undefined} disabled={lockToToday} style={{ ...inputStyle, opacity: lockToToday ? 0.7 : 1 }} />;
     }

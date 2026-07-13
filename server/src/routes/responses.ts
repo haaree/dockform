@@ -39,11 +39,11 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-  const { formId, plantId, values, status, assignedToId } = req.body as { formId: string; plantId?: string; values?: Record<string, string>; status?: string; assignedToId?: string };
+  const { formId, plantId, values, status, assignedToId, clientLocalDate } = req.body as { formId: string; plantId?: string; values?: Record<string, string>; status?: string; assignedToId?: string; clientLocalDate?: string };
   const form = await prisma.form.findUnique({ where: { id: formId } });
   if (!form || form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Form not found' }); return; }
 
-  if (status !== 'draft' && status !== 'awaiting_supervisor' && !isWithinDailyWindow(form.scheduleMeta as any)) {
+  if (status !== 'draft' && status !== 'awaiting_supervisor' && !isWithinDailyWindow(form.scheduleMeta as any, new Date(), clientLocalDate)) {
     res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
     return;
   }
@@ -74,9 +74,9 @@ router.patch('/:id', async (req, res) => {
   const isOwner = existing.submittedBy === req.auth?.userId || existing.assignedToId === req.auth?.userId;
   if (!isOwner) { res.status(403).json({ error: 'Not your response' }); return; }
 
-  const { values, status, assignedToId } = req.body as { values?: Record<string, string>; status?: string; assignedToId?: string };
+  const { values, status, assignedToId, clientLocalDate } = req.body as { values?: Record<string, string>; status?: string; assignedToId?: string; clientLocalDate?: string };
 
-  if (status && status !== 'draft' && status !== 'awaiting_supervisor' && !isWithinDailyWindow(existing.form.scheduleMeta as any)) {
+  if (status && status !== 'draft' && status !== 'awaiting_supervisor' && !isWithinDailyWindow(existing.form.scheduleMeta as any, new Date(), clientLocalDate)) {
     res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
     return;
   }

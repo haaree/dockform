@@ -157,6 +157,11 @@ interface AppState {
   updateAccountSubscription: (id: number, updates: Partial<AccountSubscription>) => void;
 }
 
+function getLocalDateString(): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
+
 function toFieldDefs(apiFields: any[] | undefined): FormField[] {
   return (apiFields || []).map((f: any) => ({
     id: f.id, type: f.type, label: f.label, placeholder: f.placeholder || '',
@@ -589,10 +594,11 @@ export const useStore = create<AppState>((set) => ({
     const { api } = await import('../lib/api');
     const { activeResponseId } = useStore.getState();
     const status = opts?.handOff ? 'awaiting_supervisor' : 'draft';
+    const clientLocalDate = getLocalDateString();
     if (activeResponseId) {
-      await api.updateResponse(activeResponseId, { values, status, ...(opts?.assignedToId !== undefined && { assignedToId: opts.assignedToId }) });
+      await api.updateResponse(activeResponseId, { values, status, clientLocalDate, ...(opts?.assignedToId !== undefined && { assignedToId: opts.assignedToId }) });
     } else {
-      const created = await api.createResponse({ formId, values, status, assignedToId: opts?.assignedToId });
+      const created = await api.createResponse({ formId, values, status, clientLocalDate, assignedToId: opts?.assignedToId });
       set({ activeResponseId: created.id });
     }
     if (opts?.handOff) set({ activeResponseId: null, activeResponseValues: null });
@@ -602,10 +608,11 @@ export const useStore = create<AppState>((set) => ({
   submitResponse: async (formId: string, values: Record<string, string>) => {
     const { api } = await import('../lib/api');
     const { activeResponseId } = useStore.getState();
+    const clientLocalDate = getLocalDateString();
     if (activeResponseId) {
-      await api.updateResponse(activeResponseId, { values, status: 'submitted' });
+      await api.updateResponse(activeResponseId, { values, status: 'submitted', clientLocalDate });
     } else {
-      await api.createResponse({ formId, values, status: 'submitted' });
+      await api.createResponse({ formId, values, status: 'submitted', clientLocalDate });
     }
     set({ activeResponseId: null, activeResponseValues: null });
     await useStore.getState().refreshResponses();
