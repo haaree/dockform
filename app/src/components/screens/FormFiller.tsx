@@ -614,6 +614,24 @@ export default function FormFiller() {
     setValues(prev => ({ ...prev, [id]: v }));
   }, []);
 
+  // Date fields locked to today (daily-scheduled forms) are disabled and can't fire onChange,
+  // so seed their value directly or they'll incorrectly show as an unanswered required field.
+  useEffect(() => {
+    if (!form || form.schedule?.frequency !== 'daily') return;
+    const now = new Date();
+    const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const dateFieldIds = (form.fieldDefs || []).filter(f => f.type === 'date').map(f => f.id);
+    if (dateFieldIds.length === 0) return;
+    setValues(prev => {
+      const next = { ...prev };
+      let changed = false;
+      for (const id of dateFieldIds) {
+        if (next[id] !== today) { next[id] = today; changed = true; }
+      }
+      return changed ? next : prev;
+    });
+  }, [form, form?.fieldDefs]);
+
   if (!form) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 15 }}>
