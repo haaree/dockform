@@ -1174,9 +1174,18 @@ function SubFieldEditor({ subField, onChange, onRemove, depth }: { subField: For
 
 function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: FormField[]; onChange: (next: FormField[]) => void; depth: number }) {
   const [showPalette, setShowPalette] = useState(false);
+  const [dropIndex, setDropIndex] = useState<number | null>(null);
+  const accent = useStore((s) => s.accent);
 
-  const addSubField = (type: string) => {
-    onChange([...subFields, newSubField(type)]);
+  const addSubField = (type: string, atIndex?: number) => {
+    const nf = newSubField(type);
+    if (atIndex === undefined) {
+      onChange([...subFields, nf]);
+    } else {
+      const next = [...subFields];
+      next.splice(Math.max(0, Math.min(atIndex, next.length)), 0, nf);
+      onChange(next);
+    }
     setShowPalette(false);
   };
   const updateSubField = (idx: number, next: FormField) => {
@@ -1185,16 +1194,55 @@ function AreaGroupSubFieldsEditor({ subFields, onChange, depth }: { subFields: F
   };
   const removeSubField = (idx: number) => onChange(subFields.filter((_, i) => i !== idx));
 
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('application/x-dockform-field-type')) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'copy';
+    const container = e.currentTarget as HTMLElement;
+    const cards = Array.from(container.querySelectorAll<HTMLElement>('[data-subfield-card]'));
+    let idx = cards.length;
+    for (let i = 0; i < cards.length; i++) {
+      const rect = cards[i].getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) { idx = i; break; }
+    }
+    setDropIndex(idx);
+  };
+  const handleDrop = (e: React.DragEvent) => {
+    const type = e.dataTransfer.getData('application/x-dockform-field-type');
+    if (!type) return;
+    e.preventDefault();
+    e.stopPropagation();
+    addSubField(type, dropIndex ?? subFields.length);
+    setDropIndex(null);
+  };
+
   return (
-    <div>
+    <div
+      onDragOver={handleDragOver}
+      onDragLeave={(e) => {
+        const next = e.relatedTarget as Node | null;
+        if (!next || !e.currentTarget.contains(next)) setDropIndex(null);
+      }}
+      onDrop={handleDrop}
+    >
       <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
-        These fields repeat as a set every time "Add Another" is used when filling out the form.
+        These fields repeat as a set every time "Add Another" is used when filling out the form. You can also drag a field type here from the library on the left.
       </div>
+      {subFields.length === 0 && dropIndex === 0 && (
+        <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 8 }} />
+      )}
       {subFields.map((sf, idx) => (
-        <SubFieldEditor key={sf.id} subField={sf} depth={depth}
-          onChange={(next) => updateSubField(idx, next)}
-          onRemove={() => removeSubField(idx)} />
+        <div key={sf.id} data-subfield-card>
+          {dropIndex === idx && <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 8 }} />}
+          <SubFieldEditor subField={sf} depth={depth}
+            onChange={(next) => updateSubField(idx, next)}
+            onRemove={() => removeSubField(idx)} />
+        </div>
       ))}
+      {dropIndex === subFields.length && subFields.length > 0 && (
+        <div style={{ height: 3, borderRadius: 2, background: accent, marginBottom: 8 }} />
+      )}
       <div style={{ position: 'relative' }}>
         <button type="button" onClick={() => setShowPalette(!showPalette)}
           style={{ width: '100%', border: '1px dashed var(--border)', background: 'transparent', borderRadius: 6, color: 'var(--muted)', fontSize: 12, fontWeight: 600, padding: '8px 0', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5 }}>
