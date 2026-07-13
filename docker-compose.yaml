@@ -24,6 +24,11 @@ services:
       DATABASE_URL: postgresql://dockform:${DB_PASSWORD:-dockform_secret}@db:5432/dockform
       JWT_SECRET: ${JWT_SECRET:-dockform-factory-jwt-secret-change-me}
       PORT: "3000"
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      R2_ACCOUNT_ID: ${R2_ACCOUNT_ID:-}
+      R2_ACCESS_KEY_ID: ${R2_ACCESS_KEY_ID:-}
+      R2_SECRET_ACCESS_KEY: ${R2_SECRET_ACCESS_KEY:-}
+      R2_BUCKET: ${R2_BUCKET:-dockform-photos}
 
   web:
     build: ./app

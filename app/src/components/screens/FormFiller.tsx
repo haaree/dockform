@@ -5,6 +5,18 @@ import type { FormField, LogicRule } from '../../store/types';
 import { api } from '../../lib/api';
 import { resizeImageFile } from '../../lib/image';
 
+// Uploads a resized photo to object storage and returns a short "/api/files/:key" reference.
+// Falls back to embedding the raw data URL if object storage isn't configured or the upload fails,
+// so photo capture never breaks even before/without R2 being set up.
+async function uploadOrFallback(dataUrl: string): Promise<string> {
+  try {
+    const { url } = await api.uploadPhoto(dataUrl);
+    return url;
+  } catch {
+    return dataUrl;
+  }
+}
+
 function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v: string) => void; accent: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
@@ -110,14 +122,15 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
   const handleFile = (key: 'before' | 'after') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const dataUrl = await resizeImageFile(file);
-    update({ [key]: dataUrl });
+    const resized = await resizeImageFile(file);
+    const photoRef = await uploadOrFallback(resized);
+    update({ [key]: photoRef });
     if (key === 'after' && parsed.before) {
       setAiError('');
       setAiLoading('compare');
       try {
-        const { comment } = await api.comparePhotos(parsed.before, dataUrl, 'factory cleaning checklist');
-        update({ after: dataUrl, aiComparison: comment });
+        const { comment } = await api.comparePhotos(parsed.before, photoRef, 'factory cleaning checklist');
+        update({ after: photoRef, aiComparison: comment });
       } catch (err: any) {
         setAiError(`AI comparison unavailable (${err?.message || 'unknown error'}) — you can still add a manual comment.`);
       } finally {
@@ -244,7 +257,8 @@ function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || data.items.length === 0) return;
-    const photo = await resizeImageFile(file);
+    const resized = await resizeImageFile(file);
+    const photo = await uploadOrFallback(resized);
     const timestamp = new Date().toISOString();
     setLoading(true);
     try {
@@ -361,7 +375,8 @@ function FileUploadField({ value, onChange, accept, label }: { value: string; on
     if (!file) return;
     setFileName(file.name);
     if (file.type.startsWith('image/')) {
-      onChange(await resizeImageFile(file));
+      const resized = await resizeImageFile(file);
+      onChange(await uploadOrFallback(resized));
       return;
     }
     const reader = new FileReader();

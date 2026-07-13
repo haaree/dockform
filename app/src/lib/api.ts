@@ -64,6 +64,8 @@ export const api = {
   updateFormAssignment: (id: string, assignedUserIds: string[]) => request<any>(`/forms/${id}/assignment`, { method: 'PATCH', body: JSON.stringify({ assignedUserIds }) }),
   deleteForm: (id: string) => request<void>(`/forms/${id}`, { method: 'DELETE' }),
 
+  uploadPhoto: (dataUrl: string) => request<{ key: string; url: string }>('/uploads', { method: 'POST', body: JSON.stringify({ dataUrl }) }),
+
   getResponses: () => request<any[]>('/responses'),
   getResponse: (id: string) => request<any>(`/responses/${id}`),
   createResponse: (data: any) => request<any>('/responses', { method: 'POST', body: JSON.stringify(data) }),

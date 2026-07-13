@@ -1,5 +1,6 @@
 import type { FormField } from '../store/types';
 import { formatDate } from './format';
+import { buildInlineImageMap, applyInlineImageMap } from './imageInline';
 
 interface ResponseData {
   submittedBy: string;
@@ -10,8 +11,9 @@ interface ResponseData {
   values?: Record<string, string>;
 }
 
-export function downloadHTMLReport(formName: string, description: string, fieldDefs: FormField[], formResponses: ResponseData[]) {
+export async function downloadHTMLReport(formName: string, description: string, fieldDefs: FormField[], formResponses: ResponseData[]) {
   const now = new Date().toLocaleString();
+  const imageMap = await buildInlineImageMap(formResponses.flatMap(r => Object.values(r.values || {})));
 
   const responseCards = formResponses.map((r, i) => {
     const vals = r.values || {};
@@ -123,7 +125,8 @@ export function downloadHTMLReport(formName: string, description: string, fieldD
 </body>
 </html>`;
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+  const finalHtml = applyInlineImageMap(html, imageMap);
+  const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

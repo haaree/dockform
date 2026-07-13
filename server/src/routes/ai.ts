@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
+import { getObjectAsDataUrl } from '../lib/storage.js';
 
 const router = Router();
 const MODEL = 'claude-haiku-4-5-20251001';
@@ -16,6 +17,17 @@ function parseDataUrl(dataUrl: string): { mediaType: string; data: string } | nu
   return { mediaType: match[1], data: match[2] };
 }
 
+// Photos may arrive as a raw base64 data URL (legacy / not-yet-uploaded) or as a
+// same-origin file reference like "/api/files/<key>" (uploaded to object storage).
+// Resolve either form down to a data URL before sending to the AI.
+async function resolvePhoto(photo: string | undefined): Promise<string | null> {
+  if (!photo) return null;
+  if (photo.startsWith('data:')) return photo;
+  const match = /^\/api\/files\/([^/?#]+)/.exec(photo);
+  if (!match) return null;
+  return getObjectAsDataUrl(match[1]);
+}
+
 function textOf(message: Anthropic.Message): string {
   return message.content.filter(b => b.type === 'text').map(b => (b as any).text).join(' ');
 }
@@ -29,8 +41,9 @@ router.post('/analyze-photo', async (req, res) => {
   if (!client) { res.status(503).json({ error: 'AI unavailable — ANTHROPIC_API_KEY not configured' }); return; }
 
   const { photo, context } = req.body as { photo?: string; context?: string };
-  const parsed = photo ? parseDataUrl(photo) : null;
-  if (!parsed) { res.status(400).json({ error: 'photo must be a base64 image data URL' }); return; }
+  const resolved = await resolvePhoto(photo);
+  const parsed = resolved ? parseDataUrl(resolved) : null;
+  if (!parsed) { res.status(400).json({ error: 'photo must be a base64 image data URL or an uploaded file reference' }); return; }
 
   try {
     const message = await client.messages.create({
@@ -56,9 +69,10 @@ router.post('/compare-photos', async (req, res) => {
   if (!client) { res.status(503).json({ error: 'AI unavailable — ANTHROPIC_API_KEY not configured' }); return; }
 
   const { before, after, context } = req.body as { before?: string; after?: string; context?: string };
-  const beforeParsed = before ? parseDataUrl(before) : null;
-  const afterParsed = after ? parseDataUrl(after) : null;
-  if (!beforeParsed || !afterParsed) { res.status(400).json({ error: 'before and after must be base64 image data URLs' }); return; }
+  const [beforeResolved, afterResolved] = await Promise.all([resolvePhoto(before), resolvePhoto(after)]);
+  const beforeParsed = beforeResolved ? parseDataUrl(beforeResolved) : null;
+  const afterParsed = afterResolved ? parseDataUrl(afterResolved) : null;
+  if (!beforeParsed || !afterParsed) { res.status(400).json({ error: 'before and after must be base64 image data URLs or uploaded file references' }); return; }
 
   try {
     const message = await client.messages.create({
@@ -87,8 +101,9 @@ router.post('/score-checklist-photo', async (req, res) => {
   if (!client) { res.status(503).json({ error: 'AI unavailable — ANTHROPIC_API_KEY not configured' }); return; }
 
   const { photo, items, context } = req.body as { photo?: string; items?: { id: string; text: string; direction: 'present' | 'absent' }[]; context?: string };
-  const parsed = photo ? parseDataUrl(photo) : null;
-  if (!parsed || !items || items.length === 0) { res.status(400).json({ error: 'photo (data URL) and items (non-empty array) are required' }); return; }
+  const resolved = await resolvePhoto(photo);
+  const parsed = resolved ? parseDataUrl(resolved) : null;
+  if (!parsed || !items || items.length === 0) { res.status(400).json({ error: 'photo (data URL or file reference) and items (non-empty array) are required' }); return; }
 
   try {
     const itemLines = items.map((it, i) =>

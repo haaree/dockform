@@ -15,6 +15,8 @@ import dashboardRouter from './routes/dashboard.js';
 import cronRouter from './routes/cron.js';
 import emailRouter from './routes/email.js';
 import aiRouter from './routes/ai.js';
+import uploadsRouter from './routes/uploads.js';
+import filesRouter from './routes/files.js';
 import { authMiddleware } from './middleware/auth.js';
 
 export const prisma = new PrismaClient();
@@ -37,6 +39,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/cron', cronRouter);
 app.use('/api/email', emailRouter);
+app.use('/api/files', filesRouter);
 
 app.use('/api', authMiddleware);
 app.use('/api/dashboard', dashboardRouter);
@@ -49,6 +52,7 @@ app.use('/api/permissions', permissionsRouter);
 app.use('/api/users', usersRouter);
 app.use('/api/forms', formsRouter);
 app.use('/api/responses', responsesRouter);
+app.use('/api/uploads', uploadsRouter);
 app.use('/api/ai', aiRouter);
 
 app.use((err: any, _req: express.Request, res: express.Response, _next: express.NextFunction) => {

@@ -1,5 +1,6 @@
 import type { FormField } from '../store/types';
 import { formatDate } from './format';
+import { buildInlineImageMap, applyInlineImageMap } from './imageInline';
 
 interface ResponseData {
   submittedBy: string;
@@ -10,9 +11,10 @@ interface ResponseData {
   values?: Record<string, string>;
 }
 
-export function downloadExcelReport(formName: string, description: string, fieldDefs: FormField[], formResponses: ResponseData[]) {
+export async function downloadExcelReport(formName: string, description: string, fieldDefs: FormField[], formResponses: ResponseData[]) {
   const now = new Date().toLocaleString();
   const visibleFields = fieldDefs.filter(f => !f.hidden);
+  const imageMap = await buildInlineImageMap(formResponses.flatMap(r => Object.values(r.values || {})));
 
   const headerCells = ['#', 'Assigned By', 'Completed By', 'Plant', 'Date', ...visibleFields.map(f =>
     `<th style="padding:8px 12px;font-size:11px;font-weight:700;color:#374151;background:#f1f5f9;border:1px solid #e2e8f0;white-space:nowrap;text-align:left;">${f.label}${f.required ? ' <span style="color:#ef4444;">*</span>' : ''}</th>`
@@ -123,7 +125,8 @@ export function downloadExcelReport(formName: string, description: string, field
 </body>
 </html>`;
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+  const finalHtml = applyInlineImageMap(html, imageMap);
+  const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;

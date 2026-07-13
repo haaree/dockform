@@ -1,5 +1,6 @@
 import type { FormField } from '../store/types';
 import { formatDate } from './format';
+import { buildInlineImageMap, applyInlineImageMap } from './imageInline';
 
 interface AuditResponseData {
   submittedBy: string;
@@ -10,7 +11,7 @@ interface AuditResponseData {
   values?: Record<string, string>;
 }
 
-export function downloadAuditReport(
+export async function downloadAuditReport(
   formName: string,
   description: string,
   fieldDefs: FormField[],
@@ -18,6 +19,7 @@ export function downloadAuditReport(
   companyName: string,
 ) {
   const now = new Date().toLocaleString();
+  const imageMap = await buildInlineImageMap(responses.flatMap(r => Object.values(r.values || {})));
 
   const activityRows = responses.map((r, i) => {
     const vals = r.values || {};
@@ -143,7 +145,8 @@ export function downloadAuditReport(
 </body>
 </html>`;
 
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8;' });
+  const finalHtml = applyInlineImageMap(html, imageMap);
+  const blob = new Blob([finalHtml], { type: 'text/html;charset=utf-8;' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
