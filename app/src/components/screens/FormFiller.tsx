@@ -565,11 +565,14 @@ export default function FormFiller() {
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [submitError, setSubmitError] = useState('');
   const [showHandoff, setShowHandoff] = useState(false);
   const [handoffUsers, setHandoffUsers] = useState<any[]>([]);
   const [handoffTarget, setHandoffTarget] = useState('');
   const [handoffError, setHandoffError] = useState('');
+  const [handoffSaving, setHandoffSaving] = useState(false);
 
   useEffect(() => {
     if (activeResponseValues) setValues(activeResponseValues);
@@ -659,9 +662,18 @@ export default function FormFiller() {
   };
 
   const handleSaveDraft = async () => {
-    await saveResponseDraft(form.id, values);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    if (saving) return;
+    setSaving(true);
+    setSaveError('');
+    try {
+      await saveResponseDraft(form.id, values);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err: any) {
+      setSaveError(err?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openHandoff = () => {
@@ -672,12 +684,17 @@ export default function FormFiller() {
 
   const handleHandoff = async () => {
     if (!handoffTarget) { setHandoffError('Select a supervisor to hand off to.'); return; }
+    if (handoffSaving) return;
+    setHandoffSaving(true);
+    setHandoffError('');
     try {
       await saveResponseDraft(form.id, values, { assignedToId: handoffTarget, handOff: true });
       setShowHandoff(false);
       setNav('forms');
     } catch (err: any) {
       setHandoffError(err?.message || 'Failed to hand off');
+    } finally {
+      setHandoffSaving(false);
     }
   };
 
@@ -690,9 +707,9 @@ export default function FormFiller() {
         </button>
         <div style={{ width: 1, height: 18, background: 'var(--border)' }} />
         <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.name}{activeResponseId ? ' (In Progress)' : ''}</div>
-        <button type="button" onClick={handleSaveDraft}
-          style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}>
-          {saved ? 'Saved' : 'Save & Continue Later'}
+        <button type="button" onClick={handleSaveDraft} disabled={saving}
+          style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer', flexShrink: 0, opacity: saving ? 0.6 : 1 }}>
+          {saving ? 'Saving…' : saved ? 'Saved' : 'Save & Continue Later'}
         </button>
         {isAdmin && (
           <button type="button" onClick={openHandoff}
@@ -714,6 +731,11 @@ export default function FormFiller() {
 
       <div style={{ flex: 1, overflowY: 'auto', background: 'var(--surface2)' }}>
         <div style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? 16 : 24 }}>
+          {saveError && (
+            <div style={{ fontSize: 12.5, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+              {saveError}
+            </div>
+          )}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 20 }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{form.name}</div>
             {form.description && <div style={{ fontSize: 13, color: 'var(--muted)' }}>{form.description}</div>}
@@ -768,8 +790,8 @@ export default function FormFiller() {
             </select>
             {handoffError && <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 10 }}>{handoffError}</div>}
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button onClick={() => setShowHandoff(false)} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: 'pointer' }}>Cancel</button>
-              <button onClick={handleHandoff} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>Hand Off</button>
+              <button onClick={() => setShowHandoff(false)} disabled={handoffSaving} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: handoffSaving ? 'default' : 'pointer', opacity: handoffSaving ? 0.6 : 1 }}>Cancel</button>
+              <button onClick={handleHandoff} disabled={handoffSaving} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: handoffSaving ? 'default' : 'pointer', opacity: handoffSaving ? 0.6 : 1 }}>{handoffSaving ? 'Handing off…' : 'Hand Off'}</button>
             </div>
           </div>
         </div>
