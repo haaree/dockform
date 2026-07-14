@@ -2,33 +2,36 @@ import { useState, useEffect, useRef } from 'react';
 import { Search, Download, Eye, MoreHorizontal } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { StatusBadge } from '../ui/StatusBadge';
+import { api } from '../../lib/api';
 import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport } from '../../lib/exportExcel';
 import { downloadAuditReport } from '../../lib/exportAuditReport';
 import { formatDate } from '../../lib/format';
 import { FileText } from 'lucide-react';
 
-function exportReport(formId: string) {
-  const { forms, responses } = useStore.getState();
+// The store's response list is metadata-only (no field values), so exports fetch their own
+// full-values set for just the one form being exported rather than reading the shared array.
+async function exportReport(formId: string) {
+  const { forms } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;
-  const formResponses = responses.filter(r => r.formId === formId);
+  const formResponses = await api.getFullResponsesForForm(formId);
   downloadHTMLReport(form.name, form.description || '', form.fieldDefs || [], formResponses);
 }
 
-function exportExcel(formId: string) {
-  const { forms, responses } = useStore.getState();
+async function exportExcel(formId: string) {
+  const { forms } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;
-  const formResponses = responses.filter(r => r.formId === formId);
+  const formResponses = await api.getFullResponsesForForm(formId);
   downloadExcelReport(form.name, form.description || '', form.fieldDefs || [], formResponses);
 }
 
-function exportAudit(formId: string) {
-  const { forms, responses, companies, activeCompanyId } = useStore.getState();
+async function exportAudit(formId: string) {
+  const { forms, companies, activeCompanyId } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;
-  const formResponses = responses.filter(r => r.formId === formId);
+  const formResponses = await api.getFullResponsesForForm(formId);
   const companyName = companies.find(c => c.id === (form.companyId || activeCompanyId))?.name || 'Company';
   downloadAuditReport(form.name, form.description || '', form.fieldDefs || [], formResponses, companyName);
 }
