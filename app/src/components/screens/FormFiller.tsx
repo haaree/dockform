@@ -5,15 +5,18 @@ import type { FormField, LogicRule } from '../../store/types';
 import { api } from '../../lib/api';
 import { resizeImageFile } from '../../lib/image';
 
-// Uploads a resized photo to object storage and returns a short "/api/files/:key" reference.
-// Falls back to embedding the raw data URL if object storage isn't configured or the upload fails,
-// so photo capture never breaks even before/without R2 being set up.
-async function uploadOrFallback(dataUrl: string): Promise<string> {
+// Uploads a data URL (photo, signature, or file) to object storage and returns a short
+// "/api/files/:key" reference. Falls back to embedding the raw data URL only if object
+// storage isn't configured or the upload genuinely fails, so capture never hard-blocks —
+// but that fallback embeds the full file in the response record, so callers should surface
+// `usedFallback` to the user rather than silently accepting the bloat.
+async function uploadOrFallback(dataUrl: string): Promise<{ value: string; usedFallback: boolean }> {
   try {
     const { url } = await api.uploadPhoto(dataUrl);
-    return url;
-  } catch {
-    return dataUrl;
+    return { value: url, usedFallback: false };
+  } catch (err) {
+    console.error('[uploadOrFallback] object storage upload failed, embedding raw data instead:', err);
+    return { value: dataUrl, usedFallback: true };
   }
 }
 
@@ -21,6 +24,11 @@ function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const drawing = useRef(false);
   const lastPos = useRef<{ x: number; y: number } | null>(null);
+  const [storageWarning, setStorageWarning] = useState('');
+  // endDraw fires on every mouseup/mouseleave during a multi-stroke signature — each stroke
+  // would otherwise kick off its own R2 upload, and an out-of-order response could overwrite
+  // the final signature with a mid-drawing one. Only the most recent upload's result is kept.
+  const uploadSeq = useRef(0);
 
   const getPos = (e: React.MouseEvent | React.TouchEvent) => {
     const canvas = canvasRef.current!;
@@ -59,7 +67,13 @@ function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v
       drawing.current = false;
       lastPos.current = null;
       const canvas = canvasRef.current!;
-      onChange(canvas.toDataURL('image/png'));
+      const dataUrl = canvas.toDataURL('image/png');
+      const seq = ++uploadSeq.current;
+      uploadOrFallback(dataUrl).then(({ value: ref, usedFallback }) => {
+        if (seq !== uploadSeq.current) return; // a newer stroke's upload has already landed
+        setStorageWarning(usedFallback ? 'Signature storage is unavailable right now — this signature was saved directly with the response instead.' : '');
+        onChange(ref);
+      });
     }
   };
 
@@ -103,6 +117,7 @@ function SignaturePad({ value, onChange, accent }: { value: string; onChange: (v
         </button>
         {value && <span style={{ fontSize: 12, color: accent, fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}><CheckSquare size={12} /> Signed</span>}
       </div>
+      {storageWarning && <div style={{ fontSize: 11, color: '#92400E', marginTop: 6 }}>{storageWarning}</div>}
     </div>
   );
 }
@@ -123,8 +138,9 @@ function BeforeAfterField({ value, onChange, accent }: { value: string; onChange
     const file = e.target.files?.[0];
     if (!file) return;
     const resized = await resizeImageFile(file);
-    const photoRef = await uploadOrFallback(resized);
+    const { value: photoRef, usedFallback } = await uploadOrFallback(resized);
     update({ [key]: photoRef });
+    if (usedFallback) setAiError('Photo storage is unavailable right now — this photo was saved directly with the response instead, which may slow down loading it later.');
     if (key === 'after' && parsed.before) {
       setAiError('');
       setAiLoading('compare');
@@ -239,6 +255,7 @@ function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value
   const [loading, setLoading] = useState(false);
   const [newItemText, setNewItemText] = useState('');
   const [newItemDirection, setNewItemDirection] = useState<'present' | 'absent'>('present');
+  const [storageWarning, setStorageWarning] = useState('');
 
   const save = (next: Partial<ChecklistFieldValue>) => onChange(JSON.stringify({ ...data, ...next }));
 
@@ -258,7 +275,8 @@ function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value
     const file = e.target.files?.[0];
     if (!file || data.items.length === 0) return;
     const resized = await resizeImageFile(file);
-    const photo = await uploadOrFallback(resized);
+    const { value: photo, usedFallback } = await uploadOrFallback(resized);
+    setStorageWarning(usedFallback ? 'Photo storage is unavailable right now — this photo was saved directly with the response instead.' : '');
     const timestamp = new Date().toISOString();
     setLoading(true);
     try {
@@ -301,6 +319,7 @@ function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value
         <Upload size={18} />
         {loading ? 'Checking against checklist…' : data.attempts.length > 0 ? 'Upload New Photo (Re-check)' : 'Upload Photo'}
       </button>
+      {storageWarning && <div style={{ fontSize: 11, color: '#92400E', marginTop: 6 }}>{storageWarning}</div>}
 
       {latest && (
         <div style={{ marginTop: 12 }}>
@@ -427,27 +446,34 @@ function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLa
   );
 }
 
+function readAsDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 function FileUploadField({ value, onChange, accept, label }: { value: string; onChange: (v: string) => void; accept: string; label: string }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [fileName, setFileName] = useState('');
+  const [storageWarning, setStorageWarning] = useState('');
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     setFileName(file.name);
-    if (file.type.startsWith('image/')) {
-      const resized = await resizeImageFile(file);
-      onChange(await uploadOrFallback(resized));
-      return;
-    }
-    const reader = new FileReader();
-    reader.onload = () => onChange(reader.result as string);
-    reader.readAsDataURL(file);
+    const dataUrl = file.type.startsWith('image/') ? await resizeImageFile(file) : await readAsDataUrl(file);
+    const { value: ref, usedFallback } = await uploadOrFallback(dataUrl);
+    setStorageWarning(usedFallback ? 'File storage is unavailable right now — this file was saved directly with the response instead.' : '');
+    onChange(ref);
   };
 
   return (
     <div>
       <input ref={inputRef} type="file" accept={accept} onChange={handleFile} style={{ display: 'none' }} />
+      {storageWarning && <div style={{ fontSize: 11, color: '#92400E', marginBottom: 6 }}>{storageWarning}</div>}
       {value ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {value.startsWith('data:image') && (

@@ -67,6 +67,7 @@ export const api = {
   uploadPhoto: (dataUrl: string) => request<{ key: string; url: string }>('/uploads', { method: 'POST', body: JSON.stringify({ dataUrl }) }),
 
   getResponses: () => request<any[]>('/responses'),
+  getFullResponsesForForm: (formId: string) => request<any[]>(`/responses/full?formId=${encodeURIComponent(formId)}`),
   getResponse: (id: string) => request<any>(`/responses/${id}`),
   createResponse: (data: any) => request<any>('/responses', { method: 'POST', body: JSON.stringify(data) }),
   updateResponse: (id: string, data: any) => request<any>(`/responses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),

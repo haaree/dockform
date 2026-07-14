@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Download, ChevronDown, ChevronUp, Image as ImageIcon, FileText, CalendarClock, CheckCircle, Clock, AlertCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
+import { api } from '../../lib/api';
+import type { ResponseItem } from '../../store/types';
 import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport } from '../../lib/exportExcel';
 import { downloadAuditReport } from '../../lib/exportAuditReport';
@@ -84,7 +86,6 @@ function getPeriodsForSchedule(schedule: { frequency: string; startDate: string 
 export default function FormResponses() {
   const viewingFormId = useStore((s) => s.viewingFormId);
   const forms = useStore((s) => s.forms);
-  const responses = useStore((s) => s.responses);
   const setNav = useStore((s) => s.setNav);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
@@ -92,7 +93,6 @@ export default function FormResponses() {
   const activeCompanyId = useStore((s) => s.activeCompanyId);
 
   const form = forms.find(f => f.id === viewingFormId);
-  const formResponses = responses.filter(r => r.formId === viewingFormId);
   const fieldDefs = form?.fieldDefs || [];
   const isMobile = winWidth < 720;
   const isScheduled = form?.schedule && form.schedule.frequency !== 'once';
@@ -102,11 +102,48 @@ export default function FormResponses() {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
 
+  // The shared store's response list is metadata-only (no field values) so it stays cheap
+  // everywhere it's used for counts/status. This screen actually renders and exports field
+  // values (photos, signatures, checklist results), so it fetches its own full set for just
+  // this one form instead.
+  const [formResponses, setFormResponses] = useState<ResponseItem[]>([]);
+  const [loadingResponses, setLoadingResponses] = useState(true);
+  const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    if (!viewingFormId) return;
+    let cancelled = false;
+    setLoadingResponses(true);
+    setLoadError('');
+    api.getFullResponsesForForm(viewingFormId)
+      .then((data) => { if (!cancelled) setFormResponses(data); })
+      .catch((err) => { if (!cancelled) setLoadError(err?.message || 'Failed to load responses'); })
+      .finally(() => { if (!cancelled) setLoadingResponses(false); });
+    return () => { cancelled = true; };
+  }, [viewingFormId]);
+
   if (!form) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)' }}>
         Form not found.
         <button onClick={() => setNav('forms')} style={{ marginLeft: 12, color: accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Back</button>
+      </div>
+    );
+  }
+
+  if (loadingResponses) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 13.5 }}>
+        Loading responses…
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', gap: 10 }}>
+        <div style={{ color: '#DC2626', fontSize: 13.5 }}>{loadError}</div>
+        <button onClick={() => setNav('forms')} style={{ color: accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Back</button>
       </div>
     );
   }

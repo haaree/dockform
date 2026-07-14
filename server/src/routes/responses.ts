@@ -5,11 +5,38 @@ import { isWithinDailyWindow } from '../lib/schedule.js';
 
 const router = Router();
 
+// List view: metadata only, no field values. Full response bodies (which can embed large
+// base64 images/signatures for pre-R2 or fallback-path data) would otherwise turn a single
+// list load into tens of MB — this list is used for counts/status everywhere in the app, so
+// it stays cheap; anything that needs actual field values fetches them explicitly (below).
 router.get('/', async (req, res) => {
   if (!req.auth?.companyId) { res.json([]); return; }
   try {
     const responses = await prisma.response.findMany({
       where: { form: { companyId: req.auth.companyId } },
+      orderBy: { submittedAt: 'desc' },
+      include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } } },
+    });
+    res.json(responses.map((r: any) => ({
+      id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
+      assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
+      plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
+    })));
+  } catch (err: any) {
+    console.error('[GET /responses] failed:', err?.message, err?.meta);
+    res.status(500).json({ error: 'Failed to load responses', detail: err?.message });
+  }
+});
+
+// Full values for every response of one form — used by the per-form Responses/export screen,
+// which needs actual field data (photos, signatures, checklist results) to render and export.
+router.get('/full', async (req, res) => {
+  if (!req.auth?.companyId) { res.json([]); return; }
+  const formId = req.query.formId as string | undefined;
+  if (!formId) { res.status(400).json({ error: 'formId is required' }); return; }
+  try {
+    const responses = await prisma.response.findMany({
+      where: { formId, form: { companyId: req.auth.companyId } },
       orderBy: { submittedAt: 'desc' },
       include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true },
     });
@@ -20,7 +47,7 @@ router.get('/', async (req, res) => {
       values: Object.fromEntries(r.values.map((v: any) => [v.fieldId, v.value])),
     })));
   } catch (err: any) {
-    console.error('[GET /responses] failed:', err?.message, err?.meta);
+    console.error('[GET /responses/full] failed:', err?.message, err?.meta);
     res.status(500).json({ error: 'Failed to load responses', detail: err?.message });
   }
 });
