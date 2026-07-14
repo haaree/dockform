@@ -28,6 +28,54 @@ router.get('/', async (req, res) => {
   }
 });
 
+// Paginated, filterable metadata list for the main Responses screen's table. Same shape as
+// GET / but with server-side page/limit/search/status/form filtering and a total count, so
+// the screen doesn't need to hold the whole company's response history in the browser as it
+// grows. GET / stays unpaginated because Dashboard counts, FormsScreen per-form counts, and
+// FormFiller's own-draft/handoff lookup all need the complete set, not a page of it.
+router.get('/page', async (req, res) => {
+  if (!req.auth?.companyId) { res.json({ items: [], total: 0 }); return; }
+  const page = Math.max(1, parseInt(req.query.page as string) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20));
+  const search = (req.query.search as string || '').trim();
+  const status = (req.query.status as string || '').trim();
+  const formId = (req.query.formId as string || '').trim();
+
+  const where: any = { form: { companyId: req.auth.companyId } };
+  if (status) where.status = status;
+  if (formId) where.formId = formId;
+  if (search) {
+    where.OR = [
+      { form: { name: { contains: search, mode: 'insensitive' } } },
+      { user: { fullName: { contains: search, mode: 'insensitive' } } },
+    ];
+  }
+
+  try {
+    const [responses, total] = await Promise.all([
+      prisma.response.findMany({
+        where,
+        orderBy: { submittedAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } } },
+      }),
+      prisma.response.count({ where }),
+    ]);
+    res.json({
+      items: responses.map((r: any) => ({
+        id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
+        assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
+        plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
+      })),
+      total,
+    });
+  } catch (err: any) {
+    console.error('[GET /responses/page] failed:', err?.message, err?.meta);
+    res.status(500).json({ error: 'Failed to load responses', detail: err?.message });
+  }
+});
+
 // Full values for every response of one form — used by the per-form Responses/export screen,
 // which needs actual field data (photos, signatures, checklist results) to render and export.
 router.get('/full', async (req, res) => {

@@ -67,6 +67,15 @@ export const api = {
   uploadPhoto: (dataUrl: string) => request<{ key: string; url: string }>('/uploads', { method: 'POST', body: JSON.stringify({ dataUrl }) }),
 
   getResponses: () => request<any[]>('/responses'),
+  getResponsesPage: (params: { page: number; limit: number; search?: string; status?: string; formId?: string }) => {
+    const q = new URLSearchParams();
+    q.set('page', String(params.page));
+    q.set('limit', String(params.limit));
+    if (params.search) q.set('search', params.search);
+    if (params.status) q.set('status', params.status);
+    if (params.formId) q.set('formId', params.formId);
+    return request<{ items: any[]; total: number }>(`/responses/page?${q.toString()}`);
+  },
   getFullResponsesForForm: (formId: string) => request<any[]>(`/responses/full?formId=${encodeURIComponent(formId)}`),
   getResponse: (id: string) => request<any>(`/responses/${id}`),
   createResponse: (data: any) => request<any>('/responses', { method: 'POST', body: JSON.stringify(data) }),
