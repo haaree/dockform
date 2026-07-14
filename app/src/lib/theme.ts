@@ -19,10 +19,10 @@ export function legibleAccent(hex: string, dark: boolean): string {
 export function getThemeVars(accent: string, dark: boolean) {
   return {
     '--accent': accent,
-    '--bg': dark ? '#0A0A0A' : '#FAFAFA',
+    '--bg': dark ? '#0A0A0A' : '#FFFFFF',
     '--surface': dark ? '#141414' : '#FFFFFF',
     '--surface2': dark ? '#1E1E1E' : '#F7F7F8',
-    '--border': dark ? '#262626' : '#EBEBEB',
+    '--border': dark ? '#242424' : '#F0F0F0',
     '--text': dark ? '#EDEDED' : '#171717',
     '--muted': dark ? '#888888' : '#666666',
     '--muted2': dark ? '#555555' : '#999999',

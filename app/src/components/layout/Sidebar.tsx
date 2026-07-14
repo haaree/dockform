@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, type CSSProperties } from 'react';
 import {
   PanelLeft, Search, LayoutDashboard, FileText, BookOpen, CheckCircle,
   Upload, Users, Building2, Factory, Layers, UsersRound, Shield, Key,
@@ -10,7 +10,7 @@ import { getThemeVars } from '../../lib/theme';
 interface NavItemDef {
   key: string;
   label: string;
-  icon: React.ComponentType<{ size?: number | string }>;
+  icon: React.ComponentType<{ size?: number | string; style?: React.CSSProperties }>;
 }
 
 const PLATFORM: NavItemDef[] = [
@@ -51,22 +51,6 @@ function filterByRole(items: NavItemDef[], roleKey: string): NavItemDef[] {
   return items.filter(i => allowed.includes(i.key));
 }
 
-function SectionLabel({ children }: { children: ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 11,
-        fontWeight: 500,
-        color: 'var(--muted2)',
-        padding: '18px 14px 6px',
-        letterSpacing: 0,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 export function Sidebar() {
   const nav = useStore((s) => s.nav);
   const sidebarOpen = useStore((s) => s.sidebarOpen);
@@ -97,46 +81,45 @@ export function Sidebar() {
 
   const themeVars = getThemeVars(accent, dark) as CSSProperties;
 
-  const renderSection = (label: string, items: NavItemDef[]) => (
-    <div>
-      {!collapsed && <SectionLabel>{label}</SectionLabel>}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '0 8px' }}>
-        {items.map((item) => {
-          const Icon = item.icon;
-          const active = nav === item.key;
-          return (
-            <button
-              key={item.key}
-              type="button"
-              title={collapsed ? item.label : undefined}
-              onClick={() => {
-                setNav(item.key);
-                if (isMobile) toggleSidebar();
-              }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 10,
-                justifyContent: collapsed ? 'center' : 'flex-start',
-                width: '100%',
-                padding: collapsed ? '8px 0' : '7px 10px',
-                borderRadius: 6,
-                border: 'none',
-                background: active ? 'var(--surface2)' : 'transparent',
-                color: active ? 'var(--text)' : 'var(--muted)',
-                fontSize: 13,
-                fontWeight: active ? 600 : 400,
-                cursor: 'pointer',
-                textAlign: 'left',
-                transition: 'background 0.15s, color 0.15s',
-              }}
-            >
-              <Icon size={15} />
-              {!collapsed && <span>{item.label}</span>}
-            </button>
-          );
-        })}
-      </div>
+  const renderNavItems = (items: NavItemDef[]) => (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, padding: '0 8px' }}>
+      {items.map((item) => {
+        const Icon = item.icon;
+        const active = nav === item.key;
+        return (
+          <button
+            key={item.key}
+            type="button"
+            title={collapsed ? item.label : undefined}
+            onClick={() => {
+              setNav(item.key);
+              if (isMobile) toggleSidebar();
+            }}
+            onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'var(--surface2)'; }}
+            onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent'; }}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              width: '100%',
+              padding: collapsed ? '8px 0' : '7px 10px',
+              borderRadius: 6,
+              border: 'none',
+              background: active ? 'var(--surface2)' : 'transparent',
+              color: active ? 'var(--text)' : 'var(--muted)',
+              fontSize: 13,
+              fontWeight: active ? 600 : 400,
+              cursor: 'pointer',
+              textAlign: 'left',
+              transition: 'background 0.15s ease, color 0.15s ease, transform 0.15s ease',
+            }}
+          >
+            <Icon size={15} style={{ transition: 'transform 0.15s ease', transform: active ? 'scale(1.08)' : 'scale(1)', flexShrink: 0 }} />
+            {!collapsed && <span>{item.label}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -350,20 +333,10 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Nav sections */}
+        {/* Nav items — one flat list, no group labels */}
         <div style={{ flex: 1, overflowY: 'auto', paddingBottom: 8 }}>
-          {!isPlatformAdmin && !isDockformAdmin && (
-            <>
-              {renderSection('Platform', filterByRole(PLATFORM, currentUserRole))}
-            </>
-          )}
-          {!isPlatformAdmin && isDockformAdmin && (
-            <>
-              {renderSection('Platform', PLATFORM)}
-              {renderSection('Structure', STRUCTURE)}
-              {renderSection('System', SYSTEM)}
-            </>
-          )}
+          {!isPlatformAdmin && !isDockformAdmin && renderNavItems(filterByRole(PLATFORM, currentUserRole))}
+          {!isPlatformAdmin && isDockformAdmin && renderNavItems([...PLATFORM, ...STRUCTURE, ...SYSTEM])}
         </div>
 
         {/* User profile footer */}
