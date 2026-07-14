@@ -1208,8 +1208,30 @@ function PropertiesTab({ field }: { field: FormField }) {
     updateField(field.id, 'options', field.options.filter((_, i) => i !== idx));
   };
 
+  const changeType = (nextType: string) => {
+    updateField(field.id, 'type', nextType);
+    updateField(field.id, 'defaultValue', '');
+    if (CHOICE_TYPES.includes(nextType) && field.options.length === 0) {
+      updateField(field.id, 'options', ['Option 1', 'Option 2']);
+    }
+  };
+
   return (
     <div style={{ padding: 14 }}>
+      {field.type !== 'section' && (
+        <PropField label="Field Type">
+          <select value={field.type} onChange={(e) => changeType(e.target.value)} style={inputStyle()}>
+            {FIELD_CATEGORIES.filter((c) => c.name !== 'Structure').map((cat) => (
+              <optgroup key={cat.name} label={cat.name}>
+                {cat.items.map((item) => (
+                  <option key={item.type} value={item.type}>{item.label}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </PropField>
+      )}
+
       <PropField label="Label">
         <input
           value={field.label}
