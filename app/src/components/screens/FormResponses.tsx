@@ -236,6 +236,7 @@ function getPeriodsForSchedule(schedule: { frequency: string; startDate: string 
 export default function FormResponses() {
   const viewingFormId = useStore((s) => s.viewingFormId);
   const forms = useStore((s) => s.forms);
+  const ensureFieldDefs = useStore((s) => s.ensureFieldDefs);
   const setNav = useStore((s) => s.setNav);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
@@ -260,6 +261,13 @@ export default function FormResponses() {
   const [formResponses, setFormResponses] = useState<ResponseItem[]>([]);
   const [loadingResponses, setLoadingResponses] = useState(true);
   const [loadError, setLoadError] = useState('');
+
+  useEffect(() => {
+    if (!viewingFormId) return;
+    ensureFieldDefs(viewingFormId).catch((err) => {
+      setLoadError(err?.message || 'Failed to load form fields');
+    });
+  }, [viewingFormId, ensureFieldDefs]);
 
   useEffect(() => {
     if (!viewingFormId) return;

@@ -14,7 +14,12 @@ const PAGE_SIZE = 20;
 
 // The store's response list is metadata-only (no field values), so exports fetch their own
 // full-values set for just the one form being exported rather than reading the shared array.
+// form.fieldDefs is also not guaranteed to be loaded yet here — it's only populated the first
+// time a form is opened for filling or its Responses screen is viewed — so ensureFieldDefs is
+// called first; without it, exporting straight from this screen's ⋯ menu could silently
+// produce a report with every field blank.
 async function exportReport(formId: string) {
+  await useStore.getState().ensureFieldDefs(formId);
   const { forms } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;
@@ -23,6 +28,7 @@ async function exportReport(formId: string) {
 }
 
 async function exportExcel(formId: string) {
+  await useStore.getState().ensureFieldDefs(formId);
   const { forms } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;
@@ -31,6 +37,7 @@ async function exportExcel(formId: string) {
 }
 
 async function exportAudit(formId: string) {
+  await useStore.getState().ensureFieldDefs(formId);
   const { forms, companies, activeCompanyId } = useStore.getState();
   const form = forms.find(f => f.id === formId);
   if (!form) return;

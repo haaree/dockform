@@ -148,6 +148,7 @@ interface AppState {
   activeResponseId: string | null;
   activeResponseValues: Record<string, string> | null;
   fillForm: (id: string) => Promise<void>;
+  ensureFieldDefs: (id: string) => Promise<void>;
   submitResponse: (formId: string, values: Record<string, string>) => Promise<void>;
   saveResponseDraft: (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean }) => Promise<void>;
   refreshResponses: () => Promise<void>;
@@ -626,11 +627,9 @@ export const useStore = create<AppState>((set) => ({
   activeResponseValues: null as Record<string, string> | null,
   fillForm: async (id: string) => {
     set({ fillingFormId: id, nav: 'fill', activeResponseId: null, activeResponseValues: null });
-    const { api } = await import('../lib/api');
-    const full = await api.getForm(id);
-    const fieldDefs = toFieldDefs(full.fields);
-    set((s) => ({ forms: s.forms.map(fm => fm.id === id ? { ...fm, fieldDefs } : fm) }));
+    await useStore.getState().ensureFieldDefs(id);
 
+    const { api } = await import('../lib/api');
     const { currentUserId, responses } = useStore.getState();
     const draft = responses.find(r => r.formId === id
       && (r.status === 'draft' || r.status === 'awaiting_supervisor')
@@ -639,6 +638,20 @@ export const useStore = create<AppState>((set) => ({
       const full = await api.getResponse(draft.id);
       set({ activeResponseId: draft.id, activeResponseValues: full.values || {} });
     }
+  },
+
+  // Fetches and caches a form's field definitions if they aren't already loaded. getForms()
+  // (the list load) returns forms without fieldDefs populated — only fillForm previously
+  // fetched them, which meant any other screen reading form.fieldDefs (e.g. viewing a form's
+  // Responses without having filled it out first in this session) silently got an empty
+  // array and rendered no columns/fields at all.
+  ensureFieldDefs: async (id: string) => {
+    const existing = useStore.getState().forms.find(f => f.id === id);
+    if (existing?.fieldDefs && existing.fieldDefs.length > 0) return;
+    const { api } = await import('../lib/api');
+    const full = await api.getForm(id);
+    const fieldDefs = toFieldDefs(full.fields);
+    set((s) => ({ forms: s.forms.map(fm => fm.id === id ? { ...fm, fieldDefs } : fm) }));
   },
 
   refreshResponses: async () => {
