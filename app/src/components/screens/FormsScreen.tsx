@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock, Users, Link2, Check, UserMinus, X, Send } from 'lucide-react';
+import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock, Users, Link2, Check, UserMinus, X, Send, Table2 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -18,6 +18,7 @@ export default function FormsScreen() {
   const editForm = useStore((s) => s.editForm);
   const deleteForm = useStore((s) => s.deleteForm);
   const fillForm = useStore((s) => s.fillForm);
+  const viewFormResponses = useStore((s) => s.viewFormResponses);
   const winWidth = useStore((s) => s.winWidth);
   const currentUserId = useStore((s) => s.currentUserId);
   const currentUserRole = useStore((s) => s.currentUserRole);
@@ -227,6 +228,12 @@ export default function FormsScreen() {
             <button onClick={() => { setAccessFormId(menuForm.id); setMenuId(null); }}
               style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
               <Users size={14} /> Manage Access
+            </button>
+          )}
+          {!isViewer && (
+            <button onClick={() => { viewFormResponses(menuForm.id); setMenuId(null); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+              <Table2 size={14} /> View Responses
             </button>
           )}
           <button onClick={() => { editForm(menuForm.id); setMenuId(null); }}

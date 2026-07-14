@@ -10,19 +10,31 @@ import { formatDate } from '../../lib/format';
 
 const EMPTY_CELL = <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</span>;
 
+function Thumbnail({ src, onClick }: { src: string; onClick: (src: string) => void }) {
+  return (
+    <img src={src} alt="" onClick={() => onClick(src)}
+      style={{ width: 40, height: 40, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)', display: 'block' }} />
+  );
+}
+
 // Renders one field's value as a React node (not an HTML string) so the grid never needs
 // dangerouslySetInnerHTML — field values are user-submitted data (any authenticated filler
 // can POST arbitrary strings), so injecting them as raw HTML in a live, authenticated screen
-// would be stored XSS. Deliberately text-only summaries rather than inline thumbnails: a
-// dense grid of images would also multiply the render/transfer cost on forms with legacy
-// embedded (non-R2) photos.
-function renderGridCell(f: FormField, v: string): ReactNode {
+// would be stored XSS. Real <img> elements are safe here (unlike dangerouslySetInnerHTML, a
+// crafted `src` string is never parsed as markup/script by the browser), so thumbnails render
+// as actual React nodes, not string summaries.
+function renderGridCell(f: FormField, v: string, onImageClick: (src: string) => void): ReactNode {
   if (!v) return EMPTY_CELL;
   if (f.type === 'beforeafter') {
     try {
       const ba = JSON.parse(v);
-      const parts = [ba.before && 'Before', ba.after && 'After'].filter(Boolean);
-      return parts.length ? `[Photos: ${parts.join(', ')}]` : EMPTY_CELL;
+      if (!ba.before && !ba.after) return EMPTY_CELL;
+      return (
+        <div style={{ display: 'flex', gap: 4 }}>
+          {ba.before && <Thumbnail src={ba.before} onClick={onImageClick} />}
+          {ba.after && <Thumbnail src={ba.after} onClick={onImageClick} />}
+        </div>
+      );
     } catch { return '[Photo]'; }
   }
   if (f.type === 'photochecklist') {
@@ -32,10 +44,18 @@ function renderGridCell(f: FormField, v: string): ReactNode {
       const latest = attempts[attempts.length - 1];
       const satisfied = latest?.results?.filter((r: any) => r.found).length ?? 0;
       const total = latest?.results?.length ?? 0;
-      return total ? `${satisfied}/${total} satisfied` : '[Photo]';
+      if (!latest?.photo) return total ? `${satisfied}/${total} satisfied` : EMPTY_CELL;
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Thumbnail src={latest.photo} onClick={onImageClick} />
+          {total > 0 && <span style={{ fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' }}>{satisfied}/{total}</span>}
+        </div>
+      );
     } catch { return '[Photo]'; }
   }
-  if (v.startsWith('data:image') || (v.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(v))) return '[Photo]';
+  if (v.startsWith('data:image') || (v.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(v))) {
+    return <Thumbnail src={v} onClick={onImageClick} />;
+  }
   if (v.startsWith('data:') || v.startsWith('/api/files/')) return '[File]';
   if (f.type === 'toggle') {
     const yes = v === 'true';
@@ -59,7 +79,7 @@ interface GridColumn {
   render: (values: Record<string, string>) => ReactNode;
 }
 
-function buildGridColumns(fieldDefs: FormField[], responses: ResponseItem[]): GridColumn[] {
+function buildGridColumns(fieldDefs: FormField[], responses: ResponseItem[], onImageClick: (src: string) => void): GridColumn[] {
   // Only repeatable-section members need excluding from the flat column pass — their data
   // lives inside the marker's JSON instance array, not under their own id. Non-repeatable
   // section members store flat under their own id same as any other field, so they DO need
@@ -75,7 +95,7 @@ function buildGridColumns(fieldDefs: FormField[], responses: ResponseItem[]): Gr
     columns.push({
       key: f.id,
       header: f.label || f.id,
-      render: (values) => renderGridCell(f, values[f.id] || ''),
+      render: (values) => renderGridCell(f, values[f.id] || '', onImageClick),
     });
   }
 
@@ -108,7 +128,7 @@ function buildGridColumns(fieldDefs: FormField[], responses: ResponseItem[]): Gr
             try { instances = JSON.parse(values[f.id] || '[]'); } catch { /* empty */ }
             const instance = instances[inst];
             if (!instance) return EMPTY_CELL;
-            return renderGridCell(m, instance.values[m.id] || '');
+            return renderGridCell(m, instance.values[m.id] || '', onImageClick);
           },
         });
       }
@@ -122,8 +142,8 @@ function buildGridColumns(fieldDefs: FormField[], responses: ResponseItem[]): Gr
 // Sections expand into numbered per-instance columns). Cell rendering reuses the same
 // renderCellDisplay the Excel export uses, so a value can never look different between the
 // grid and the exported file.
-function GridView({ fieldDefs, responses }: { fieldDefs: FormField[]; responses: ResponseItem[] }) {
-  const columns = buildGridColumns(fieldDefs, responses);
+function GridView({ fieldDefs, responses, onImageClick }: { fieldDefs: FormField[]; responses: ResponseItem[]; onImageClick: (src: string) => void }) {
+  const columns = buildGridColumns(fieldDefs, responses, onImageClick);
   return (
     <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'auto', maxHeight: '100%' }}>
       <table style={{ borderCollapse: 'collapse', fontSize: 12.5, minWidth: '100%' }}>
@@ -522,7 +542,7 @@ export default function FormResponses() {
             {selectedPeriod ? 'No responses for this period.' : 'No responses yet.'}
           </div>
         ) : viewMode === 'grid' ? (
-          <GridView fieldDefs={fieldDefs} responses={displayedResponses} />
+          <GridView fieldDefs={fieldDefs} responses={displayedResponses} onImageClick={setImageModal} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 800, margin: '0 auto' }}>
             {displayedResponses.map((r, idx) => {
