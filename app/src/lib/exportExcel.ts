@@ -11,7 +11,7 @@ interface ResponseData {
   values?: Record<string, string>;
 }
 
-function sectionMembers(allFields: FormField[], marker: FormField): FormField[] {
+export function sectionMembers(allFields: FormField[], marker: FormField): FormField[] {
   const idx = allFields.findIndex(f => f.id === marker.id);
   if (idx === -1) return [];
   const members: FormField[] = [];
@@ -19,7 +19,7 @@ function sectionMembers(allFields: FormField[], marker: FormField): FormField[] 
   return members;
 }
 
-function renderCellDisplay(f: FormField, v: string, allFields: FormField[]): string {
+export function renderCellDisplay(f: FormField, v: string, allFields: FormField[]): string {
   if (!v) return '<span style="color:#9ca3af;font-style:italic;">—</span>';
   if (f.type === 'beforeafter') {
     try {

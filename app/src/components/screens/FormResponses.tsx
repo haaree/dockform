@@ -1,12 +1,162 @@
-import { useState, useEffect } from 'react';
-import { ArrowLeft, Download, ChevronDown, ChevronUp, Image as ImageIcon, FileText, CalendarClock, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { useState, useEffect, type ReactNode } from 'react';
+import { ArrowLeft, Download, ChevronDown, ChevronUp, Image as ImageIcon, FileText, CalendarClock, CheckCircle, Clock, AlertCircle, Table2, LayoutList } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { api } from '../../lib/api';
-import type { ResponseItem } from '../../store/types';
+import type { ResponseItem, FormField } from '../../store/types';
 import { downloadHTMLReport } from '../../lib/exportReport';
-import { downloadExcelReport } from '../../lib/exportExcel';
+import { downloadExcelReport, sectionMembers } from '../../lib/exportExcel';
 import { downloadAuditReport } from '../../lib/exportAuditReport';
 import { formatDate } from '../../lib/format';
+
+const EMPTY_CELL = <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</span>;
+
+// Renders one field's value as a React node (not an HTML string) so the grid never needs
+// dangerouslySetInnerHTML — field values are user-submitted data (any authenticated filler
+// can POST arbitrary strings), so injecting them as raw HTML in a live, authenticated screen
+// would be stored XSS. Deliberately text-only summaries rather than inline thumbnails: a
+// dense grid of images would also multiply the render/transfer cost on forms with legacy
+// embedded (non-R2) photos.
+function renderGridCell(f: FormField, v: string): ReactNode {
+  if (!v) return EMPTY_CELL;
+  if (f.type === 'beforeafter') {
+    try {
+      const ba = JSON.parse(v);
+      const parts = [ba.before && 'Before', ba.after && 'After'].filter(Boolean);
+      return parts.length ? `[Photos: ${parts.join(', ')}]` : EMPTY_CELL;
+    } catch { return '[Photo]'; }
+  }
+  if (f.type === 'photochecklist') {
+    try {
+      const data = JSON.parse(v);
+      const attempts = data.attempts || [];
+      const latest = attempts[attempts.length - 1];
+      const satisfied = latest?.results?.filter((r: any) => r.found).length ?? 0;
+      const total = latest?.results?.length ?? 0;
+      return total ? `${satisfied}/${total} satisfied` : '[Photo]';
+    } catch { return '[Photo]'; }
+  }
+  if (v.startsWith('data:image') || (v.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(v))) return '[Photo]';
+  if (v.startsWith('data:') || v.startsWith('/api/files/')) return '[File]';
+  if (f.type === 'toggle') {
+    const yes = v === 'true';
+    return <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600, background: yes ? '#DCFCE7' : '#FEE2E2', color: yes ? '#15803D' : '#DC2626' }}>{yes ? 'Yes' : 'No'}</span>;
+  }
+  if (f.type === 'rating') {
+    const n = parseInt(v) || 0;
+    return `${'★'.repeat(n)}${'☆'.repeat(5 - n)}`;
+  }
+  return v.replace(/\|\|/g, ', ');
+}
+
+// One column in the grid view. A non-repeating field (or a non-section field) is one column;
+// a repeating Section expands into N columns per member field ("Area 1 - Checklist",
+// "Area 2 - Checklist", ...) up to the most instances seen across the loaded responses —
+// same "columns are real, filterable spreadsheet cells" model as a normal field, just scoped
+// to one instance index instead of the whole response.
+interface GridColumn {
+  key: string;
+  header: string;
+  render: (values: Record<string, string>) => ReactNode;
+}
+
+function buildGridColumns(fieldDefs: FormField[], responses: ResponseItem[]): GridColumn[] {
+  // Only repeatable-section members need excluding from the flat column pass — their data
+  // lives inside the marker's JSON instance array, not under their own id. Non-repeatable
+  // section members store flat under their own id same as any other field, so they DO need
+  // a plain column (mirrors the same repeatableMemberIds rule downloadExcelReport uses).
+  const repeatableMemberIds = new Set<string>();
+  fieldDefs.forEach((f) => { if (f.type === 'section' && f.repeatable) sectionMembers(fieldDefs, f).forEach(m => repeatableMemberIds.add(m.id)); });
+
+  const columns: GridColumn[] = [];
+  for (const f of fieldDefs) {
+    if (f.hidden) continue;
+    if (f.type === 'section') continue; // markers aren't columns; only repeatable ones contribute below
+    if (repeatableMemberIds.has(f.id)) continue;
+    columns.push({
+      key: f.id,
+      header: f.label || f.id,
+      render: (values) => renderGridCell(f, values[f.id] || ''),
+    });
+  }
+
+  // Walk again to find repeatable section markers and expand them into numbered columns.
+  for (let i = 0; i < fieldDefs.length; i++) {
+    const f = fieldDefs[i];
+    if (f.type !== 'section' || !f.repeatable) continue;
+    const members = sectionMembers(fieldDefs, f).filter(m => !m.hidden);
+    if (members.length === 0) continue;
+
+    let maxInstances = 0;
+    for (const r of responses) {
+      try {
+        const instances = JSON.parse(r.values?.[f.id] || '[]');
+        if (Array.isArray(instances)) maxInstances = Math.max(maxInstances, instances.length);
+      } catch { /* empty */ }
+    }
+    if (maxInstances === 0) maxInstances = 1;
+
+    // Repeatable-section columns are appended after the flat pass rather than spliced in at
+    // the marker's original position — their members are excluded from `columns` entirely
+    // (they're not real fields there), so there's no anchor column to insert relative to.
+    for (let inst = 0; inst < maxInstances; inst++) {
+      for (const m of members) {
+        columns.push({
+          key: `${f.id}::${inst}::${m.id}`,
+          header: `${f.label || 'Item'} ${inst + 1} - ${m.label || m.id}`,
+          render: (values) => {
+            let instances: { id: string; values: Record<string, string> }[] = [];
+            try { instances = JSON.parse(values[f.id] || '[]'); } catch { /* empty */ }
+            const instance = instances[inst];
+            if (!instance) return EMPTY_CELL;
+            return renderGridCell(m, instance.values[m.id] || '');
+          },
+        });
+      }
+    }
+  }
+
+  return columns;
+}
+
+// Read-only spreadsheet-style view: one row per response, one column per form field (repeating
+// Sections expand into numbered per-instance columns). Cell rendering reuses the same
+// renderCellDisplay the Excel export uses, so a value can never look different between the
+// grid and the exported file.
+function GridView({ fieldDefs, responses }: { fieldDefs: FormField[]; responses: ResponseItem[] }) {
+  const columns = buildGridColumns(fieldDefs, responses);
+  return (
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, overflow: 'auto', maxHeight: '100%' }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 12.5, minWidth: '100%' }}>
+        <thead>
+          <tr>
+            <th style={{ position: 'sticky', top: 0, left: 0, zIndex: 2, background: 'var(--surface2)', textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--border)', borderRight: '1px solid var(--border)', whiteSpace: 'nowrap' }}>#</th>
+            <th style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface2)', textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>Submitted By</th>
+            <th style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface2)', textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>Date</th>
+            <th style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface2)', textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>Status</th>
+            {columns.map((c) => (
+              <th key={c.key} style={{ position: 'sticky', top: 0, zIndex: 1, background: 'var(--surface2)', textAlign: 'left', padding: '8px 12px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{c.header}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {responses.map((r, idx) => (
+            <tr key={r.id} style={{ borderBottom: '1px solid var(--border)' }}>
+              <td style={{ position: 'sticky', left: 0, background: 'var(--surface)', padding: '8px 12px', color: 'var(--muted)', borderRight: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{idx + 1}</td>
+              <td style={{ padding: '8px 12px', color: 'var(--text)', whiteSpace: 'nowrap' }}>{r.submittedBy}</td>
+              <td style={{ padding: '8px 12px', color: 'var(--muted)', whiteSpace: 'nowrap' }}>{formatDate(r.date)}</td>
+              <td style={{ padding: '8px 12px', whiteSpace: 'nowrap' }}>{r.status}</td>
+              {columns.map((c) => (
+                <td key={c.key} style={{ padding: '8px 12px', color: 'var(--text)', verticalAlign: 'top', maxWidth: 260, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {c.render(r.values || {})}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 const MONTH_NAMES = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -101,6 +251,7 @@ export default function FormResponses() {
   const [imageModal, setImageModal] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedPeriod, setSelectedPeriod] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'cards' | 'grid'>('cards');
 
   // The shared store's response list is metadata-only (no field values) so it stays cheap
   // everywhere it's used for counts/status. This screen actually renders and exports field
@@ -281,6 +432,16 @@ export default function FormResponses() {
             {isScheduled && <> · <CalendarClock size={10} style={{ verticalAlign: 'middle' }} /> {form.schedule!.frequency}</>}
           </div>
         </div>
+        <div style={{ display: 'inline-flex', border: '1px solid var(--border)', borderRadius: 7, overflow: 'hidden' }}>
+          <button type="button" onClick={() => setViewMode('cards')} title="Card view"
+            style={{ height: 32, width: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', background: viewMode === 'cards' ? 'var(--surface2)' : 'var(--surface)', color: viewMode === 'cards' ? 'var(--text)' : 'var(--muted)', cursor: 'pointer' }}>
+            <LayoutList size={15} />
+          </button>
+          <button type="button" onClick={() => setViewMode('grid')} title="Grid (spreadsheet) view"
+            style={{ height: 32, width: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderLeft: '1px solid var(--border)', background: viewMode === 'grid' ? 'var(--surface2)' : 'var(--surface)', color: viewMode === 'grid' ? 'var(--text)' : 'var(--muted)', cursor: 'pointer' }}>
+            <Table2 size={15} />
+          </button>
+        </div>
         <div style={{ position: 'relative' }}>
           <button type="button" onClick={() => setShowExportMenu(!showExportMenu)}
             style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -352,6 +513,8 @@ export default function FormResponses() {
           <div style={{ textAlign: 'center', padding: 48, color: 'var(--muted)', fontSize: 14 }}>
             {selectedPeriod ? 'No responses for this period.' : 'No responses yet.'}
           </div>
+        ) : viewMode === 'grid' ? (
+          <GridView fieldDefs={fieldDefs} responses={displayedResponses} />
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 800, margin: '0 auto' }}>
             {displayedResponses.map((r, idx) => {
