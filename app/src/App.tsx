@@ -13,7 +13,6 @@ import FormFiller from './components/screens/FormFiller';
 import FormResponses from './components/screens/FormResponses';
 import TemplatesScreen from './components/screens/TemplatesScreen';
 import ResponsesScreen from './components/screens/ResponsesScreen';
-import ReportsScreen from './components/screens/ReportsScreen';
 import UsersScreen from './components/screens/UsersScreen';
 import CompaniesScreen from './components/screens/CompaniesScreen';
 import PlantsScreen from './components/screens/PlantsScreen';
@@ -90,7 +89,6 @@ function ScreenSwitch() {
     case 'form-responses': return <FormResponses />;
     case 'packs': return <TemplatesScreen />;
     case 'responses': return <ResponsesScreen />;
-    case 'reports': return <ReportsScreen />;
     case 'users': return <UsersScreen />;
     case 'companies': return <CompaniesScreen />;
     case 'plants': return <PlantsScreen />;
