@@ -890,7 +890,7 @@ export default function FormFiller() {
                 const memberFields = visibleFields.slice(i + 1, end);
                 rows.push(
                   <div key={field.id} style={{ marginTop: 20, marginBottom: 12 }}>
-                    <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', marginBottom: 4, paddingBottom: 8, borderBottom: '2px solid var(--border)' }}>
+                    <div style={{ fontSize: 17, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)', marginBottom: 4, paddingBottom: 8, borderBottom: '2px solid var(--border)' }}>
                       {field.label}
                     </div>
                     {field.helpText && <div style={{ fontSize: 12.5, color: 'var(--muted)', margin: '6px 0 10px' }}>{field.helpText}</div>}

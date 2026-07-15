@@ -1605,6 +1605,16 @@ function BuildMode() {
 
 function PreviewField({ field }: { field: FormField }) {
   if (field.hidden) return null;
+  if (field.type === 'section') {
+    return (
+      <div style={{ marginTop: 20, marginBottom: 12 }}>
+        <div style={{ fontSize: 17, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)', marginBottom: 4, paddingBottom: 8, borderBottom: '2px solid var(--border)' }}>
+          {field.label}
+        </div>
+        {field.helpText && <div style={{ fontSize: 12.5, color: 'var(--muted)', margin: '6px 0 10px' }}>{field.helpText}</div>}
+      </div>
+    );
+  }
   return (
     <div style={{ marginBottom: 20 }}>
       <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>

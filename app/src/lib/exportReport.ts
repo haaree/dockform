@@ -50,7 +50,7 @@ function renderFieldDisplay(f: FormField, v: string, allFields: FormField[]): st
       if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">None added</span>';
       return instances.map((inst, i) => `
         <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
-          <div style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:6px;">${f.label || 'Item'} ${i + 1}</div>
+          <div style="font-size:11px;font-weight:700;font-style:italic;color:#6b7280;margin-bottom:6px;">${f.label || 'Item'} ${i + 1}</div>
           ${members.filter(sf => !sf.hidden).map(sf => `
             <div style="margin-bottom:6px;">
               <div style="font-size:10px;font-weight:600;color:#9ca3af;">${sf.label}</div>
@@ -80,12 +80,19 @@ export async function downloadHTMLReport(formName: string, description: string, 
 
   const repeatableMemberIds = new Set<string>();
   fieldDefs.forEach((f) => { if (f.type === 'section' && f.repeatable) sectionMembers(fieldDefs, f).forEach(m => repeatableMemberIds.add(m.id)); });
-  const rowFields = fieldDefs.filter(f => !f.hidden && f.type !== 'section' && !repeatableMemberIds.has(f.id));
-  const repeatableSectionMarkers = fieldDefs.filter(f => f.type === 'section' && f.repeatable && !f.hidden);
+  // Walk fields in original order so section headers land where they were placed on the
+  // canvas, instead of grouping all sections at the end.
+  const rowFields = fieldDefs.filter(f => !f.hidden && !repeatableMemberIds.has(f.id));
 
   const responseCards = formResponses.map((r, i) => {
     const vals = r.values || {};
-    const fieldRows = [...rowFields, ...repeatableSectionMarkers].map(f => {
+    const fieldRows = rowFields.map(f => {
+      if (f.type === 'section' && !f.repeatable) {
+        return `
+        <tr>
+          <td colspan="2" style="padding:14px 14px 6px;font-size:14px;font-weight:700;font-style:italic;color:#111827;border-bottom:1px solid #f3f4f6;">${f.label}</td>
+        </tr>`;
+      }
       const display = renderFieldDisplay(f, vals[f.id] || '', fieldDefs);
       return `
         <tr>

@@ -457,7 +457,7 @@ export default function FormResponses() {
     }
     return (
       <div key={marker.id} style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{marker.label}</div>
+        <div style={{ fontSize: 12.5, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)', marginBottom: 8 }}>{marker.label}</div>
         {instances.length === 0 ? (
           <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>None added</div>
         ) : instances.map((inst, i) => (

@@ -20,6 +20,9 @@ function sectionMembers(allFields: FormField[], marker: FormField): FormField[] 
 }
 
 function renderActivityField(f: FormField, v: string, allFields: FormField[]): string {
+  if (f.type === 'section' && !f.repeatable) {
+    return `<div style="font-size:13px;font-weight:700;font-style:italic;color:#111827;margin:14px 0 6px;padding-bottom:4px;border-bottom:1px solid #e5e7eb;">${f.label}</div>`;
+  }
   if (f.type === 'beforeafter') {
     try {
       const ba = JSON.parse(v);
@@ -61,7 +64,7 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
       if (instances.length === 0) return '';
       return `
         <div style="margin:10px 0;">
-          <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}</div>
+          <div style="font-size:11px;font-weight:700;font-style:italic;color:#6b7280;margin-bottom:6px;">${f.label}</div>
           ${instances.map((inst, i) => `
             <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
               <div style="font-size:10px;font-weight:700;color:#9ca3af;margin-bottom:4px;">${(f.label || 'ITEM').toUpperCase()} ${i + 1}</div>
@@ -100,7 +103,7 @@ export async function downloadAuditReport(
   fieldDefs.forEach((f) => { if (f.type === 'section' && f.repeatable) sectionMembers(fieldDefs, f).forEach(m => repeatableMemberIds.add(m.id)); });
   const activityRows = responses.map((r, i) => {
     const vals = r.values || {};
-    const rowFields = fieldDefs.filter(f => !f.hidden && !repeatableMemberIds.has(f.id) && (f.type !== 'section' || f.repeatable));
+    const rowFields = fieldDefs.filter(f => !f.hidden && !repeatableMemberIds.has(f.id));
     const fields = rowFields.map(f => renderActivityField(f, vals[f.id] || '', fieldDefs)).filter(Boolean).join('');
 
     return `
