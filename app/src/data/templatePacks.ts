@@ -5,6 +5,7 @@ type FieldDef = TemplatePack['fields'][number];
 function f(type: string, label: string, o: {
   ph?: string; help?: string; def?: string; req?: boolean; ro?: boolean;
   search?: boolean; idx?: boolean; opts?: string[]; min?: string; max?: string; err?: string;
+  repeatable?: boolean;
 } = {}): FieldDef {
   return {
     type, label,
@@ -14,6 +15,7 @@ function f(type: string, label: string, o: {
     options: o.opts || [],
     validation: { min: o.min || '', max: o.max || '', pattern: '', message: o.err || '' },
     logic: [],
+    ...(o.repeatable ? { repeatable: true } : {}),
   };
 }
 
@@ -291,6 +293,98 @@ export function getBuiltInPacks(): TemplatePack[] {
         f('checkbox', 'Areas Checked', { opts: ['Floors Swept & Mopped', 'Surfaces Wiped Down', 'Waste Bins Emptied', 'Windows/Glass Cleaned', 'Equipment Wiped', 'Restrooms Sanitized'] }),
         f('rating', 'Cleanliness Rating (After)', { help: '1 = Poor · 5 = Excellent' }),
         f('signature', 'Housekeeping Staff Signature', { req: true }),
+      ],
+    },
+    {
+      id: 'industrial-catering-audit', name: 'Industrial Catering Audit — Entry to Exit',
+      description: 'End-to-end food safety audit for industrial/institutional catering units, from raw material entry through cooking, service, and exit. Covers FSSAI Schedule 4 hygiene & sanitary requirements and ISO 22000 food safety management principles (HACCP, traceability, allergen control).',
+      domain: 'Food Safety & Catering', tag: 'FSSAI + ISO 22000', color: '#16A34A',
+      chips: ['FSSAI', 'ISO 22000', 'HACCP', 'Catering', 'Food Safety'],
+      fields: [
+        f('system', 'Audit Reference No.', { req: true, ro: true, idx: true }),
+        f('date', 'Audit Date', { req: true }),
+        f('textbox', 'Plant / Facility Name', { req: true, idx: true }),
+        f('textbox', 'Catering Unit / Kitchen Name', { req: true, ph: 'e.g. Main Canteen, Shift Kitchen', idx: true }),
+        f('textbox', 'FSSAI License Number', { req: true, ph: '14-digit FSSAI license/registration no.', idx: true }),
+        f('date', 'FSSAI License Expiry Date', { req: true }),
+        f('textbox', 'Lead Auditor Name', { req: true }),
+        f('dropdown', 'Meal Service Type', { req: true, opts: ['Breakfast', 'Lunch', 'Dinner', 'Night Canteen', 'Multiple Shifts'] }),
+        f('number', 'Meals Served (Estimated/Day)', { min: '0' }),
+
+        f('section', '1. Entry & Receiving — Raw Material Inspection', { repeatable: true, help: 'Add one entry per delivery/vendor received during the audit' }),
+        f('textbox', 'Supplier / Vendor Name', { req: true }),
+        f('textbox', 'Material Received', { req: true, ph: 'e.g. Vegetables, Dairy, Grains, Meat' }),
+        f('toggle', 'FSSAI-Licensed Supplier', { help: 'Vendor holds valid FSSAI license/registration' }),
+        f('toggle', 'Temperature Checked on Receipt', { help: 'Cold chain items verified with thermometer' }),
+        f('number', 'Received Temperature (°C)', { help: 'Applicable for chilled/frozen items' }),
+        f('toggle', 'Visual Quality Acceptable', { help: 'No spoilage, pest damage, or contamination' }),
+        f('toggle', 'Packaging Intact & Labeled', { help: 'Batch/lot number and expiry visible' }),
+        f('toggle', 'Rejected / Returned to Vendor'),
+        f('image', 'Photo of Received Material'),
+
+        f('section', '2. Storage — Dry, Cold & Chemical'),
+        f('checkbox', 'Dry Storage', { opts: ['FIFO Followed', 'Stored Off Floor (Pallets/Racks)', 'Pest-Proof & Sealed Containers', 'No Expired Stock', 'Adequate Ventilation'] }),
+        f('number', 'Refrigerator Temperature (°C)', { help: 'FSSAI: 0–4°C for chilled storage', max: '4', err: 'Chilled storage must be at or below 4°C' }),
+        f('number', 'Freezer Temperature (°C)', { help: 'FSSAI: ≤ -18°C for frozen storage', max: '-18', err: 'Freezer must be at or below -18°C' }),
+        f('toggle', 'Raw & Cooked Food Segregated', { req: true, help: 'Separate storage/shelves to prevent cross-contamination' }),
+        f('toggle', 'Allergen Items Clearly Labeled & Segregated'),
+        f('toggle', 'Chemicals/Cleaning Agents Stored Separately from Food', { req: true }),
+        f('toggle', 'Temperature Logs Maintained Daily'),
+
+        f('section', '3. Personal Hygiene & Staff Health'),
+        f('checkbox', 'Staff Hygiene Compliance', { opts: ['Clean Uniform / Apron Worn', 'Hair Covered (Cap/Net)', 'Nails Trimmed, No Nail Polish', 'No Jewellery on Hands/Wrists', 'Hand Hygiene Practiced (Wash/Sanitize)', 'Closed Footwear Worn'] }),
+        f('toggle', 'Medical Fitness Certificates Valid', { help: 'Annual health check-up per FSSAI Schedule 4' }),
+        f('toggle', 'Food Handler Training Certificate (FoSTaC) Available', { req: true }),
+        f('toggle', 'No Staff with Communicable Illness on Duty'),
+        f('number', 'Total Food Handlers On Duty', { min: '0' }),
+
+        f('section', '4. Food Preparation & Cooking'),
+        f('checkbox', 'Preparation Area Controls', { opts: ['Clean & Sanitized Work Surfaces', 'Color-Coded Cutting Boards Used', 'Cross-Contamination Controls Followed', 'Water Used is Potable/Tested'] }),
+        f('number', 'Core Cooking Temperature (°C)', { help: 'FSSAI/HACCP CCP: min 75°C core temperature', min: '75', err: 'Core temperature must reach at least 75°C' }),
+        f('toggle', 'Cooking Temperature Verified with Probe Thermometer', { req: true }),
+        f('toggle', 'Oil Quality Checked (No Reuse Beyond Limit)', { help: 'TPM/discoloration check for repeated frying oil' }),
+        f('beforeafter', 'Cooking Area Before/After Photo', { help: 'Photo before service start and after cleanup' }),
+
+        f('section', '5. Holding, Service & Distribution'),
+        f('number', 'Hot Holding Temperature (°C)', { help: 'FSSAI: maintain ≥ 60°C', min: '60', err: 'Hot food must be held at or above 60°C' }),
+        f('number', 'Cold Holding Temperature (°C)', { help: 'FSSAI: maintain ≤ 5°C', max: '5', err: 'Cold food must be held at or below 5°C' }),
+        f('toggle', 'Serving Utensils Clean & Sanitized'),
+        f('toggle', 'Sneeze Guards / Covers in Place at Service Counter'),
+        f('toggle', 'Food Served Within Safe Time Window', { help: '2-hour/4-hour rule for perishable food at ambient temperature' }),
+        f('checkbox', 'Service Area Hygiene', { opts: ['Serving Staff Wearing Gloves/Using Tongs', 'Counters Clean', 'Waste Bins Covered & Not Overflowing'] }),
+
+        f('section', '6. Sample Retention & Traceability'),
+        f('toggle', 'Food Sample Retained (48-Hour Rule)', { req: true, help: 'FSSAI: retain samples of each dish for 48 hrs, refrigerated' }),
+        f('toggle', 'Batch/Lot Traceability Maintained for Raw Materials'),
+        f('toggle', 'Menu & Recipe Records Available'),
+
+        f('section', '7. Sanitation, Pest Control & Waste Management'),
+        f('checkbox', 'Sanitation & Pest Control', { opts: ['Pest Control Contract Valid', 'No Signs of Pest Activity', 'Drainage Clean & Functional', 'Handwash Stations Stocked (Soap/Sanitizer)', 'Cleaning Schedule Followed & Logged'] }),
+        f('checkbox', 'Waste Management', { opts: ['Segregated Bins (Wet/Dry/Hazardous)', 'Waste Disposed per Schedule', 'Bins Covered & Sanitized Regularly'] }),
+        f('toggle', 'Pest Control Records Available for Review'),
+
+        f('section', '8. Exit & Closing Checks'),
+        f('toggle', 'All Equipment Switched Off / Secured'),
+        f('toggle', 'Kitchen & Service Area Locked / Access Controlled'),
+        f('toggle', 'Daily Log Sheets Signed Off (Temperature, Cleaning, Sample Retention)'),
+        f('toggle', 'Leftover Food Disposed / Stored per Policy'),
+        f('image', 'Exit Photo — Kitchen Closed & Clean'),
+
+        f('section', '9. ISO 22000 — Food Safety Management System'),
+        f('toggle', 'FSMS Scope & Food Safety Policy Documented', { help: 'Clause 4 — scope covers this catering unit and its processes' }),
+        f('toggle', 'Prerequisite Programs (PRPs) Documented & Followed', { help: 'Clause 8.2 — hygiene, pest control, maintenance, supplier control as PRPs' }),
+        f('toggle', 'HACCP Plan / CCP Monitoring Records Maintained', { help: 'Clause 8.5 — cooking, hot/cold holding CCPs logged with corrective actions' }),
+        f('toggle', 'Internal FSMS Audit Conducted (Last 12 Months)', { help: 'Clause 9.2' }),
+        f('toggle', 'Management Review Conducted (Last 12 Months)', { help: 'Clause 9.3' }),
+        f('toggle', 'Root-Cause & Corrective Action Records Available', { help: 'Clause 10 — nonconformity and corrective action' }),
+
+        f('rating', 'Overall FSSAI/ISO 22000 Compliance Rating', { help: '1 = Critical Non-Compliance · 5 = Fully Compliant' }),
+        f('number', 'Critical Non-Conformances (CCP Failures)', { min: '0', def: '0', help: 'e.g. cooking/holding temperature failures, expired FSSAI license' }),
+        f('number', 'Minor Non-Conformances', { min: '0', def: '0' }),
+        f('textarea', 'Non-Conformance Details & Corrective Actions', { ph: 'List each finding, root cause, and corrective action with due date' }),
+        f('gps', 'Facility GPS Location'),
+        f('signature', 'Kitchen Supervisor Signature', { req: true }),
+        f('signature', 'Auditor Signature', { req: true }),
       ],
     },
   ];
