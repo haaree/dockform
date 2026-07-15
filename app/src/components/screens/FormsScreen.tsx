@@ -240,7 +240,13 @@ export default function FormsScreen() {
             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
             <Copy size={14} /> Duplicate
           </button>
-          <button onClick={() => { deleteForm(menuForm.id); setMenuId(null); }}
+          <button onClick={() => {
+            const msg = menuForm.responses > 0
+              ? `Delete this form and its ${menuForm.responses} response${menuForm.responses === 1 ? '' : 's'}? This cannot be undone.`
+              : 'Delete this form? This cannot be undone.';
+            if (window.confirm(msg)) deleteForm(menuForm.id);
+            setMenuId(null);
+          }}
             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: '#EF4444', cursor: 'pointer', textAlign: 'left' }}>
             <Trash2 size={14} /> Delete
           </button>

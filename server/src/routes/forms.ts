@@ -130,8 +130,14 @@ router.patch('/:id/assignment', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   const existing = await prisma.form.findUnique({ where: { id: req.params.id } });
   if (!existing || existing.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
-  await prisma.form.delete({ where: { id: req.params.id } });
-  res.status(204).end();
+  try {
+    await prisma.response.deleteMany({ where: { formId: req.params.id } });
+    await prisma.form.delete({ where: { id: req.params.id } });
+    res.status(204).end();
+  } catch (err: any) {
+    console.error('[DELETE /forms/:id] failed:', err?.message, err?.meta);
+    res.status(500).json({ error: 'Failed to delete form', detail: err?.message });
+  }
 });
 
 export default router;

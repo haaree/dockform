@@ -188,7 +188,7 @@ model Response {
   status       String   @default("draft")
   submittedAt  DateTime @default(now()) @map("submitted_at")
 
-  form       Form            @relation(fields: [formId], references: [id])
+  form       Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
   user       User?           @relation("ResponseSubmitter", fields: [submittedBy], references: [id])
   assignedTo User?           @relation("ResponseAssignee", fields: [assignedToId], references: [id])
   plant      Plant?          @relation(fields: [plantId], references: [id])
