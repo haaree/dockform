@@ -366,8 +366,8 @@ export default function FormResponses() {
       })
     : formResponses;
 
-  const renderValue = (fieldId: string, type: string) => {
-    const val = expandedResponse?.values?.[fieldId] || '';
+  const renderValue = (fieldId: string, type: string, valuesOverride?: Record<string, string>) => {
+    const val = (valuesOverride ?? expandedResponse?.values ?? {})[fieldId] || '';
     if (!val) return <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Not answered</span>;
     if (type === 'beforeafter') {
       try {
@@ -417,13 +417,13 @@ export default function FormResponses() {
         );
       } catch { /* fall through */ }
     }
-    if (val.startsWith('data:image')) {
+    if (val.startsWith('data:image') || (val.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(val))) {
       return (
         <img src={val} alt="Uploaded" onClick={() => setImageModal(val)}
           style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 8, cursor: 'pointer', border: '1px solid var(--border)' }} />
       );
     }
-    if (val.startsWith('data:')) {
+    if (val.startsWith('data:') || val.startsWith('/api/files/')) {
       return <span style={{ color: accent, fontWeight: 500 }}>[File attached]</span>;
     }
     if (type === 'rating') {
@@ -437,6 +437,43 @@ export default function FormResponses() {
   };
 
   const expandedResponse = formResponses.find(r => r.id === expandedId);
+
+  const repeatableMemberIds = new Set<string>();
+  fieldDefs.forEach((f) => { if (f.type === 'section' && f.repeatable) sectionMembers(fieldDefs, f).forEach(m => repeatableMemberIds.add(m.id)); });
+
+  const renderFieldBlock = (f: FormField) => (
+    <div key={f.id} style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{f.label}</div>
+      <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(f.id, f.type)}</div>
+    </div>
+  );
+
+  const renderRepeatableSection = (marker: FormField) => {
+    const raw = expandedResponse?.values?.[marker.id] || '';
+    const members = sectionMembers(fieldDefs, marker).filter(m => !m.hidden);
+    let instances: { id: string; values: Record<string, string> }[] = [];
+    if (raw) {
+      try { instances = JSON.parse(raw); } catch { /* fall through to empty */ }
+    }
+    return (
+      <div key={marker.id} style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>{marker.label}</div>
+        {instances.length === 0 ? (
+          <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>None added</div>
+        ) : instances.map((inst, i) => (
+          <div key={inst.id} style={{ border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 8 }}>{marker.label} {i + 1}</div>
+            {members.map((m) => (
+              <div key={m.id} style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{m.label}</div>
+                <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(m.id, m.type, inst.values)}</div>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  };
 
   const statusColors: Record<string, { bg: string; color: string; icon: typeof CheckCircle }> = {
     completed: { bg: '#DCFCE7', color: '#15803D', icon: CheckCircle },
@@ -566,12 +603,9 @@ export default function FormResponses() {
 
                   {isOpen && r.values && (
                     <div style={{ borderTop: '1px solid var(--border)', padding: '16px' }}>
-                      {fieldDefs.filter(f => !f.hidden).map(f => (
-                        <div key={f.id} style={{ marginBottom: 14 }}>
-                          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{f.label}</div>
-                          <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(f.id, f.type)}</div>
-                        </div>
-                      ))}
+                      {fieldDefs
+                        .filter(f => !f.hidden && !repeatableMemberIds.has(f.id))
+                        .map(f => f.type === 'section' && f.repeatable ? renderRepeatableSection(f) : renderFieldBlock(f))}
                     </div>
                   )}
                 </div>
