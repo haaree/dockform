@@ -75,6 +75,71 @@ function SaveTemplateModal() {
   );
 }
 
+function AiGenerateModal() {
+  const show = useStore((s) => s.showAiGenerateModal);
+  const setShow = useStore((s) => s.setShowAiGenerateModal);
+  const loadGeneratedFields = useStore((s) => s.loadGeneratedFields);
+  const [prompt, setPrompt] = useState('');
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState('');
+
+  if (!show) return null;
+
+  const close = () => { if (generating) return; setShow(false); setError(''); };
+
+  const handleGenerate = async () => {
+    if (!prompt.trim() || generating) return;
+    setGenerating(true);
+    setError('');
+    try {
+      const { api } = await import('./lib/api');
+      const { fields } = await api.generateForm(prompt.trim());
+      const name = prompt.trim().length > 60 ? prompt.trim().slice(0, 57) + '…' : prompt.trim();
+      loadGeneratedFields(fields, name);
+      setPrompt('');
+      setShow(false);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to generate form');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}
+      onClick={close}
+    >
+      <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 460, maxWidth: '90%' }}>
+        <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text)', marginBottom: 4 }}>Generate Form with AI</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
+          Describe the checklist or form you need. AI will draft a complete field list — you can review and edit everything in the builder before saving.
+        </div>
+        <textarea
+          autoFocus
+          value={prompt}
+          onChange={(e) => setPrompt(e.target.value)}
+          disabled={generating}
+          placeholder="e.g. Create a housekeeping checklist with photo evidence for each area"
+          rows={4}
+          style={{ width: '100%', padding: '10px 11px', border: '1px solid var(--border)', borderRadius: 7, fontSize: 13, color: 'var(--text)', background: 'var(--bg)', outline: 'none', marginBottom: 12, resize: 'vertical', fontFamily: 'inherit' }}
+        />
+        {error && (
+          <div style={{ fontSize: 12, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 7, padding: '8px 11px', marginBottom: 12 }}>
+            {error}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+          <button onClick={close} disabled={generating} style={{ padding: '7px 14px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: generating ? 'default' : 'pointer', opacity: generating ? 0.6 : 1 }}>Cancel</button>
+          <button onClick={handleGenerate} disabled={generating || !prompt.trim()} style={{ padding: '7px 14px', background: 'var(--accent)', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: (generating || !prompt.trim()) ? 'default' : 'pointer', opacity: (generating || !prompt.trim()) ? 0.6 : 1 }}>
+            {generating ? 'Generating…' : 'Generate'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ScreenSwitch() {
   const nav = useStore((s) => s.nav);
   const isPlatformAdmin = useStore((s) => s.isPlatformAdmin);
@@ -425,6 +490,7 @@ function App() {
       </div>
 
       <SaveTemplateModal />
+      <AiGenerateModal />
       <AssignUsersModal />
     </div>
   );

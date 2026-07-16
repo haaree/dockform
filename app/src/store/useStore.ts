@@ -46,6 +46,7 @@ interface AppState {
   customPacks: TemplatePack[];
   showSaveTemplateModal: boolean;
   saveTemplateName: string;
+  showAiGenerateModal: boolean;
 
   // Modals
   showModal: string | null;
@@ -107,11 +108,13 @@ interface AppState {
   deleteLogicRule: (fieldId: string, ruleId: string) => void;
 
   activatePack: (pack: TemplatePack) => void;
+  loadGeneratedFields: (fields: Omit<FormField, 'id'>[], name: string) => void;
   setPreviewPackId: (id: string | null) => void;
   setPackSearch: (s: string) => void;
   setPackIndustryFilter: (v: string) => void;
   setPackSubCategoryFilter: (v: string) => void;
   setShowSaveTemplateModal: (show: boolean) => void;
+  setShowAiGenerateModal: (show: boolean) => void;
   setSaveTemplateName: (name: string) => void;
   saveAsTemplate: (pack: TemplatePack) => void;
   deleteCustomPack: (id: string) => void;
@@ -233,6 +236,7 @@ export const useStore = create<AppState>((set) => ({
   customPacks: [],
   showSaveTemplateModal: false,
   saveTemplateName: '',
+  showAiGenerateModal: false,
   showModal: null,
   modalData: {},
   editingUserId: null,
@@ -462,12 +466,27 @@ export const useStore = create<AppState>((set) => ({
     });
   },
 
+  loadGeneratedFields: (generated, name) => {
+    const fields = generated.map((f, i) => ({ ...f, id: 'f' + (i + 1) })) as FormField[];
+    set({
+      fields, selectedId: null,
+      currentFormId: null,
+      currentFormName: name,
+      currentFormDesc: 'Generated with AI — review and edit before saving.',
+      activePackId: null,
+      fieldCounter: fields.length,
+      builderTab: 'build',
+      nav: 'builder',
+    });
+  },
+
   setPreviewPackId: (previewPackId) => set({ previewPackId }),
   setPackSearch: (packSearch) => set({ packSearch }),
   setPackIndustryFilter: (packIndustryFilter) => set({ packIndustryFilter, packSubCategoryFilter: 'All' }),
   setPackSubCategoryFilter: (packSubCategoryFilter) => set({ packSubCategoryFilter }),
   setShowSaveTemplateModal: (showSaveTemplateModal) => set({ showSaveTemplateModal }),
   setSaveTemplateName: (saveTemplateName) => set({ saveTemplateName }),
+  setShowAiGenerateModal: (showAiGenerateModal) => set({ showAiGenerateModal }),
 
   saveAsTemplate: (pack) => set((s) => ({
     customPacks: [pack, ...s.customPacks],

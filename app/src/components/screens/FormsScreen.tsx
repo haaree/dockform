@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock, Users, Link2, Check, UserMinus, X, Send, Table2 } from 'lucide-react';
+import { FileText, Plus, Search, MoreHorizontal, Trash2, Copy, ClipboardList, CalendarClock, Users, Link2, Check, UserMinus, X, Send, Table2, ChevronDown, FilePlus2, Sparkles } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { StatusBadge } from '../ui/StatusBadge';
@@ -15,6 +15,7 @@ export default function FormsScreen() {
   const accent = useStore((s) => s.accent);
   const dark = useStore((s) => s.dark);
   const openNewForm = useStore((s) => s.openNewForm);
+  const setShowAiGenerateModal = useStore((s) => s.setShowAiGenerateModal);
   const editForm = useStore((s) => s.editForm);
   const deleteForm = useStore((s) => s.deleteForm);
   const fillForm = useStore((s) => s.fillForm);
@@ -31,6 +32,8 @@ export default function FormsScreen() {
   const [accessFormId, setAccessFormId] = useState<string | null>(null);
   const [accessSearch, setAccessSearch] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showNewFormMenu, setShowNewFormMenu] = useState(false);
+  const newFormMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { refreshForms(); }, [refreshForms]);
   useEffect(() => { api.getUsers().then(setAllUsers).catch(() => {}); }, []);
@@ -44,6 +47,15 @@ export default function FormsScreen() {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [menuId]);
+
+  useEffect(() => {
+    if (!showNewFormMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (newFormMenuRef.current && !newFormMenuRef.current.contains(e.target as Node)) setShowNewFormMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showNewFormMenu]);
 
   const handleMenuClick = (e: React.MouseEvent, formId: string) => {
     e.stopPropagation();
@@ -120,10 +132,24 @@ export default function FormsScreen() {
             style={{ border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 13, width: isMobile ? '100%' : 170, outline: 'none' }} />
         </div>
         {!isViewer && (
-          <button onClick={openNewForm}
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 16px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
-            <Plus size={14} /> New Form
-          </button>
+          <div ref={newFormMenuRef} style={{ position: 'relative', width: isMobile ? '100%' : 'auto' }}>
+            <button onClick={() => setShowNewFormMenu(v => !v)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 14px 8px 16px', background: 'var(--text)', color: 'var(--bg)', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 500, cursor: 'pointer', width: isMobile ? '100%' : 'auto', justifyContent: 'center' }}>
+              <Plus size={14} /> New Form <ChevronDown size={13} />
+            </button>
+            {showNewFormMenu && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.18)', zIndex: 50, minWidth: 200, overflow: 'hidden' }}>
+                <button onClick={() => { setShowNewFormMenu(false); openNewForm(); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+                  <FilePlus2 size={14} /> Blank Form
+                </button>
+                <button onClick={() => { setShowNewFormMenu(false); setShowAiGenerateModal(true); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
+                  <Sparkles size={14} /> Generate with AI
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

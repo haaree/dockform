@@ -134,4 +134,111 @@ router.post('/score-checklist-photo', async (req, res) => {
   }
 });
 
+const VALID_FIELD_TYPES = [
+  'textbox', 'textarea', 'richtext', 'email', 'number', 'currency', 'percent', 'rating',
+  'date', 'time', 'datetime', 'dropdown', 'multiselect', 'checkbox', 'radio', 'toggle',
+  'lookup', 'formula', 'image', 'camera', 'beforeafter', 'photochecklist', 'video', 'audio',
+  'upload', 'signature', 'gps', 'qr', 'barcode', 'phone', 'url', 'color', 'hidden', 'system',
+  'ai', 'section',
+];
+const CHOICE_TYPES = new Set(['dropdown', 'multiselect', 'checkbox', 'radio']);
+
+interface GeneratedField {
+  type: string;
+  label: string;
+  helpText?: string;
+  required?: boolean;
+  options?: string[];
+  repeatable?: boolean;
+}
+
+// Coerces whatever the model returned into a field shape the client's FormField/store
+// can safely accept -- the model output is untrusted input even though it's JSON, since
+// it becomes live builder/form state. Unknown types fall back to 'textbox' rather than
+// being dropped, so a generation never silently loses a row the user would expect to see.
+function sanitizeField(raw: any): FormFieldOut | null {
+  if (!raw || typeof raw.label !== 'string' || !raw.label.trim()) return null;
+  const type = VALID_FIELD_TYPES.includes(raw.type) ? raw.type : 'textbox';
+  const rawOptions = CHOICE_TYPES.has(type) && Array.isArray(raw.options)
+    ? raw.options.filter((o: unknown) => typeof o === 'string' && o.trim()).slice(0, 20)
+    : [];
+  // Every choice type needs at least one selectable option -- a required dropdown/
+  // checkbox/radio/multiselect with an empty options array can never be satisfied, which
+  // silently makes the whole generated form unsubmittable (same failure class as a
+  // required field with no valid input).
+  const options = CHOICE_TYPES.has(type) ? (rawOptions.length > 0 ? rawOptions : ['Option 1', 'Option 2']) : [];
+  const field: FormFieldOut = {
+    type, label: String(raw.label).slice(0, 200),
+    placeholder: '', helpText: typeof raw.helpText === 'string' ? raw.helpText.slice(0, 300) : '',
+    defaultValue: '', required: type !== 'section' && !!raw.required, readOnly: false, hidden: false,
+    searchable: false, indexed: false,
+    options,
+    validation: { min: '', max: '', pattern: '', message: '' }, logic: [],
+  };
+  if (type === 'section' && raw.repeatable) field.repeatable = true;
+  return field;
+}
+
+interface FormFieldOut {
+  type: string; label: string; placeholder: string; helpText: string; defaultValue: string;
+  required: boolean; readOnly: boolean; hidden: boolean; searchable: boolean; indexed: boolean;
+  options: string[]; validation: { min: string; max: string; pattern: string; message: string };
+  logic: unknown[]; repeatable?: boolean;
+}
+
+router.post('/generate-form', async (req, res) => {
+  const client = getClient();
+  if (!client) { res.status(503).json({ error: 'AI unavailable — ANTHROPIC_API_KEY not configured' }); return; }
+
+  const { prompt } = req.body as { prompt?: string };
+  if (!prompt || !prompt.trim()) { res.status(400).json({ error: 'prompt is required' }); return; }
+
+  try {
+    const message = await client.messages.create({
+      model: MODEL,
+      max_tokens: 8000,
+      messages: [{
+        role: 'user',
+        content: [{
+          type: 'text',
+          text: `You are designing a form/checklist for an industrial or institutional compliance app. Based on this request, produce a complete, sensible list of form fields:
+
+"${prompt.trim()}"
+
+Rules:
+- Respond with ONLY a JSON array (no markdown, no other text). Each element: {"type": string, "label": string, "helpText"?: string, "required"?: boolean, "options"?: string[], "repeatable"?: boolean}.
+- Valid "type" values: ${VALID_FIELD_TYPES.join(', ')}.
+- Use "section" fields (no options) as group headers to organize related fields (e.g. "Entry Checks", "Area Inspection"). Set "repeatable": true on a section only when the user's request implies a variable number of repeated items (e.g. one entry per area/room/vendor/person) — most sections should NOT be repeatable.
+- Use "dropdown", "radio", "checkbox", or "multiselect" with an "options" array for closed-ended questions.
+- Use "toggle" for simple yes/no checks.
+- Use "image" or "camera" for a required photo. Use "beforeafter" specifically when the request implies a before/after comparison (e.g. cleaning, repair). Use "photochecklist" when a single photo should be checked against a list of visual criteria.
+- Use "signature" for sign-off fields, "gps" for location capture, "date"/"datetime" for timestamps.
+- Always include a "system" field first for a reference/ID number, and end with a "signature" field for sign-off, unless the request clearly doesn't need either.
+- Produce a thorough, well-organized field list a compliance officer would consider complete — typically 15-40 fields including section headers, depending on the request's scope.`,
+        }],
+      }],
+    });
+    const raw = textOf(message).trim();
+    if (message.stop_reason === 'max_tokens') {
+      res.status(502).json({ error: 'AI response was too long and got cut off — try a narrower or more specific request.' });
+      return;
+    }
+    const jsonText = raw.startsWith('[') ? raw : raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1);
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(jsonText);
+    } catch {
+      res.status(502).json({ error: 'AI returned an incomplete response — try again, or narrow the request.' });
+      return;
+    }
+    if (!Array.isArray(parsed)) throw new Error('Model did not return an array');
+    const fields = parsed.map(sanitizeField).filter((f): f is FormFieldOut => f !== null);
+    if (fields.length === 0) { res.status(502).json({ error: 'AI did not return any usable fields' }); return; }
+    res.json({ fields });
+  } catch (err: any) {
+    logAiError('ai/generate-form', err);
+    res.status(502).json({ error: 'AI request failed', detail: err?.message });
+  }
+});
+
 export default router;
