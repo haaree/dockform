@@ -1,9 +1,16 @@
 import { Router } from 'express';
 import { prisma } from '../index.js';
-import { sendResponseSubmittedEmail } from '../lib/email.js';
+import { sendResponseSubmittedEmail, sendApprovalRequestedEmail, sendChangesRequestedEmail, sendResponseApprovedEmail } from '../lib/email.js';
 import { isWithinDailyWindow } from '../lib/schedule.js';
 
 const router = Router();
+
+// Statuses that represent "still in progress, not a final submission" -- these skip the
+// daily-scheduling date gate (a form moving through drafting, handoff, or the approval
+// loop shouldn't get blocked by "only submittable today", since it isn't the final
+// submission yet) and are passed through as-is on create rather than collapsing to
+// 'submitted'. Anything not in this list is treated as a final submission.
+const IN_PROGRESS_STATUSES = ['draft', 'awaiting_supervisor', 'awaiting_approval', 'changes_requested'];
 
 // List view: metadata only, no field values. Full response bodies (which can embed large
 // base64 images/signatures for pre-R2 or fallback-path data) would otherwise turn a single
@@ -118,7 +125,7 @@ router.post('/', async (req, res) => {
   const form = await prisma.form.findUnique({ where: { id: formId } });
   if (!form || form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Form not found' }); return; }
 
-  if (status !== 'draft' && status !== 'awaiting_supervisor' && !isWithinDailyWindow(form.scheduleMeta as any, new Date(), clientLocalDate)) {
+  if (!(status && IN_PROGRESS_STATUSES.includes(status)) && !isWithinDailyWindow(form.scheduleMeta as any, new Date(), clientLocalDate)) {
     res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
     return;
   }
@@ -127,7 +134,7 @@ router.post('/', async (req, res) => {
   const response = await prisma.response.create({
     data: {
       formId, submittedBy: req.auth?.userId, plantId, assignedToId: assignedToId || null,
-      status: status === 'draft' || status === 'awaiting_supervisor' ? status : 'submitted',
+      status: status && IN_PROGRESS_STATUSES.includes(status) ? status : 'submitted',
       values: valueEntries.length > 0 ? { create: valueEntries.map(([fieldId, value]) => ({ fieldId, value })) } : undefined,
     },
     include: { values: true },
@@ -149,9 +156,18 @@ router.patch('/:id', async (req, res) => {
   const isOwner = existing.submittedBy === req.auth?.userId || existing.assignedToId === req.auth?.userId;
   if (!isOwner) { res.status(403).json({ error: 'Not your response' }); return; }
 
-  const { values, status, assignedToId, clientLocalDate } = req.body as { values?: Record<string, string>; status?: string; assignedToId?: string; clientLocalDate?: string };
+  const { values, status, assignedToId, clientLocalDate, overallComment, fieldComments } = req.body as {
+    values?: Record<string, string>; status?: string; assignedToId?: string; clientLocalDate?: string;
+    // Only meaningful when status is being set to 'changes_requested' -- the manager's
+    // review notes for this round. overallComment is a whole-response note (fieldId null);
+    // fieldComments target a specific field, optionally scoped to one repeatable-section
+    // instance via instanceId (a repeatable field's fieldId alone can't tell "Area 2's
+    // reading" apart from "Area 5's").
+    overallComment?: string;
+    fieldComments?: { fieldId: string; instanceId?: string; text: string }[];
+  };
 
-  if (status && status !== 'draft' && status !== 'awaiting_supervisor' && !isWithinDailyWindow(existing.form.scheduleMeta as any, new Date(), clientLocalDate)) {
+  if (status && !IN_PROGRESS_STATUSES.includes(status) && !isWithinDailyWindow(existing.form.scheduleMeta as any, new Date(), clientLocalDate)) {
     res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
     return;
   }
@@ -165,6 +181,31 @@ router.patch('/:id', async (req, res) => {
       });
     }
   }
+
+  // Resubmitting after changes_requested addresses every open comment from that round --
+  // there's no per-comment "mark resolved" UI, so a fresh awaiting_approval submission is
+  // itself the signal that the submitter has acted on the prior feedback.
+  if (status === 'awaiting_approval') {
+    await prisma.responseComment.updateMany({ where: { responseId: req.params.id, resolved: false }, data: { resolved: true } });
+  }
+
+  if (status === 'changes_requested') {
+    const newComments: { responseId: string; fieldId?: string; instanceId?: string; text: string; authorId?: string }[] = [];
+    if (overallComment && overallComment.trim()) {
+      newComments.push({ responseId: req.params.id, text: overallComment.trim(), authorId: req.auth?.userId });
+    }
+    if (Array.isArray(fieldComments)) {
+      for (const c of fieldComments) {
+        if (c.text && c.text.trim() && c.fieldId) {
+          newComments.push({ responseId: req.params.id, fieldId: c.fieldId, instanceId: c.instanceId, text: c.text.trim(), authorId: req.auth?.userId });
+        }
+      }
+    }
+    if (newComments.length > 0) {
+      await prisma.responseComment.createMany({ data: newComments });
+    }
+  }
+
   const response = await prisma.response.update({
     where: { id: req.params.id },
     data: { ...(status && { status }), ...(assignedToId !== undefined && { assignedToId: assignedToId || null }) },
@@ -179,6 +220,44 @@ router.patch('/:id', async (req, res) => {
       sendResponseSubmittedEmail(formWithCreator.createdBy.email, formWithCreator.createdBy.fullName, formWithCreator.name, submitter?.fullName || 'Someone');
     }
   }
+
+  if (status === 'awaiting_approval' && response.assignedToId) {
+    const [manager, actor] = await Promise.all([
+      prisma.user.findUnique({ where: { id: response.assignedToId } }),
+      prisma.user.findUnique({ where: { id: req.auth?.userId } }),
+    ]);
+    if (manager?.email) sendApprovalRequestedEmail(manager.email, manager.fullName, existing.form.name, actor?.fullName || 'Someone');
+  }
+
+  if (status === 'changes_requested' && response.submittedBy) {
+    const [submitter, actor] = await Promise.all([
+      prisma.user.findUnique({ where: { id: response.submittedBy } }),
+      prisma.user.findUnique({ where: { id: req.auth?.userId } }),
+    ]);
+    if (submitter?.email) sendChangesRequestedEmail(submitter.email, submitter.fullName, existing.form.name, actor?.fullName || 'Someone');
+  }
+
+  if (status === 'approved' && response.submittedBy) {
+    const [submitter, actor] = await Promise.all([
+      prisma.user.findUnique({ where: { id: response.submittedBy } }),
+      prisma.user.findUnique({ where: { id: req.auth?.userId } }),
+    ]);
+    if (submitter?.email) sendResponseApprovedEmail(submitter.email, submitter.fullName, existing.form.name, actor?.fullName || 'Someone');
+  }
+});
+
+router.get('/:id/comments', async (req, res) => {
+  const response = await prisma.response.findUnique({ where: { id: req.params.id }, include: { form: true } });
+  if (!response || response.form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
+  const comments = await prisma.responseComment.findMany({
+    where: { responseId: req.params.id },
+    orderBy: { createdAt: 'asc' },
+    include: { author: { select: { fullName: true } } },
+  });
+  res.json(comments.map((c: any) => ({
+    id: c.id, fieldId: c.fieldId, instanceId: c.instanceId, text: c.text,
+    authorName: c.author?.fullName || 'Someone', resolved: c.resolved, createdAt: c.createdAt.toISOString(),
+  })));
 });
 
 export default router;

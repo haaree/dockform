@@ -390,7 +390,30 @@ type SectionInstance = { id: string; values: Record<string, string> };
 // Renders a repeatable Section's member fields once per instance. Instance data is stored
 // as a JSON array under the section marker field's own response value; member fields are
 // the ordinary top-level fields between this marker and the next (or end of form).
-function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLabel }: { value: string; onChange: (v: string) => void; memberFields: FormField[]; accent: string; sectionLabel: string }) {
+// pointer-events:none stops custom div/contentEditable widgets (richtext, signature,
+// rating, photo capture) from responding to clicks; fieldset disabled additionally
+// covers native input/select/textarea keyboard/tab behavior. Neither alone is enough.
+function LockedFieldWrapper({ locked, comments, children }: { locked: boolean; comments: { text: string; authorName: string }[]; children: React.ReactNode }) {
+  if (!locked) return <>{children}</>;
+  return (
+    <div>
+      <fieldset disabled style={{ border: 'none', margin: 0, padding: 0, opacity: 0.55, pointerEvents: 'none' }}>
+        {children}
+      </fieldset>
+      {comments.length > 0 && (
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {comments.map((c, idx) => (
+            <div key={idx} style={{ fontSize: 12, color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 6, padding: '6px 10px' }}>
+              <strong>{c.authorName}:</strong> {c.text}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLabel, isFieldLocked, getComments }: { value: string; onChange: (v: string) => void; memberFields: FormField[]; accent: string; sectionLabel: string; isFieldLocked?: (fieldId: string, instanceId: string) => boolean; getComments?: (fieldId: string, instanceId: string) => { text: string; authorName: string }[] }) {
   let instances: SectionInstance[] = [];
   try { instances = JSON.parse(value || '[]'); } catch { /* empty */ }
 
@@ -427,14 +450,20 @@ function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLa
             </button>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {memberFields.map((sf) => (
-              <div key={sf.id}>
-                <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
-                  {sf.label}{sf.required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
-                </label>
-                <FieldInput field={sf} value={instance.values[sf.id] || sf.defaultValue || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
-              </div>
-            ))}
+            {memberFields.map((sf) => {
+              const locked = isFieldLocked?.(sf.id, instance.id) ?? false;
+              const fieldEntries = getComments?.(sf.id, instance.id) ?? [];
+              return (
+                <div key={sf.id}>
+                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                    {sf.label}{sf.required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
+                  </label>
+                  <LockedFieldWrapper locked={locked} comments={fieldEntries}>
+                    <FieldInput field={sf} value={instance.values[sf.id] || sf.defaultValue || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
+                  </LockedFieldWrapper>
+                </div>
+              );
+            })}
           </div>
         </div>
       ))}
@@ -641,6 +670,11 @@ export default function FormFiller() {
   const saveResponseDraft = useStore((s) => s.saveResponseDraft);
   const activeResponseId = useStore((s) => s.activeResponseId);
   const activeResponseValues = useStore((s) => s.activeResponseValues);
+  const activeResponseStatus = useStore((s) => s.activeResponseStatus);
+  const sendForApproval = useStore((s) => s.sendForApproval);
+  const resubmitForApproval = useStore((s) => s.resubmitForApproval);
+  const approveResponse = useStore((s) => s.approveResponse);
+  const sendResponseBack = useStore((s) => s.sendResponseBack);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
   const currentUserId = useStore((s) => s.currentUserId);
@@ -651,7 +685,11 @@ export default function FormFiller() {
   const fields = form?.fieldDefs || [];
   const isMobile = winWidth < 720;
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
-  const sentToMe = !!form && responses.some(r => r.formId === form.id && r.assignedToId === currentUserId && r.status === 'awaiting_supervisor');
+  const sentToMe = !!form && responses.some(r => r.formId === form.id && r.assignedToId === currentUserId && (r.status === 'awaiting_supervisor' || r.status === 'awaiting_approval'));
+  // The manager reviewing a submission they didn't fill out themselves -- same
+  // response/component, but a read-only approve/send-back view instead of an editable fill.
+  const approvalRecord = form ? responses.find(r => r.formId === form.id && r.status === 'awaiting_approval' && r.assignedToId === currentUserId && r.submittedById !== currentUserId) : undefined;
+  const isReviewer = !!approvalRecord;
 
   if (form && form.assignedUserIds != null && !isAdmin && !sentToMe && !(currentUserId && form.assignedUserIds.includes(currentUserId as string))) {
     return (
@@ -678,9 +716,49 @@ export default function FormFiller() {
   const [handoffError, setHandoffError] = useState('');
   const [handoffSaving, setHandoffSaving] = useState(false);
 
+  const [showApproval, setShowApproval] = useState(false);
+  const [approvalUsers, setApprovalUsers] = useState<any[]>([]);
+  const [approvalTarget, setApprovalTarget] = useState('');
+  const [approvalError, setApprovalError] = useState('');
+  const [approvalSaving, setApprovalSaving] = useState(false);
+  const [resubmitSaving, setResubmitSaving] = useState(false);
+  const [resubmitError, setResubmitError] = useState('');
+
+  const [comments, setComments] = useState<{ id: string; fieldId: string | null; instanceId: string | null; text: string; authorName: string; resolved: boolean; createdAt: string }[]>([]);
+
+  // Reviewer (manager) mode: composing an overall comment plus per-field comments before
+  // Approve or Send Back. Keyed by `fieldId` (or `fieldId:instanceId` for a repeatable
+  // section member) so a comment can target one specific instance of a repeated section.
+  const [reviewOverallComment, setReviewOverallComment] = useState('');
+  const [reviewFieldComments, setReviewFieldComments] = useState<Record<string, string>>({});
+  const [reviewSaving, setReviewSaving] = useState(false);
+  const [reviewError, setReviewError] = useState('');
+
   useEffect(() => {
     if (activeResponseValues) setValues(activeResponseValues);
   }, [activeResponseValues]);
+
+  // Fetch comments when reopening a response the manager sent back (so the submitter can
+  // see which fields were flagged), or when a manager opens a response to review it (so
+  // they can see earlier rounds' comments for context).
+  useEffect(() => {
+    if (activeResponseId && (activeResponseStatus === 'changes_requested' || isReviewer)) {
+      api.getResponseComments(activeResponseId).then(setComments).catch(() => {});
+    } else {
+      setComments([]);
+    }
+  }, [activeResponseId, activeResponseStatus, isReviewer]);
+
+  // Unresolved per-field comments key the lock lookup: "fieldId" for plain fields,
+  // "fieldId:instanceId" for a specific repeatable-section instance's member field.
+  // Only fields present in this map stay editable on a changes_requested resubmit.
+  const isLocked = activeResponseStatus === 'changes_requested';
+  const unresolvedFieldKeys = new Set(
+    comments.filter(c => !c.resolved && c.fieldId).map(c => c.instanceId ? `${c.fieldId}:${c.instanceId}` : c.fieldId as string)
+  );
+  const overallUnresolvedComment = comments.find(c => !c.resolved && !c.fieldId);
+  const fieldComments = (fieldId: string, instanceId?: string) =>
+    comments.filter(c => c.fieldId === fieldId && (instanceId ? c.instanceId === instanceId : !c.instanceId));
 
   const skipFirstRun = useRef(true);
   // Holds the in-flight auto-save promise (or null when idle) so handleSubmit/manual
@@ -694,7 +772,10 @@ export default function FormFiller() {
   // skipped once submitted so a stray timer can't resurrect a finished response.
   useEffect(() => {
     if (skipFirstRun.current) { skipFirstRun.current = false; return; }
-    if (!form || submitted || Object.keys(values).length === 0) return;
+    // Auto-saving here always writes status: 'draft' -- fine for a normal fill, but it
+    // would silently knock an awaiting_approval/changes_requested response out of the
+    // approval loop (and, in reviewer mode, overwrite the submitter's response entirely).
+    if (!form || submitted || isReviewer || isLocked || Object.keys(values).length === 0) return;
     const timer = setTimeout(() => {
       if (autoSaveInFlight.current) return;
       setSaving(true);
@@ -745,6 +826,49 @@ export default function FormFiller() {
     setValues(prev => ({ ...prev, [id]: v }));
   }, []);
 
+  const handleApprove = async () => {
+    if (!approvalRecord || reviewSaving) return;
+    setReviewSaving(true);
+    setReviewError('');
+    try {
+      await approveResponse(approvalRecord.id);
+      setNav('forms');
+    } catch (err: any) {
+      setReviewError(err?.message || 'Failed to approve response');
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  const handleSendBack = async () => {
+    if (!approvalRecord || reviewSaving) return;
+    const fieldCommentsPayload = Object.entries(reviewFieldComments)
+      .filter(([, text]) => text.trim())
+      .map(([key, text]) => {
+        const [fieldId, instanceId] = key.split(':');
+        return instanceId ? { fieldId, instanceId, text: text.trim() } : { fieldId, text: text.trim() };
+      });
+    if (!reviewOverallComment.trim() && fieldCommentsPayload.length === 0) {
+      setReviewError('Add an overall comment or at least one field comment explaining what needs to change.');
+      return;
+    }
+    setReviewSaving(true);
+    setReviewError('');
+    try {
+      await sendResponseBack(approvalRecord.id, reviewOverallComment.trim(), fieldCommentsPayload);
+      setNav('forms');
+    } catch (err: any) {
+      setReviewError(err?.message || 'Failed to send back');
+    } finally {
+      setReviewSaving(false);
+    }
+  };
+
+  const setReviewFieldComment = (fieldId: string, instanceId: string | undefined, text: string) => {
+    const key = instanceId ? `${fieldId}:${instanceId}` : fieldId;
+    setReviewFieldComments(prev => ({ ...prev, [key]: text }));
+  };
+
   // Date fields locked to today (daily-scheduled forms) are disabled and can't fire onChange,
   // so seed their value directly or they'll incorrectly show as an unanswered required field.
   useEffect(() => {
@@ -768,6 +892,142 @@ export default function FormFiller() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 15 }}>
         Form not found.
         <button onClick={() => setNav('forms')} style={{ marginLeft: 12, color: accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Back to Forms</button>
+      </div>
+    );
+  }
+
+  if (isReviewer && approvalRecord) {
+    const reviewVisibleFields = fields.filter(f => isFieldVisible(f));
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ height: 52, minHeight: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', background: 'var(--surface)' }}>
+          <button type="button" onClick={() => setNav('forms')}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>
+            <ArrowLeft size={17} />
+          </button>
+          <div style={{ width: 1, height: 18, background: 'var(--border)' }} />
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{form.name} — Reviewing submission from {approvalRecord.submittedBy}</div>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', background: 'var(--surface2)' }}>
+          <div style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? 16 : 24 }}>
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 20 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>{form.name}</div>
+              {form.description && <div style={{ fontSize: 13, color: 'var(--muted)' }}>{form.description}</div>}
+            </div>
+
+            {(() => {
+              const rows: React.ReactNode[] = [];
+              let i = 0;
+              while (i < reviewVisibleFields.length) {
+                const field = reviewVisibleFields[i];
+                if (field.type === 'section') {
+                  let end = i + 1;
+                  while (end < reviewVisibleFields.length && reviewVisibleFields[end].type !== 'section') end++;
+                  const memberFields = reviewVisibleFields.slice(i + 1, end);
+                  if (field.repeatable) {
+                    let instances: SectionInstance[] = [];
+                    try { instances = JSON.parse(values[field.id] || field.defaultValue || '[]'); } catch { /* empty */ }
+                    rows.push(
+                      <div key={field.id} style={{ marginTop: 20, marginBottom: 12 }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)', marginBottom: 4, paddingBottom: 8, borderBottom: '2px solid var(--border)' }}>
+                          {field.label}
+                        </div>
+                        {instances.map((instance, idx) => (
+                          <div key={instance.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginTop: 10, background: 'var(--surface2)' }}>
+                            <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{field.label || 'Item'} {idx + 1}</div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                              {memberFields.map((mf) => (
+                                <div key={mf.id}>
+                                  <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>{mf.label}</label>
+                                  <LockedFieldWrapper locked comments={[]}>
+                                    <FieldInput field={mf} value={instance.values[mf.id] || mf.defaultValue || ''} onChange={() => {}} />
+                                  </LockedFieldWrapper>
+                                  <input type="text" placeholder={`Comment on ${mf.label} for this ${field.label || 'item'}…`}
+                                    value={reviewFieldComments[`${mf.id}:${instance.id}`] || ''}
+                                    onChange={(e) => setReviewFieldComment(mf.id, instance.id, e.target.value)}
+                                    style={{ width: '100%', padding: '8px 10px', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginTop: 6 }} />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  } else {
+                    rows.push(
+                      <div key={field.id} style={{ marginTop: 20, marginBottom: 12 }}>
+                        <div style={{ fontSize: 17, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)', marginBottom: 4, paddingBottom: 8, borderBottom: '2px solid var(--border)' }}>
+                          {field.label}
+                        </div>
+                        {memberFields.map((mf) => (
+                          <div key={mf.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 12 }}>
+                            <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>{mf.label}</label>
+                            <LockedFieldWrapper locked comments={[]}>
+                              <FieldInput field={mf} value={values[mf.id] || mf.defaultValue || ''} onChange={() => {}} />
+                            </LockedFieldWrapper>
+                            <input type="text" placeholder={`Comment on ${mf.label}…`}
+                              value={reviewFieldComments[mf.id] || ''}
+                              onChange={(e) => setReviewFieldComment(mf.id, undefined, e.target.value)}
+                              style={{ width: '100%', padding: '8px 10px', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginTop: 6 }} />
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  }
+                  i = end;
+                } else {
+                  rows.push(
+                    <div key={field.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 12 }}>
+                      <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>{field.label}</label>
+                      <LockedFieldWrapper locked comments={[]}>
+                        <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={() => {}} />
+                      </LockedFieldWrapper>
+                      <input type="text" placeholder={`Comment on ${field.label}…`}
+                        value={reviewFieldComments[field.id] || ''}
+                        onChange={(e) => setReviewFieldComment(field.id, undefined, e.target.value)}
+                        style={{ width: '100%', padding: '8px 10px', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginTop: 6 }} />
+                    </div>
+                  );
+                  i++;
+                }
+              }
+              return rows;
+            })()}
+
+            {comments.length > 0 && (
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Previous comments</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {comments.map(c => (
+                    <div key={c.id} style={{ fontSize: 12, color: 'var(--muted)', background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px' }}>
+                      <strong>{c.authorName}:</strong> {c.text} {c.resolved && <span style={{ color: '#15803D' }}>(addressed)</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>Overall comment (optional)</label>
+              <textarea value={reviewOverallComment} onChange={(e) => setReviewOverallComment(e.target.value)} rows={3}
+                placeholder="Add a general note for the submitter…"
+                style={{ width: '100%', padding: '10px 12px', fontSize: 13.5, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none', resize: 'vertical' }} />
+            </div>
+
+            {reviewError && <div style={{ fontSize: 12.5, color: '#DC2626', marginBottom: 10, textAlign: 'center' }}>{reviewError}</div>}
+            <div style={{ display: 'flex', gap: 10, padding: '4px 0 24px' }}>
+              <button type="button" onClick={handleSendBack} disabled={reviewSaving}
+                style={{ flex: 1, padding: '14px 20px', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 14, fontWeight: 700, cursor: reviewSaving ? 'default' : 'pointer', opacity: reviewSaving ? 0.6 : 1 }}>
+                {reviewSaving ? 'Sending…' : 'Send Back with Comments'}
+              </button>
+              <button type="button" onClick={handleApprove} disabled={reviewSaving}
+                style={{ flex: 1, padding: '14px 20px', borderRadius: 10, border: 'none', background: accent, color: '#fff', fontSize: 14, fontWeight: 700, cursor: reviewSaving ? 'default' : 'pointer', opacity: reviewSaving ? 0.6 : 1 }}>
+                {reviewSaving ? 'Approving…' : 'Approve'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -826,6 +1086,45 @@ export default function FormFiller() {
     }
   };
 
+  const handleResubmit = async () => {
+    if (missingRequired.length > 0 || !activeResponseId) return;
+    setResubmitError('');
+    setResubmitSaving(true);
+    try {
+      if (autoSaveInFlight.current) await autoSaveInFlight.current;
+      await resubmitForApproval(activeResponseId, values);
+      setSubmitted(true);
+    } catch (err: any) {
+      setResubmitError(err?.message || 'Failed to resubmit response');
+    } finally {
+      setResubmitSaving(false);
+    }
+  };
+
+  const openApproval = () => {
+    setApprovalError('');
+    setShowApproval(true);
+    api.getUsers().then(setApprovalUsers).catch(() => {});
+  };
+
+  const handleSendForApproval = async () => {
+    if (missingRequired.length > 0) { setApprovalError('Complete all required fields before sending for approval.'); return; }
+    if (!approvalTarget) { setApprovalError('Select a manager to review this.'); return; }
+    if (approvalSaving) return;
+    setApprovalSaving(true);
+    setApprovalError('');
+    try {
+      if (autoSaveInFlight.current) await autoSaveInFlight.current;
+      await sendForApproval(form.id, values, approvalTarget);
+      setShowApproval(false);
+      setNav('forms');
+    } catch (err: any) {
+      setApprovalError(err?.message || 'Failed to send for approval');
+    } finally {
+      setApprovalSaving(false);
+    }
+  };
+
   const handleSaveDraft = async () => {
     if (saving) return;
     setSaving(true);
@@ -877,22 +1176,41 @@ export default function FormFiller() {
           style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: saving ? 'default' : 'pointer', flexShrink: 0, opacity: saving ? 0.6 : 1 }}>
           {saving ? 'Saving…' : saved ? 'Saved' : 'Save & Continue Later'}
         </button>
-        {isAdmin && (
+        {isAdmin && !isLocked && (
           <button type="button" onClick={openHandoff}
             style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
             <UserCheck size={13} /> Send for Completion
           </button>
         )}
-        <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
-          style={{
-            height: 32, padding: '0 14px', borderRadius: 7, border: 'none',
-            background: missingRequired.length > 0 ? 'var(--border)' : accent,
-            color: missingRequired.length > 0 ? 'var(--muted)' : '#fff',
-            fontSize: 12.5, fontWeight: 600, cursor: missingRequired.length > 0 ? 'default' : 'pointer',
-            display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
-          }}>
-          <Send size={13} /> Submit
-        </button>
+        {!isLocked && (
+          <button type="button" onClick={openApproval}
+            style={{ height: 32, padding: '0 14px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <UserCheck size={13} /> Send for Approval
+          </button>
+        )}
+        {isLocked ? (
+          <button type="button" onClick={handleResubmit} disabled={missingRequired.length > 0 || resubmitSaving}
+            style={{
+              height: 32, padding: '0 14px', borderRadius: 7, border: 'none',
+              background: missingRequired.length > 0 ? 'var(--border)' : accent,
+              color: missingRequired.length > 0 ? 'var(--muted)' : '#fff',
+              fontSize: 12.5, fontWeight: 600, cursor: missingRequired.length > 0 ? 'default' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+            }}>
+            <Send size={13} /> {resubmitSaving ? 'Resubmitting…' : 'Resubmit'}
+          </button>
+        ) : (
+          <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
+            style={{
+              height: 32, padding: '0 14px', borderRadius: 7, border: 'none',
+              background: missingRequired.length > 0 ? 'var(--border)' : accent,
+              color: missingRequired.length > 0 ? 'var(--muted)' : '#fff',
+              fontSize: 12.5, fontWeight: 600, cursor: missingRequired.length > 0 ? 'default' : 'pointer',
+              display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0,
+            }}>
+            <Send size={13} /> Submit
+          </button>
+        )}
       </div>
 
       <div style={{ flex: 1, overflowY: 'auto', background: 'var(--surface2)' }}>
@@ -900,6 +1218,11 @@ export default function FormFiller() {
           {saveError && (
             <div style={{ fontSize: 12.5, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
               {saveError}
+            </div>
+          )}
+          {isLocked && overallUnresolvedComment && (
+            <div style={{ fontSize: 13, color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '12px 14px', marginBottom: 12 }}>
+              <strong>{overallUnresolvedComment.authorName} requested changes:</strong> {overallUnresolvedComment.text}
             </div>
           )}
           <div style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '18px 20px', marginBottom: 20 }}>
@@ -934,11 +1257,15 @@ export default function FormFiller() {
                           memberFields={memberFields}
                           accent={accent}
                           sectionLabel={field.label || 'Item'}
+                          isFieldLocked={isLocked ? (fieldId, instanceId) => !unresolvedFieldKeys.has(`${fieldId}:${instanceId}`) : undefined}
+                          getComments={isLocked ? (fieldId, instanceId) => fieldComments(fieldId, instanceId).map(c => ({ text: c.text, authorName: c.authorName })) : undefined}
                         />
                       </div>
                     ) : (
                       memberFields.map((mf) => {
                         const required = isFieldRequired(mf);
+                        const locked = isLocked && !unresolvedFieldKeys.has(mf.id);
+                        const mfComments = isLocked ? fieldComments(mf.id).map(c => ({ text: c.text, authorName: c.authorName })) : [];
                         return (
                           <div key={mf.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 12 }}>
                             <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
@@ -946,8 +1273,10 @@ export default function FormFiller() {
                               {required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
                             </label>
                             {mf.helpText && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{mf.helpText}</div>}
-                            <FieldInput field={mf} value={values[mf.id] || mf.defaultValue || ''} onChange={(v) => setValue(mf.id, v)}
-                              lockToToday={mf.type === 'date' && form.schedule?.frequency === 'daily'} />
+                            <LockedFieldWrapper locked={locked} comments={mfComments}>
+                              <FieldInput field={mf} value={values[mf.id] || mf.defaultValue || ''} onChange={(v) => setValue(mf.id, v)}
+                                lockToToday={mf.type === 'date' && form.schedule?.frequency === 'daily'} />
+                            </LockedFieldWrapper>
                           </div>
                         );
                       })
@@ -957,6 +1286,8 @@ export default function FormFiller() {
                 i = end;
               } else {
                 const required = isFieldRequired(field);
+                const locked = isLocked && !unresolvedFieldKeys.has(field.id);
+                const fComments = isLocked ? fieldComments(field.id).map(c => ({ text: c.text, authorName: c.authorName })) : [];
                 rows.push(
                   <div key={field.id} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, padding: '16px 20px', marginBottom: 12 }}>
                     <label style={{ display: 'block', fontSize: 14, fontWeight: 600, color: 'var(--text)', marginBottom: 8 }}>
@@ -964,8 +1295,10 @@ export default function FormFiller() {
                       {required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
                     </label>
                     {field.helpText && <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>{field.helpText}</div>}
-                    <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={(v) => setValue(field.id, v)}
-                      lockToToday={field.type === 'date' && form.schedule?.frequency === 'daily'} />
+                    <LockedFieldWrapper locked={locked} comments={fComments}>
+                      <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={(v) => setValue(field.id, v)}
+                        lockToToday={field.type === 'date' && form.schedule?.frequency === 'daily'} />
+                    </LockedFieldWrapper>
                   </div>
                 );
                 i++;
@@ -975,22 +1308,35 @@ export default function FormFiller() {
           })()}
 
           <div style={{ padding: '16px 0' }}>
-            {submitError && <div style={{ fontSize: 12.5, color: '#DC2626', marginBottom: 10, textAlign: 'center' }}>{submitError}</div>}
+            {(isLocked ? resubmitError : submitError) && <div style={{ fontSize: 12.5, color: '#DC2626', marginBottom: 10, textAlign: 'center' }}>{isLocked ? resubmitError : submitError}</div>}
             {missingRequired.length > 0 && (
               <div style={{ fontSize: 12.5, color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 14px', marginBottom: 10 }}>
                 Complete these required fields before submitting: {missingRequired.map(f => f.label).join(', ')}
               </div>
             )}
-            <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
-              style={{
-                width: '100%', padding: '14px 20px', borderRadius: 10, border: 'none',
-                background: missingRequired.length > 0 ? 'var(--border)' : accent,
-                color: missingRequired.length > 0 ? 'var(--muted)' : '#fff',
-                fontSize: 15, fontWeight: 700, cursor: missingRequired.length > 0 ? 'default' : 'pointer',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              }}>
-              <Send size={16} /> Submit Response
-            </button>
+            {isLocked ? (
+              <button type="button" onClick={handleResubmit} disabled={missingRequired.length > 0 || resubmitSaving}
+                style={{
+                  width: '100%', padding: '14px 20px', borderRadius: 10, border: 'none',
+                  background: missingRequired.length > 0 ? 'var(--border)' : accent,
+                  color: missingRequired.length > 0 ? 'var(--muted)' : '#fff',
+                  fontSize: 15, fontWeight: 700, cursor: missingRequired.length > 0 ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}>
+                <Send size={16} /> {resubmitSaving ? 'Resubmitting…' : 'Resubmit for Approval'}
+              </button>
+            ) : (
+              <button type="button" onClick={handleSubmit} disabled={missingRequired.length > 0}
+                style={{
+                  width: '100%', padding: '14px 20px', borderRadius: 10, border: 'none',
+                  background: missingRequired.length > 0 ? 'var(--border)' : accent,
+                  color: missingRequired.length > 0 ? 'var(--muted)' : '#fff',
+                  fontSize: 15, fontWeight: 700, cursor: missingRequired.length > 0 ? 'default' : 'pointer',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                }}>
+                <Send size={16} /> Submit Response
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1011,6 +1357,27 @@ export default function FormFiller() {
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
               <button onClick={() => setShowHandoff(false)} disabled={handoffSaving} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: handoffSaving ? 'default' : 'pointer', opacity: handoffSaving ? 0.6 : 1 }}>Cancel</button>
               <button onClick={handleHandoff} disabled={handoffSaving} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: handoffSaving ? 'default' : 'pointer', opacity: handoffSaving ? 0.6 : 1 }}>{handoffSaving ? 'Sending…' : 'Send'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showApproval && (
+        <div onClick={() => setShowApproval(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 12, padding: 24, width: 420, maxWidth: '92%' }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Send for Approval</div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 16 }}>Saves your current progress and sends this form to the selected manager to review and approve.</div>
+            <select value={approvalTarget} onChange={(e) => setApprovalTarget(e.target.value)}
+              style={{ width: '100%', padding: '10px 12px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginBottom: 12 }}>
+              <option value="">Select a manager…</option>
+              {approvalUsers.filter(u => u.status === 'active' && u.id !== currentUserId).map(u => (
+                <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
+              ))}
+            </select>
+            {approvalError && <div style={{ fontSize: 12, color: '#DC2626', marginBottom: 10 }}>{approvalError}</div>}
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+              <button onClick={() => setShowApproval(false)} disabled={approvalSaving} style={{ padding: '8px 16px', background: 'var(--surface)', color: 'var(--text)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, fontWeight: 500, cursor: approvalSaving ? 'default' : 'pointer', opacity: approvalSaving ? 0.6 : 1 }}>Cancel</button>
+              <button onClick={handleSendForApproval} disabled={approvalSaving} style={{ padding: '8px 16px', background: accent, color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: approvalSaving ? 'default' : 'pointer', opacity: approvalSaving ? 0.6 : 1 }}>{approvalSaving ? 'Sending…' : 'Send'}</button>
             </div>
           </div>
         </div>

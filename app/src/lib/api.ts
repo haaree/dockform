@@ -80,6 +80,7 @@ export const api = {
   getResponse: (id: string) => request<any>(`/responses/${id}`),
   createResponse: (data: any) => request<any>('/responses', { method: 'POST', body: JSON.stringify(data) }),
   updateResponse: (id: string, data: any) => request<any>(`/responses/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  getResponseComments: (id: string) => request<{ id: string; fieldId: string | null; instanceId: string | null; text: string; authorName: string; resolved: boolean; createdAt: string }[]>(`/responses/${id}/comments`),
 
   analyzePhoto: (photo: string, context?: string) => request<{ comment: string }>('/ai/analyze-photo', { method: 'POST', body: JSON.stringify({ photo, context }) }),
   comparePhotos: (before: string, after: string, context?: string) => request<{ comment: string }>('/ai/compare-photos', { method: 'POST', body: JSON.stringify({ before, after, context }) }),

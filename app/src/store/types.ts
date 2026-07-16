@@ -163,6 +163,13 @@ export interface ResponseItem {
   companyId?: number | string;
 }
 
+// Response.status values that mean "still in progress, someone can resume editing it" --
+// i.e. not a final submission (submitted/approved). Used wherever code decides whether an
+// existing response can be reopened/resumed, or whether it should show up as "sent to me"/
+// "awaiting my action" for the current user. Kept in one place since it's easy to add a new
+// approval-loop status and forget one of the several places that gate on this list.
+export const RESUMABLE_RESPONSE_STATUSES = ['draft', 'awaiting_supervisor', 'awaiting_approval', 'changes_requested'];
+
 export interface AccountSubscription {
   maxCompanies: number;
   maxPlantsPerCompany: number;

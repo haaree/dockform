@@ -120,11 +120,12 @@ model User {
   department Department? @relation(fields: [departmentId], references: [id])
   team       Team?       @relation(fields: [teamId], references: [id])
 
-  departmentsHeaded Department[] @relation("DepartmentHead")
-  teamsLed          Team[]       @relation("TeamLead")
+  departmentsHeaded Department[]      @relation("DepartmentHead")
+  teamsLed          Team[]            @relation("TeamLead")
   formsCreated      Form[]
-  responses         Response[]   @relation("ResponseSubmitter")
-  assignedResponses Response[]   @relation("ResponseAssignee")
+  responses         Response[]        @relation("ResponseSubmitter")
+  assignedResponses Response[]        @relation("ResponseAssignee")
+  responseComments  ResponseComment[]
 
   @@map("users")
 }
@@ -172,8 +173,9 @@ model FormField {
   logic        Json     @default("[]")
   createdAt    DateTime @default(now()) @map("created_at")
 
-  form           Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
-  responseValues ResponseValue[]
+  form            Form              @relation(fields: [formId], references: [id], onDelete: Cascade)
+  responseValues  ResponseValue[]
+  responseComments ResponseComment[]
 
   @@index([formId])
   @@map("form_fields")
@@ -188,13 +190,38 @@ model Response {
   status       String   @default("draft")
   submittedAt  DateTime @default(now()) @map("submitted_at")
 
-  form       Form            @relation(fields: [formId], references: [id], onDelete: Cascade)
-  user       User?           @relation("ResponseSubmitter", fields: [submittedBy], references: [id])
-  assignedTo User?           @relation("ResponseAssignee", fields: [assignedToId], references: [id])
-  plant      Plant?          @relation(fields: [plantId], references: [id])
+  form       Form              @relation(fields: [formId], references: [id], onDelete: Cascade)
+  user       User?             @relation("ResponseSubmitter", fields: [submittedBy], references: [id])
+  assignedTo User?             @relation("ResponseAssignee", fields: [assignedToId], references: [id])
+  plant      Plant?            @relation(fields: [plantId], references: [id])
   values     ResponseValue[]
+  comments   ResponseComment[]
 
   @@map("responses")
+}
+
+// A manager's review note on a Send for Approval response -- either an overall comment
+// (fieldId null) or a per-field one. instanceId additionally scopes a comment to one
+// entry of a repeatable section (the stable SectionInstance.id from the client, not an
+// array index), since a repeatable field's fieldId alone can't distinguish "Area 2's
+// reading" from "Area 5's". resolved is set true once the submitter's next resubmit
+// addresses it, so the resubmit-lock logic knows which fields are still open.
+model ResponseComment {
+  id         String   @id @default(uuid()) @db.Uuid
+  responseId String   @map("response_id") @db.Uuid
+  fieldId    String?  @map("field_id") @db.Uuid
+  instanceId String?  @map("instance_id")
+  text       String
+  authorId   String?  @map("author_id") @db.Uuid
+  resolved   Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  response Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  field    FormField? @relation(fields: [fieldId], references: [id])
+  author   User?      @relation(fields: [authorId], references: [id])
+
+  @@index([responseId])
+  @@map("response_comments")
 }
 
 model ResponseValue {

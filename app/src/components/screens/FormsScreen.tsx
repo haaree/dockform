@@ -6,6 +6,7 @@ import { StatusBadge } from '../ui/StatusBadge';
 import { api } from '../../lib/api';
 import { getCurrentOccurrenceStart, getOccurrenceDueDate } from '../../lib/schedule';
 import { formatDate } from '../../lib/format';
+import { RESUMABLE_RESPONSE_STATUSES } from '../../store/types';
 
 export default function FormsScreen() {
   const forms = useStore((s) => s.forms);
@@ -75,7 +76,7 @@ export default function FormsScreen() {
   const isAdmin = currentUserRole === 'Admin' || currentUserRole === 'admin';
   const isViewer = currentUserRole === 'viewer';
   const formIdsAssignedToMe = new Set(
-    currentUserId ? responses.filter(r => r.assignedToId === currentUserId && r.status === 'awaiting_supervisor').map(r => r.formId) : []
+    currentUserId ? responses.filter(r => r.assignedToId === currentUserId && (r.status === 'awaiting_supervisor' || r.status === 'awaiting_approval')).map(r => r.formId) : []
   );
   const visibleForms = isAdmin ? forms : forms.filter(f =>
     f.assignedUserIds == null || (currentUserId && f.assignedUserIds.includes(currentUserId as string)) || formIdsAssignedToMe.has(f.id)
@@ -90,7 +91,7 @@ export default function FormsScreen() {
 
   const isCompletedForViewer = (form: typeof forms[number]) => {
     const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
-    const submitted = responses.filter(r => r.formId === form.id && r.status === 'submitted' && isMine(r));
+    const submitted = responses.filter(r => r.formId === form.id && (r.status === 'submitted' || r.status === 'approved') && isMine(r));
     if (!occurrenceStart) return submitted.length > 0;
     return submitted.some(r => new Date(r.date) >= occurrenceStart);
   };
@@ -98,17 +99,17 @@ export default function FormsScreen() {
   const isInProgressForViewer = (form: typeof forms[number]) => {
     if (isCompletedForViewer(form)) return false;
     const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
-    const inProgress = responses.filter(r => r.formId === form.id && (r.status === 'draft' || r.status === 'awaiting_supervisor') && isMine(r));
+    const inProgress = responses.filter(r => r.formId === form.id && RESUMABLE_RESPONSE_STATUSES.includes(r.status) && isMine(r));
     if (!occurrenceStart) return inProgress.length > 0;
     return inProgress.some(r => new Date(r.date) >= occurrenceStart);
   };
 
-  // The response someone else sent to the current user to finish, if any.
+  // The response someone else sent to the current user to finish or approve, if any.
   const getSentToMe = (form: typeof forms[number]) => {
     if (isCompletedForViewer(form)) return null;
     const occurrenceStart = getCurrentOccurrenceStart(form.schedule);
     const candidates = responses.filter(r =>
-      r.formId === form.id && r.status === 'awaiting_supervisor' && r.assignedToId === currentUserId && r.submittedById !== currentUserId
+      r.formId === form.id && (r.status === 'awaiting_supervisor' || r.status === 'awaiting_approval') && r.assignedToId === currentUserId && r.submittedById !== currentUserId
     );
     const inWindow = occurrenceStart ? candidates.filter(r => new Date(r.date) >= occurrenceStart) : candidates;
     return inWindow[0] || null;

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import type { FormField, FormItem, UserItem, Company, Plant, Department, Team, Role, PermissionRow, ResponseItem, TemplatePack, LogicRule, FormSchedule, AccountItem, AccountSubscription } from './types';
+import { RESUMABLE_RESPONSE_STATUSES } from './types';
 
 interface AppState {
   // Auth
@@ -151,9 +152,14 @@ interface AppState {
   fillingFormId: string | null;
   activeResponseId: string | null;
   activeResponseValues: Record<string, string> | null;
+  activeResponseStatus: string | null;
   fillForm: (id: string) => Promise<void>;
   ensureFieldDefs: (id: string) => Promise<void>;
   submitResponse: (formId: string, values: Record<string, string>) => Promise<void>;
+  sendForApproval: (formId: string, values: Record<string, string>, managerId: string) => Promise<void>;
+  resubmitForApproval: (responseId: string, values: Record<string, string>) => Promise<void>;
+  approveResponse: (responseId: string) => Promise<void>;
+  sendResponseBack: (responseId: string, overallComment: string, fieldComments: { fieldId: string; instanceId?: string; text: string }[]) => Promise<void>;
   saveResponseDraft: (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean }) => Promise<void>;
   refreshResponses: () => Promise<void>;
   viewingFormId: string | null;
@@ -664,18 +670,19 @@ export const useStore = create<AppState>((set) => ({
   fillingFormId: null as string | null,
   activeResponseId: null as string | null,
   activeResponseValues: null as Record<string, string> | null,
+  activeResponseStatus: null as string | null,
   fillForm: async (id: string) => {
-    set({ fillingFormId: id, nav: 'fill', activeResponseId: null, activeResponseValues: null });
+    set({ fillingFormId: id, nav: 'fill', activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
     await useStore.getState().ensureFieldDefs(id);
 
     const { api } = await import('../lib/api');
     const { currentUserId, responses } = useStore.getState();
     const draft = responses.find(r => r.formId === id
-      && (r.status === 'draft' || r.status === 'awaiting_supervisor')
+      && RESUMABLE_RESPONSE_STATUSES.includes(r.status)
       && (r.submittedById === currentUserId || r.assignedToId === currentUserId));
     if (draft) {
       const full = await api.getResponse(draft.id);
-      set({ activeResponseId: draft.id, activeResponseValues: full.values || {} });
+      set({ activeResponseId: draft.id, activeResponseValues: full.values || {}, activeResponseStatus: draft.status });
     }
   },
 
@@ -709,7 +716,7 @@ export const useStore = create<AppState>((set) => ({
       const created = await api.createResponse({ formId, values, status, clientLocalDate, assignedToId: opts?.assignedToId });
       set({ activeResponseId: created.id });
     }
-    if (opts?.handOff) set({ activeResponseId: null, activeResponseValues: null });
+    if (opts?.handOff) set({ activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
     await useStore.getState().refreshResponses();
   },
 
@@ -722,7 +729,51 @@ export const useStore = create<AppState>((set) => ({
     } else {
       await api.createResponse({ formId, values, status: 'submitted', clientLocalDate });
     }
-    set({ activeResponseId: null, activeResponseValues: null });
+    set({ activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
+    await useStore.getState().refreshResponses();
+  },
+
+  // Send for Approval: an alternative final action to plain Submit, for forms that need a
+  // manager's sign-off. assignedToId is set to the chosen manager and stays that way for
+  // the entire back-and-forth -- Send Back and Resubmit below deliberately never touch it,
+  // since "always return to the original submitter" is achieved via submittedBy (which
+  // never changes), not by moving assignedToId. If assignedToId were reassigned to the
+  // submitter on send-back, the manager's own "sent to me" view would stop matching this
+  // response the moment it comes back in for a second look.
+  sendForApproval: async (formId: string, values: Record<string, string>, managerId: string) => {
+    const { api } = await import('../lib/api');
+    const { activeResponseId } = useStore.getState();
+    const clientLocalDate = getLocalDateString();
+    if (activeResponseId) {
+      await api.updateResponse(activeResponseId, { values, status: 'awaiting_approval', assignedToId: managerId, clientLocalDate });
+    } else {
+      await api.createResponse({ formId, values, status: 'awaiting_approval', assignedToId: managerId, clientLocalDate });
+    }
+    set({ activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
+    await useStore.getState().refreshResponses();
+  },
+
+  // Resubmit after changes_requested: same response, same manager (assignedToId is left
+  // alone), back to awaiting_approval -- not submitted, and not a fresh Send for Approval.
+  resubmitForApproval: async (responseId: string, values: Record<string, string>) => {
+    const { api } = await import('../lib/api');
+    const clientLocalDate = getLocalDateString();
+    await api.updateResponse(responseId, { values, status: 'awaiting_approval', clientLocalDate });
+    set({ activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
+    await useStore.getState().refreshResponses();
+  },
+
+  // Manager actions on someone else's response -- operate by responseId directly rather
+  // than through activeResponseId/activeResponseValues, since the reviewing manager never
+  // "opens" the response as their own in-progress fill.
+  approveResponse: async (responseId: string) => {
+    const { api } = await import('../lib/api');
+    await api.updateResponse(responseId, { status: 'approved' });
+    await useStore.getState().refreshResponses();
+  },
+  sendResponseBack: async (responseId: string, overallComment: string, fieldComments: { fieldId: string; instanceId?: string; text: string }[]) => {
+    const { api } = await import('../lib/api');
+    await api.updateResponse(responseId, { status: 'changes_requested', overallComment, fieldComments });
     await useStore.getState().refreshResponses();
   },
 

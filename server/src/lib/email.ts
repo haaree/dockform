@@ -104,6 +104,41 @@ export async function sendResponseSubmittedEmail(to: string, fullName: string, f
   return send(to, `New Response: ${formName}`, html);
 }
 
+export async function sendApprovalRequestedEmail(to: string, fullName: string, formName: string, submittedBy: string) {
+  const html = wrap('Approval Requested', `
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Hi ${fullName},</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;"><strong>${submittedBy}</strong> has sent a response for your approval:</p>
+    <div style="margin:16px 0;padding:14px 18px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;">
+      <p style="margin:0;font-size:15px;color:#1e40af;font-weight:700;">${formName}</p>
+    </div>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Log in to DockForm to review and approve, or send it back with comments.</p>
+    <p style="margin:0;font-size:14px;color:#6b7280;">— The DockForm Team</p>
+  `);
+  return send(to, `Approval Requested: ${formName}`, html);
+}
+
+export async function sendChangesRequestedEmail(to: string, fullName: string, formName: string, reviewedBy: string) {
+  const html = wrap('Changes Requested', `
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Hi ${fullName},</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;"><strong>${reviewedBy}</strong> reviewed your response to <strong>${formName}</strong> and requested changes.</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Log in to DockForm to see the comments and resubmit.</p>
+    <p style="margin:0;font-size:14px;color:#6b7280;">— The DockForm Team</p>
+  `);
+  return send(to, `Changes Requested: ${formName}`, html);
+}
+
+export async function sendResponseApprovedEmail(to: string, fullName: string, formName: string, approvedBy: string) {
+  const html = wrap('Response Approved', `
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Hi ${fullName},</p>
+    <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;"><strong>${approvedBy}</strong> approved your response to:</p>
+    <div style="margin:16px 0;padding:14px 18px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;">
+      <p style="margin:0;font-size:15px;color:#15803d;font-weight:700;">${formName}</p>
+    </div>
+    <p style="margin:0;font-size:14px;color:#6b7280;">— The DockForm Team</p>
+  `);
+  return send(to, `Approved: ${formName}`, html);
+}
+
 export async function sendFormDueReminderEmail(to: string, fullName: string, formName: string, dueDate: string, formLink?: string) {
   const html = wrap('Form Due — Action Required', `
     <p style="margin:0 0 12px;font-size:14px;color:#374151;line-height:1.6;">Hi ${fullName},</p>
