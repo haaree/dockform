@@ -682,6 +682,33 @@ export default function FormFiller() {
     if (activeResponseValues) setValues(activeResponseValues);
   }, [activeResponseValues]);
 
+  const skipFirstRun = useRef(true);
+  // Holds the in-flight auto-save promise (or null when idle) so handleSubmit/manual
+  // save can await it before proceeding -- without this, submitting right after typing
+  // could race a still-in-flight first-time createResponse (activeResponseId not yet
+  // set) and create a second response instead of updating the one auto-save just made.
+  const autoSaveInFlight = useRef<Promise<void> | null>(null);
+  // Auto-save the in-progress fill a couple seconds after the last change, so a crash,
+  // tab close, or connectivity drop doesn't lose answers between explicit saves/submit.
+  // Skipped on mount so loading an existing draft doesn't immediately re-save it, and
+  // skipped once submitted so a stray timer can't resurrect a finished response.
+  useEffect(() => {
+    if (skipFirstRun.current) { skipFirstRun.current = false; return; }
+    if (!form || submitted || Object.keys(values).length === 0) return;
+    const timer = setTimeout(() => {
+      if (autoSaveInFlight.current) return;
+      setSaving(true);
+      setSaveError('');
+      const p = saveResponseDraft(form.id, values)
+        .then(() => { setSaved(true); setTimeout(() => setSaved(false), 2000); })
+        .catch((err: any) => setSaveError(err?.message || 'Auto-save failed'))
+        .finally(() => { setSaving(false); autoSaveInFlight.current = null; });
+      autoSaveInFlight.current = p;
+    }, 2000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values, submitted]);
+
   const evaluateRule = (rule: LogicRule): boolean => {
     const sourceVal = values[rule.sourceFieldId] || '';
     switch (rule.operator) {
@@ -788,6 +815,10 @@ export default function FormFiller() {
     if (missingRequired.length > 0) return;
     setSubmitError('');
     try {
+      // Let any in-flight auto-save resolve first so activeResponseId is set before we
+      // submit -- otherwise a submit racing a first-time auto-save create can create a
+      // second response instead of finalizing the one auto-save just made.
+      if (autoSaveInFlight.current) await autoSaveInFlight.current;
       await submitResponse(form.id, values);
       setSubmitted(true);
     } catch (err: any) {
@@ -822,6 +853,7 @@ export default function FormFiller() {
     setHandoffSaving(true);
     setHandoffError('');
     try {
+      if (autoSaveInFlight.current) await autoSaveInFlight.current;
       await saveResponseDraft(form.id, values, { assignedToId: handoffTarget, handOff: true });
       setShowHandoff(false);
       setNav('forms');

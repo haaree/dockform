@@ -140,6 +140,7 @@ interface AppState {
   openNewForm: () => void;
   editForm: (id: string) => Promise<void>;
   saveDraft: () => Promise<void>;
+  autoSaveForm: () => Promise<void>;
   publishForm: (assignedUserIds?: string[], schedule?: FormSchedule) => Promise<void>;
   showAssignModal: boolean;
   assignModalUserIds: string[];
@@ -588,6 +589,25 @@ export const useStore = create<AppState>((set) => ({
     const fields = [...s.fields];
     if (s.currentFormId) {
       await api.updateForm(s.currentFormId, { name, description, status: 'draft', fields });
+    } else {
+      const created = await api.createForm({ name, description, domain: 'Custom', fields });
+      set({ currentFormId: created.id });
+    }
+    await useStore.getState().refreshForms();
+  },
+
+  // Background auto-save while editing in the builder. Unlike the explicit "Save Draft"
+  // button, this must never change a published form's status -- someone fixing a typo on
+  // a live form shouldn't have it silently unpublished by a save they didn't ask for.
+  autoSaveForm: async () => {
+    const { api } = await import('../lib/api');
+    const s = useStore.getState();
+    const name = s.currentFormName || 'Untitled Form';
+    const description = s.currentFormDesc;
+    const fields = [...s.fields];
+    if (s.currentFormId) {
+      const existing = s.forms.find(f => f.id === s.currentFormId);
+      await api.updateForm(s.currentFormId, { name, description, status: existing?.status || 'draft', fields });
     } else {
       const created = await api.createForm({ name, description, domain: 'Custom', fields });
       set({ currentFormId: created.id });

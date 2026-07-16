@@ -1,4 +1,4 @@
-import { useState, type CSSProperties, type ReactNode } from 'react';
+import { useState, useEffect, useRef, type CSSProperties, type ReactNode } from 'react';
 import {
   ArrowLeft, Send, Type, AlignLeft, Pilcrow, Mail, Hash, DollarSign, Percent, Star,
   Calendar, Clock, CalendarClock, List, ListChecks, CheckSquare, CircleDot, ToggleLeft,
@@ -200,13 +200,50 @@ function SecondaryButton({ children, onClick }: { children: ReactNode; onClick?:
 function BuilderToolbar() {
   const setNav = useStore((s) => s.setNav);
   const currentFormName = useStore((s) => s.currentFormName);
+  const currentFormDesc = useStore((s) => s.currentFormDesc);
+  const fields = useStore((s) => s.fields);
   const setFormName = useStore((s) => s.setFormName);
   const builderTab = useStore((s) => s.builderTab);
   const setBuilderTab = useStore((s) => s.setBuilderTab);
   const accent = useStore((s) => s.accent);
   const setShowSaveTemplateModal = useStore((s) => s.setShowSaveTemplateModal);
   const saveDraft = useStore((s) => s.saveDraft);
+  const autoSaveForm = useStore((s) => s.autoSaveForm);
   const setShowAssignModal = useStore((s) => s.setShowAssignModal);
+
+  const [autoSaveStatus, setAutoSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const skipFirstRun = useRef(true);
+  // Holds the in-flight auto-save promise (or null when idle) so manual Save
+  // Draft/Publish can await it before proceeding -- without this, saving/publishing
+  // right after an edit could race a still-in-flight first-time createForm
+  // (currentFormId not yet set) and create a second form instead of updating it.
+  const autoSaveInFlight = useRef<Promise<void> | null>(null);
+
+  // Auto-save the in-progress form a couple seconds after the last edit, so a crash,
+  // tab close, or network drop between explicit "Save Draft" clicks doesn't lose work.
+  // Skipped on mount so opening an existing draft doesn't immediately re-save it. Uses
+  // autoSaveForm (not saveDraft) so it never silently flips a published form to draft --
+  // only the explicit "Save Draft" button does that.
+  useEffect(() => {
+    if (skipFirstRun.current) { skipFirstRun.current = false; return; }
+    if (fields.length === 0) return;
+    const timer = setTimeout(() => {
+      if (autoSaveInFlight.current) return;
+      setAutoSaveStatus('saving');
+      const p = autoSaveForm()
+        .then(() => { setAutoSaveStatus('saved'); setTimeout(() => setAutoSaveStatus('idle'), 2000); })
+        .catch(() => setAutoSaveStatus('error'))
+        .finally(() => { autoSaveInFlight.current = null; });
+      autoSaveInFlight.current = p;
+    }, 2000);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fields, currentFormName, currentFormDesc]);
+
+  const handleSaveDraft = async () => {
+    if (autoSaveInFlight.current) await autoSaveInFlight.current;
+    await saveDraft();
+  };
 
   const tabs: { key: 'build' | 'logic' | 'preview'; label: string }[] = [
     { key: 'build', label: 'Build' },
@@ -304,8 +341,13 @@ function BuilderToolbar() {
 
       <div style={{ width: 1, height: 18, background: 'var(--border)' }} />
 
+      {autoSaveStatus !== 'idle' && (
+        <span style={{ fontSize: 11.5, color: autoSaveStatus === 'error' ? '#DC2626' : 'var(--muted)', whiteSpace: 'nowrap' }}>
+          {autoSaveStatus === 'saving' ? 'Saving…' : autoSaveStatus === 'saved' ? 'Saved' : 'Auto-save failed'}
+        </span>
+      )}
       <SecondaryButton onClick={() => setShowSaveTemplateModal(true)}>Save as Template</SecondaryButton>
-      <SecondaryButton onClick={saveDraft}>Save Draft</SecondaryButton>
+      <SecondaryButton onClick={handleSaveDraft}>Save Draft</SecondaryButton>
 
       <button
         type="button"
