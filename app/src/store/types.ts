@@ -196,4 +196,8 @@ export interface TemplatePack {
   chips: string[];
   fields: Omit<FormField, 'id'>[];
   isCustom?: boolean;
+  // Two-level grouping used only by the Templates screen's filters (independent of
+  // `domain`, which stays as the display tag / becomes the created form's category).
+  industry: string;
+  subCategory: string;
 }

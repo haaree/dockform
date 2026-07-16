@@ -43,6 +43,7 @@ function SaveTemplateModal() {
       name: name.trim(),
       description: `Custom template created from "${currentFormName}"`,
       domain: 'Custom', tag: 'Custom Template', color: '#2563EB',
+      industry: 'Custom', subCategory: 'Custom',
       chips: ['Custom'],
       fields: fields.map(({ id: _, ...rest }) => rest),
       isCustom: true,

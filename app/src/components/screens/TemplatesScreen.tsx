@@ -1,20 +1,24 @@
 import { useMemo } from 'react';
-import { Search, Shield, CheckCircle, ShieldCheck, Settings, Lock, Users, Globe, Sparkles, X, Zap, Check, Trash2 } from 'lucide-react';
+import {
+  Search, Shield, Sparkles, X, Zap, Check, Trash2,
+  FlaskConical, Factory, UtensilsCrossed, Building2, GraduationCap, School,
+} from 'lucide-react';
 import { useStore } from '../../store/useStore';
-import { legibleAccent } from '../../lib/theme';
 import { getBuiltInPacks } from '../../data/templatePacks';
 import type { TemplatePack } from '../../store/types';
 
-const DOMAIN_ICONS: Record<string, React.ComponentType<{ size?: number }>> = {
-  'Legal & Compliance': Shield,
-  'Quality Management': CheckCircle,
-  'Health & Safety': ShieldCheck,
-  'Maintenance': Settings,
-  'Security': Lock,
-  'Human Resources': Users,
-  'Environment': Globe,
-  'Custom': Sparkles,
+// One illustration identity per sub-category: an icon + a gradient, used as the visual
+// header on each card instead of a real photo (no image asset pipeline in this app).
+const SUBCATEGORY_ART: Record<string, { icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>; gradient: string }> = {
+  'Chemical & Pharma': { icon: FlaskConical, gradient: 'linear-gradient(135deg, #0EA5E9, #6366F1)' },
+  'Manufacturing & Engineering': { icon: Factory, gradient: 'linear-gradient(135deg, #F59E0B, #DC2626)' },
+  'Food & Catering': { icon: UtensilsCrossed, gradient: 'linear-gradient(135deg, #16A34A, #059669)' },
+  'General & Facilities': { icon: Building2, gradient: 'linear-gradient(135deg, #64748B, #334155)' },
+  'CBSE': { icon: GraduationCap, gradient: 'linear-gradient(135deg, #7C3AED, #4F46E5)' },
+  'State Board': { icon: School, gradient: 'linear-gradient(135deg, #7C3AED, #A855F7)' },
+  'Custom': { icon: Sparkles, gradient: 'linear-gradient(135deg, #2563EB, #1D4ED8)' },
 };
+const DEFAULT_ART = { icon: Shield, gradient: 'linear-gradient(135deg, #6B7280, #374151)' };
 
 const TYPE_LABELS: Record<string, string> = {
   textbox: 'Text', textarea: 'Textarea', richtext: 'Rich Text', number: 'Number', currency: 'Currency',
@@ -33,33 +37,41 @@ export default function TemplatesScreen() {
   const activePackId = useStore((s) => s.activePackId);
   const previewPackId = useStore((s) => s.previewPackId);
   const packSearch = useStore((s) => s.packSearch);
-  const packDomainFilter = useStore((s) => s.packDomainFilter);
+  const packIndustryFilter = useStore((s) => s.packIndustryFilter);
+  const packSubCategoryFilter = useStore((s) => s.packSubCategoryFilter);
   const activatePack = useStore((s) => s.activatePack);
   const setPreviewPackId = useStore((s) => s.setPreviewPackId);
   const setPackSearch = useStore((s) => s.setPackSearch);
-  const setPackDomainFilter = useStore((s) => s.setPackDomainFilter);
+  const setPackIndustryFilter = useStore((s) => s.setPackIndustryFilter);
+  const setPackSubCategoryFilter = useStore((s) => s.setPackSubCategoryFilter);
   const deleteCustomPack = useStore((s) => s.deleteCustomPack);
 
-  const taccent = legibleAccent(accent, dark);
   const ghost = dark ? '#303036' : '#E4E4E7';
   const isMobile = winWidth < 720;
 
   const allPacks = useMemo(() => [...getBuiltInPacks(), ...customPacks], [customPacks]);
 
-  const domains = useMemo(() => {
-    const set = new Set(allPacks.map((p) => p.domain));
+  const industries = useMemo(() => {
+    const set = new Set(allPacks.map((p) => p.industry));
     return ['All', ...Array.from(set)];
   }, [allPacks]);
 
+  const subCategories = useMemo(() => {
+    if (packIndustryFilter === 'All') return [];
+    const set = new Set(allPacks.filter((p) => p.industry === packIndustryFilter).map((p) => p.subCategory));
+    return ['All', ...Array.from(set)];
+  }, [allPacks, packIndustryFilter]);
+
   const filtered = useMemo(() => {
     let packs = allPacks;
-    if (packDomainFilter !== 'All') packs = packs.filter((p) => p.domain === packDomainFilter);
+    if (packIndustryFilter !== 'All') packs = packs.filter((p) => p.industry === packIndustryFilter);
+    if (packSubCategoryFilter !== 'All') packs = packs.filter((p) => p.subCategory === packSubCategoryFilter);
     const q = packSearch.toLowerCase();
     if (q) packs = packs.filter((p) =>
       p.name.toLowerCase().includes(q) || p.tag.toLowerCase().includes(q) || p.chips.some((c) => c.toLowerCase().includes(q))
     );
     return packs;
-  }, [allPacks, packDomainFilter, packSearch]);
+  }, [allPacks, packIndustryFilter, packSubCategoryFilter, packSearch]);
 
   const previewPack = previewPackId ? allPacks.find((p) => p.id === previewPackId) : null;
 
@@ -76,23 +88,43 @@ export default function TemplatesScreen() {
         </div>
       </div>
 
-      {/* Domain filters */}
+      {/* Industry filters */}
       <div style={{ padding: isMobile ? '14px 16px 0' : '14px 32px 0', display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, overflowX: 'auto' }}>
-        {domains.map((d) => (
+        {industries.map((d) => (
           <button
             key={d}
-            onClick={() => setPackDomainFilter(d)}
+            onClick={() => setPackIndustryFilter(d)}
             style={{
-              padding: '6px 13px', fontSize: 12, fontWeight: 600, borderRadius: 20, cursor: 'pointer', whiteSpace: 'nowrap',
-              background: d === packDomainFilter ? accent : (dark ? '#1C1C1E' : '#FFFFFF'),
-              color: d === packDomainFilter ? '#fff' : (dark ? '#9CA3AF' : '#6B7280'),
-              border: `1px solid ${d === packDomainFilter ? accent : ghost}`,
+              padding: '7px 15px', fontSize: 12.5, fontWeight: 700, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
+              background: d === packIndustryFilter ? accent : (dark ? '#1C1C1E' : '#FFFFFF'),
+              color: d === packIndustryFilter ? '#fff' : (dark ? '#9CA3AF' : '#6B7280'),
+              border: `1px solid ${d === packIndustryFilter ? accent : ghost}`,
             }}
           >
             {d}
           </button>
         ))}
       </div>
+
+      {/* Sub-category filters (only once an industry is selected) */}
+      {subCategories.length > 0 && (
+        <div style={{ padding: isMobile ? '10px 16px 0' : '10px 32px 0', display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0, overflowX: 'auto' }}>
+          {subCategories.map((sc) => (
+            <button
+              key={sc}
+              onClick={() => setPackSubCategoryFilter(sc)}
+              style={{
+                padding: '5px 11px', fontSize: 11.5, fontWeight: 600, borderRadius: 20, cursor: 'pointer', whiteSpace: 'nowrap',
+                background: sc === packSubCategoryFilter ? `${accent}18` : 'transparent',
+                color: sc === packSubCategoryFilter ? accent : 'var(--muted)',
+                border: `1px solid ${sc === packSubCategoryFilter ? accent : ghost}`,
+              }}
+            >
+              {sc}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Content: grid + preview panel */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
@@ -104,7 +136,6 @@ export default function TemplatesScreen() {
                 pack={pack}
                 isActive={activePackId === pack.id}
                 accent={accent}
-                taccent={taccent}
                 dark={dark}
                 ghost={ghost}
                 onActivate={() => activatePack(pack)}
@@ -130,36 +161,34 @@ export default function TemplatesScreen() {
   );
 }
 
-function PackCard({ pack, isActive, accent, taccent, dark, ghost, onActivate, onPreview, onDelete }: {
-  pack: TemplatePack; isActive: boolean; accent: string; taccent: string; dark: boolean; ghost: string;
+function PackCard({ pack, isActive, accent, dark, ghost, onActivate, onPreview, onDelete }: {
+  pack: TemplatePack; isActive: boolean; accent: string; dark: boolean; ghost: string;
   onActivate: () => void; onPreview: () => void; onDelete?: () => void;
 }) {
-  const DomainIcon = DOMAIN_ICONS[pack.domain] || Shield;
+  const art = SUBCATEGORY_ART[pack.subCategory] || DEFAULT_ART;
+  const ArtIcon = art.icon;
 
   return (
     <div style={{
       background: 'var(--surface)', border: `1px solid ${isActive ? accent : ghost}`, borderRadius: 10, overflow: 'hidden',
       boxShadow: isActive ? `0 0 0 3px ${accent}22` : '0 1px 3px rgba(0,0,0,.04)',
     }}>
-      <div style={{ padding: '20px 20px 16px' }}>
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, marginBottom: 12 }}>
-          <div style={{ width: 36, height: 36, borderRadius: 8, background: `${taccent}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: taccent }}>
-            <DomainIcon size={16} />
+      <div style={{ position: 'relative', height: 84, background: art.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+        <ArtIcon size={40} style={{ color: 'rgba(255,255,255,.9)' }} />
+        <div style={{ position: 'absolute', top: 8, left: 8, fontSize: 9.5, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: 'rgba(0,0,0,.28)', color: '#fff', letterSpacing: '0.3px' }}>{pack.subCategory}</div>
+        {isActive && (
+          <div style={{ position: 'absolute', top: 8, right: 8, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#DCFCE7', color: '#15803D', whiteSpace: 'nowrap' }}>
+            <Check size={11} /> Active
           </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 5, lineHeight: 1.3 }}>{pack.name}</div>
-            <span style={{ display: 'inline-block', fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: `${taccent}18`, color: taccent, whiteSpace: 'nowrap', letterSpacing: '0.3px' }}>{pack.tag}</span>
-          </div>
-          {isActive && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#DCFCE7', color: '#15803D', whiteSpace: 'nowrap', flexShrink: 0 }}>
-              <Check size={11} /> Active
-            </div>
-          )}
-        </div>
-        <p style={{ fontSize: 12, color: 'var(--muted)', lineHeight: 1.6, marginBottom: 14 }}>{pack.description}</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 16 }}>
-          <span style={{ fontSize: 11, color: 'var(--muted)', fontWeight: 500 }}>{pack.fields.length} fields</span>
-          <span style={{ fontSize: 11, color: 'var(--muted)' }}>{pack.domain}</span>
+        )}
+      </div>
+      <div style={{ padding: '14px 16px' }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>{pack.name}</div>
+        <p style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.4, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' as const }}>{pack.description}</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--muted)' }}>{pack.fields.length} fields</span>
+          <span style={{ fontSize: 10, color: 'var(--muted)' }}>·</span>
+          <span style={{ fontSize: 10, fontWeight: 700, color: accent }}>{pack.tag}</span>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onActivate} style={{

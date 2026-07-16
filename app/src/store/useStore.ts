@@ -41,7 +41,8 @@ interface AppState {
   activePackId: string | null;
   previewPackId: string | null;
   packSearch: string;
-  packDomainFilter: string;
+  packIndustryFilter: string;
+  packSubCategoryFilter: string;
   customPacks: TemplatePack[];
   showSaveTemplateModal: boolean;
   saveTemplateName: string;
@@ -108,7 +109,8 @@ interface AppState {
   activatePack: (pack: TemplatePack) => void;
   setPreviewPackId: (id: string | null) => void;
   setPackSearch: (s: string) => void;
-  setPackDomainFilter: (d: string) => void;
+  setPackIndustryFilter: (v: string) => void;
+  setPackSubCategoryFilter: (v: string) => void;
   setShowSaveTemplateModal: (show: boolean) => void;
   setSaveTemplateName: (name: string) => void;
   saveAsTemplate: (pack: TemplatePack) => void;
@@ -225,7 +227,8 @@ export const useStore = create<AppState>((set) => ({
   activePackId: null,
   previewPackId: null,
   packSearch: '',
-  packDomainFilter: 'All',
+  packIndustryFilter: 'All',
+  packSubCategoryFilter: 'All',
   customPacks: [],
   showSaveTemplateModal: false,
   saveTemplateName: '',
@@ -460,7 +463,8 @@ export const useStore = create<AppState>((set) => ({
 
   setPreviewPackId: (previewPackId) => set({ previewPackId }),
   setPackSearch: (packSearch) => set({ packSearch }),
-  setPackDomainFilter: (packDomainFilter) => set({ packDomainFilter }),
+  setPackIndustryFilter: (packIndustryFilter) => set({ packIndustryFilter, packSubCategoryFilter: 'All' }),
+  setPackSubCategoryFilter: (packSubCategoryFilter) => set({ packSubCategoryFilter }),
   setShowSaveTemplateModal: (showSaveTemplateModal) => set({ showSaveTemplateModal }),
   setSaveTemplateName: (saveTemplateName) => set({ saveTemplateName }),
 
