@@ -690,6 +690,11 @@ export default function FormFiller() {
   // response/component, but a read-only approve/send-back view instead of an editable fill.
   const approvalRecord = form ? responses.find(r => r.formId === form.id && r.status === 'awaiting_approval' && r.assignedToId === currentUserId && r.submittedById !== currentUserId) : undefined;
   const isReviewer = !!approvalRecord;
+  // The submitter reopening their own response while it's sitting with the manager --
+  // must NOT be editable (no re-submit, no auto-save) or they could silently knock it
+  // out of awaiting_approval and drop it from the manager's queue mid-review.
+  const pendingApprovalRecord = form ? responses.find(r => r.formId === form.id && r.status === 'awaiting_approval' && r.submittedById === currentUserId) : undefined;
+  const isPendingMyApproval = !!pendingApprovalRecord;
 
   if (form && form.assignedUserIds != null && !isAdmin && !sentToMe && !(currentUserId && form.assignedUserIds.includes(currentUserId as string))) {
     return (
@@ -775,7 +780,7 @@ export default function FormFiller() {
     // Auto-saving here always writes status: 'draft' -- fine for a normal fill, but it
     // would silently knock an awaiting_approval/changes_requested response out of the
     // approval loop (and, in reviewer mode, overwrite the submitter's response entirely).
-    if (!form || submitted || isReviewer || isLocked || Object.keys(values).length === 0) return;
+    if (!form || submitted || isReviewer || isLocked || isPendingMyApproval || Object.keys(values).length === 0) return;
     const timer = setTimeout(() => {
       if (autoSaveInFlight.current) return;
       setSaving(true);
@@ -892,6 +897,24 @@ export default function FormFiller() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: 'var(--muted)', fontSize: 15 }}>
         Form not found.
         <button onClick={() => setNav('forms')} style={{ marginLeft: 12, color: accent, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600 }}>Back to Forms</button>
+      </div>
+    );
+  }
+
+  if (isPendingMyApproval) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, padding: 24 }}>
+        <div style={{ width: 64, height: 64, borderRadius: '50%', background: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <UserCheck size={28} color="#92400E" />
+        </div>
+        <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>Awaiting Approval</div>
+        <div style={{ fontSize: 14, color: 'var(--muted)', textAlign: 'center', maxWidth: 400 }}>
+          Your response to "{form.name}" is with {pendingApprovalRecord?.assignedToName || 'your manager'} for review. It'll come back here if changes are needed.
+        </div>
+        <button onClick={() => setNav('forms')}
+          style={{ padding: '10px 20px', border: 'none', borderRadius: 8, background: accent, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>
+          Back to Forms
+        </button>
       </div>
     );
   }
