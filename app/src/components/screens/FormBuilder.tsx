@@ -1321,6 +1321,30 @@ function PropertiesTab({ field }: { field: FormField }) {
         </PropField>
       )}
 
+      {field.type === 'section' && field.repeatable && (
+        <PropField label="Table Layout">
+          <ToggleRow label="Show as a table (one row per item)" on={!!field.tableLayout} onChange={(v) => updateField(field.id, 'tableLayout', v)} />
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            Renders each instance as a table row with a column per field below — good for checking a fixed list of machines/assets, each with the same set of fields (status, before/after photo, notes, etc).
+          </div>
+        </PropField>
+      )}
+
+      {field.type === 'section' && field.repeatable && field.tableLayout && (
+        <PropField label="Pre-filled Rows">
+          <textarea
+            value={(field.seedRows || []).join('\n')}
+            onChange={(e) => updateField(field.id, 'seedRows', e.target.value.split('\n'))}
+            placeholder={'Machine 1\nMachine 2\nMachine 3'}
+            rows={5}
+            style={{ ...inputStyle(), resize: 'vertical', fontFamily: 'inherit' }}
+          />
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 4 }}>
+            One row label per line — these rows appear pre-filled when someone opens the form. They can still add more rows at fill time.
+          </div>
+        </PropField>
+      )}
+
       {hasOptions && (
         <PropField label="Options">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>

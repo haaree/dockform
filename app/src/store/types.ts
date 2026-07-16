@@ -26,6 +26,14 @@ export interface FormField {
   // marker up to the next section marker (or end of form) — they are edited in place on
   // the canvas like any other field, not in a separate config editor.
   repeatable?: boolean;
+  // Only meaningful for a repeatable section: render instances as a table (columns =
+  // member fields, one row per instance) instead of stacked cards. Lets one row per
+  // machine/item show all its fields side by side, e.g. 20 machines x status/photos.
+  tableLayout?: boolean;
+  // Only meaningful for a repeatable table section: admin-typed row labels (one per
+  // line in the Builder), pre-populating that many instances with a fixed label when
+  // the form is first filled. Filler can still add further rows beyond the seeded ones.
+  seedRows?: string[];
 }
 
 // For a repeatable section: instances are stored as a JSON array under the section
@@ -36,6 +44,12 @@ export interface FormField {
 export interface SectionInstance {
   id: string;
   values: Record<string, string>;
+  // Row label for a table-layout section (e.g. a seeded machine name), shown in the
+  // dedicated first column. `seeded` marks a row that came from the admin's seedRows
+  // list -- its label is fixed/non-editable. Rows the filler adds themselves at fill
+  // time have `seeded` unset and get an editable label input in that same column.
+  label?: string;
+  seeded?: boolean;
 }
 
 export interface ChecklistItemDef {

@@ -385,7 +385,7 @@ function PhotoChecklistField({ value, onChange, baselineItems, accent }: { value
   );
 }
 
-type SectionInstance = { id: string; values: Record<string, string> };
+type SectionInstance = { id: string; values: Record<string, string>; label?: string; seeded?: boolean };
 
 // Renders a repeatable Section's member fields once per instance. Instance data is stored
 // as a JSON array under the section marker field's own response value; member fields are
@@ -413,7 +413,12 @@ function LockedFieldWrapper({ locked, comments, children }: { locked: boolean; c
   );
 }
 
-function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLabel, isFieldLocked, getComments }: { value: string; onChange: (v: string) => void; memberFields: FormField[]; accent: string; sectionLabel: string; isFieldLocked?: (fieldId: string, instanceId: string) => boolean; getComments?: (fieldId: string, instanceId: string) => { text: string; authorName: string }[] }) {
+function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLabel, isFieldLocked, getComments, tableLayout, seedRows, readOnly }: {
+  value: string; onChange: (v: string) => void; memberFields: FormField[]; accent: string; sectionLabel: string;
+  isFieldLocked?: (fieldId: string, instanceId: string) => boolean;
+  getComments?: (fieldId: string, instanceId: string) => { text: string; authorName: string }[];
+  tableLayout?: boolean; seedRows?: string[]; readOnly?: boolean;
+}) {
   let instances: SectionInstance[] = [];
   try { instances = JSON.parse(value || '[]'); } catch { /* empty */ }
 
@@ -424,11 +429,23 @@ function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLa
   const setInstanceValue = (instanceId: string, fieldId: string, v: string) => {
     save(instances.map(a => a.id === instanceId ? { ...a, values: { ...a.values, [fieldId]: v } } : a));
   };
+  const setInstanceLabel = (instanceId: string, label: string) => {
+    save(instances.map(a => a.id === instanceId ? { ...a, label } : a));
+  };
 
-  // Start with one instance already visible — an empty "Add Another" button with no fields
-  // showing reads as broken, not as "click here to begin".
+  // Seed on first-ever fill only: a plain repeatable section gets one empty instance so
+  // "Add Another" doesn't read as broken; a table-layout section instead pre-populates
+  // one row per admin-defined seedRow label. This must never re-run on reopen (resumed
+  // draft, locked resubmit, or reviewer view) or it would silently overwrite/duplicate
+  // rows the filler already has — readOnly mode skips it entirely for that reason.
   useEffect(() => {
-    if (instances.length === 0 && memberFields.length > 0) {
+    if (readOnly || instances.length > 0 || memberFields.length === 0) return;
+    // Trim/filter here (not just at Builder input time) so a pasted list with a trailing
+    // blank line, or seedRows saved before this filter existed, can't produce a junk row.
+    const labels = (seedRows || []).map(s => s.trim()).filter(Boolean);
+    if (tableLayout && labels.length > 0) {
+      onChange(JSON.stringify(labels.map((label, i) => ({ id: 'sec' + Date.now() + '_' + i, values: {}, label, seeded: true }))));
+    } else {
       onChange(JSON.stringify([{ id: 'sec' + Date.now(), values: {} }]));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -438,16 +455,77 @@ function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLa
     return <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>No fields added to this section yet.</div>;
   }
 
+  if (tableLayout) {
+    return (
+      <div>
+        <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
+          <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: memberFields.length * 180 + 160 }}>
+            <thead>
+              <tr style={{ background: 'var(--surface2)' }}>
+                <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{sectionLabel}</th>
+                {memberFields.map((sf) => (
+                  <th key={sf.id} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text)', borderBottom: '1px solid var(--border)', minWidth: 180 }}>
+                    {sf.label}{sf.required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
+                  </th>
+                ))}
+                {!readOnly && <th style={{ borderBottom: '1px solid var(--border)', width: 40 }} />}
+              </tr>
+            </thead>
+            <tbody>
+              {instances.map((instance) => (
+                <tr key={instance.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                  <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>
+                    {instance.seeded || readOnly ? (instance.label || '—') : (
+                      <input value={instance.label || ''} onChange={(e) => setInstanceLabel(instance.id, e.target.value)} placeholder="Name…"
+                        style={{ width: 140, padding: '6px 8px', fontSize: 13, fontWeight: 600, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none' }} />
+                    )}
+                  </td>
+                  {memberFields.map((sf) => {
+                    const locked = isFieldLocked?.(sf.id, instance.id) ?? false;
+                    const fieldEntries = getComments?.(sf.id, instance.id) ?? [];
+                    return (
+                      <td key={sf.id} style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                        <LockedFieldWrapper locked={readOnly || locked} comments={fieldEntries}>
+                          <FieldInput field={sf} value={instance.values[sf.id] || sf.defaultValue || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
+                        </LockedFieldWrapper>
+                      </td>
+                    );
+                  })}
+                  {!readOnly && (
+                    <td style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                      <button type="button" onClick={() => removeInstance(instance.id)}
+                        style={{ display: 'inline-flex', alignItems: 'center', background: 'none', border: 'none', color: '#DC2626', cursor: 'pointer' }}>
+                        <X size={14} />
+                      </button>
+                    </td>
+                  )}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        {!readOnly && (
+          <button type="button" onClick={addInstance}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: `1px dashed ${accent}`, background: 'transparent', borderRadius: 8, padding: '10px 0', color: accent, fontSize: 13, fontWeight: 600, cursor: 'pointer', width: '100%', marginTop: 10 }}>
+            <Plus size={14} /> Add Row
+          </button>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       {instances.map((instance, idx) => (
         <div key={instance.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14, background: 'var(--surface2)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
             <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)' }}>{sectionLabel} {idx + 1}</div>
-            <button type="button" onClick={() => removeInstance(instance.id)}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
-              <X size={12} /> Remove
-            </button>
+            {!readOnly && (
+              <button type="button" onClick={() => removeInstance(instance.id)}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#DC2626', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
+                <X size={12} /> Remove
+              </button>
+            )}
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {memberFields.map((sf) => {
@@ -458,7 +536,7 @@ function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLa
                   <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
                     {sf.label}{sf.required && <span style={{ color: '#EF4444', marginLeft: 4 }}>*</span>}
                   </label>
-                  <LockedFieldWrapper locked={locked} comments={fieldEntries}>
+                  <LockedFieldWrapper locked={readOnly || locked} comments={fieldEntries}>
                     <FieldInput field={sf} value={instance.values[sf.id] || sf.defaultValue || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
                   </LockedFieldWrapper>
                 </div>
@@ -467,10 +545,12 @@ function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLa
           </div>
         </div>
       ))}
-      <button type="button" onClick={addInstance}
-        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: `1px dashed ${accent}`, background: 'transparent', borderRadius: 8, padding: '10px 0', color: accent, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
-        <Plus size={14} /> Add Another {sectionLabel}
-      </button>
+      {!readOnly && (
+        <button type="button" onClick={addInstance}
+          style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6, border: `1px dashed ${accent}`, background: 'transparent', borderRadius: 8, padding: '10px 0', color: accent, fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>
+          <Plus size={14} /> Add Another {sectionLabel}
+        </button>
+      )}
     </div>
   );
 }
@@ -956,7 +1036,38 @@ export default function FormFiller() {
                         <div style={{ fontSize: 17, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)', marginBottom: 4, paddingBottom: 8, borderBottom: '2px solid var(--border)' }}>
                           {field.label}
                         </div>
-                        {instances.map((instance, idx) => (
+                        {field.tableLayout ? (
+                          <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 10, marginTop: 10 }}>
+                            <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: memberFields.length * 200 + 160 }}>
+                              <thead>
+                                <tr style={{ background: 'var(--surface2)' }}>
+                                  <th style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text)', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{field.label || 'Item'}</th>
+                                  {memberFields.map((mf) => (
+                                    <th key={mf.id} style={{ textAlign: 'left', padding: '10px 12px', fontSize: 12, fontWeight: 700, color: 'var(--text)', borderBottom: '1px solid var(--border)', minWidth: 200 }}>{mf.label}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {instances.map((instance) => (
+                                  <tr key={instance.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{instance.label || '—'}</td>
+                                    {memberFields.map((mf) => (
+                                      <td key={mf.id} style={{ padding: '10px 12px', verticalAlign: 'top' }}>
+                                        <LockedFieldWrapper locked comments={[]}>
+                                          <FieldInput field={mf} value={instance.values[mf.id] || mf.defaultValue || ''} onChange={() => {}} />
+                                        </LockedFieldWrapper>
+                                        <input type="text" placeholder="Comment…"
+                                          value={reviewFieldComments[`${mf.id}:${instance.id}`] || ''}
+                                          onChange={(e) => setReviewFieldComment(mf.id, instance.id, e.target.value)}
+                                          style={{ width: '100%', padding: '8px 10px', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none', marginTop: 6 }} />
+                                      </td>
+                                    ))}
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : instances.map((instance, idx) => (
                           <div key={instance.id} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginTop: 10, background: 'var(--surface2)' }}>
                             <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{field.label || 'Item'} {idx + 1}</div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1282,6 +1393,8 @@ export default function FormFiller() {
                           sectionLabel={field.label || 'Item'}
                           isFieldLocked={isLocked ? (fieldId, instanceId) => !unresolvedFieldKeys.has(`${fieldId}:${instanceId}`) : undefined}
                           getComments={isLocked ? (fieldId, instanceId) => fieldComments(fieldId, instanceId).map(c => ({ text: c.text, authorName: c.authorName })) : undefined}
+                          tableLayout={field.tableLayout}
+                          seedRows={field.seedRows}
                         />
                       </div>
                     ) : (
