@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { Sparkles, Paperclip, X, ArrowUp, FileSpreadsheet, FilePlus2 } from 'lucide-react';
+import { Sparkles, Paperclip, X, ArrowUp, FileSpreadsheet, FilePlus2, Layers, ArrowLeft } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { legibleAccent } from '../../lib/theme';
 import { formatDate } from '../../lib/format';
 import { parseImportFile, IMPORT_ACCEPT } from '../../lib/parseImportFile';
+import type { FormField } from '../../store/types';
 
 const EXAMPLE_PROMPTS = [
   'Create a housekeeping checklist with photo evidence for each area',
@@ -11,6 +12,22 @@ const EXAMPLE_PROMPTS = [
   'Daily forklift pre-operation safety inspection',
   'New employee onboarding form with document checklist',
 ];
+
+const TYPE_LABELS: Record<string, string> = {
+  textbox: 'Text', textarea: 'Textarea', richtext: 'Rich Text', number: 'Number', currency: 'Currency',
+  percent: 'Percent', date: 'Date', time: 'Time', datetime: 'DateTime', dropdown: 'Dropdown',
+  multiselect: 'Multi-Sel', checkbox: 'Checkbox', radio: 'Radio', toggle: 'Toggle', lookup: 'Lookup',
+  formula: 'Formula', image: 'Image', camera: 'Camera', video: 'Video', audio: 'Audio', upload: 'File',
+  signature: 'Signature', gps: 'GPS', qr: 'QR', barcode: 'Barcode', email: 'Email', phone: 'Phone',
+  url: 'URL', rating: 'Rating', color: 'Color', hidden: 'Hidden', system: 'System', ai: 'AI', section: 'Section',
+};
+
+type PlanField = Omit<FormField, 'id'>;
+
+interface ChatMessage {
+  role: 'user' | 'ai';
+  text: string;
+}
 
 export default function CreateScreen() {
   const accent = useStore((s) => s.accent);
@@ -31,6 +48,14 @@ export default function CreateScreen() {
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Plan-review stage: once AI returns a draft, we show its summary + field list here
+  // instead of jumping straight to the builder, so the user can confirm or ask for
+  // changes via a short follow-up chat before anything touches builder state.
+  const [planFields, setPlanFields] = useState<PlanField[] | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [refinePrompt, setRefinePrompt] = useState('');
+  const [originalPrompt, setOriginalPrompt] = useState('');
 
   useEffect(() => { refreshForms(); }, [refreshForms]);
 
@@ -68,15 +93,138 @@ export default function CreateScreen() {
     setError('');
     try {
       const { api } = await import('../../lib/api');
-      const { fields } = await api.generateForm(prompt.trim(), fileContext || undefined);
-      const name = prompt.trim().length > 60 ? prompt.trim().slice(0, 57) + '…' : prompt.trim();
-      loadGeneratedFields(fields, name);
+      const { summary, fields } = await api.generateForm(prompt.trim(), fileContext || undefined);
+      setOriginalPrompt(prompt.trim());
+      setMessages([{ role: 'user', text: prompt.trim() }, { role: 'ai', text: summary || `Drafted ${fields.length} fields based on your request.` }]);
+      setPlanFields(fields);
     } catch (err: any) {
       setError(err?.message || 'Failed to generate form');
     } finally {
       setGenerating(false);
     }
   };
+
+  const handleRefine = async () => {
+    if (!refinePrompt.trim() || generating || !planFields) return;
+    setGenerating(true);
+    setError('');
+    const instruction = refinePrompt.trim();
+    try {
+      const { api } = await import('../../lib/api');
+      // Send only the fields the model actually needs to revise a plan (type/label/
+      // helpText/required/options/repeatable) -- the full FormField objects also carry
+      // placeholder/defaultValue/validation/logic/etc, which would bloat the prompt (and
+      // the required "produce the complete, revised field list" echo-back) for no benefit,
+      // competing with the same output-token ceiling that large initial generations hit.
+      const minimalFields = planFields.map(({ type, label, helpText, required, options, repeatable }) => ({
+        type, label, helpText, required, options, repeatable,
+      }));
+      const { summary, fields } = await api.generateForm(instruction, undefined, minimalFields);
+      setMessages((prev) => [...prev, { role: 'user', text: instruction }, { role: 'ai', text: summary || `Updated the field list (${fields.length} fields).` }]);
+      setPlanFields(fields);
+      setRefinePrompt('');
+    } catch (err: any) {
+      setError(err?.message || 'Failed to update form');
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const handleBuild = () => {
+    if (!planFields) return;
+    const name = originalPrompt.length > 60 ? originalPrompt.slice(0, 57) + '…' : originalPrompt;
+    loadGeneratedFields(planFields, name || 'Generated Form');
+  };
+
+  const startOver = () => {
+    setPlanFields(null);
+    setMessages([]);
+    setPrompt('');
+    setRefinePrompt('');
+    setError('');
+    removeAttachment();
+  };
+
+  if (planFields) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+        <div style={{ height: 52, minHeight: 52, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 12, padding: '0 14px', background: 'var(--surface)' }}>
+          <button type="button" onClick={startOver}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 30, height: 30, borderRadius: 7, border: 'none', background: 'transparent', color: 'var(--text)', cursor: 'pointer' }}>
+            <ArrowLeft size={17} />
+          </button>
+          <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)', flex: 1 }}>Review Plan</div>
+          <button onClick={handleBuild} disabled={generating}
+            style={{ height: 32, padding: '0 16px', borderRadius: 7, border: 'none', background: accent, color: '#fff', fontSize: 12.5, fontWeight: 600, cursor: generating ? 'default' : 'pointer', opacity: generating ? 0.6 : 1 }}>
+            Build This
+          </button>
+        </div>
+
+        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 16 : 24, display: 'flex', flexDirection: 'column', gap: 20, maxWidth: 720, width: '100%', margin: '0 auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {messages.map((m, i) => (
+              <div key={i} style={{ alignSelf: m.role === 'user' ? 'flex-end' : 'flex-start', maxWidth: '85%' }}>
+                <div style={{
+                  fontSize: 13, lineHeight: 1.5, padding: '9px 13px', borderRadius: 12,
+                  background: m.role === 'user' ? accent : 'var(--surface)',
+                  color: m.role === 'user' ? '#fff' : 'var(--text)',
+                  border: m.role === 'ai' ? `1px solid ${ghost}` : 'none',
+                }}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {error && <div style={{ fontSize: 12.5, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '8px 11px' }}>{error}</div>}
+
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' as const, letterSpacing: '0.5px', marginBottom: 10 }}>
+              Proposed Fields ({planFields.length})
+            </div>
+            <div style={{ background: 'var(--surface)', border: `1px solid ${ghost}`, borderRadius: 10, overflow: 'hidden' }}>
+              {planFields.map((f, i) => (
+                f.type === 'section' ? (
+                  <div key={i} style={{ padding: '10px 14px', background: 'var(--surface2)', borderBottom: i < planFields.length - 1 ? `1px solid ${ghost}` : 'none', display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <Layers size={12} color="var(--muted)" />
+                    <span style={{ fontSize: 12, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)' }}>{f.label}</span>
+                    {f.repeatable && <span style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' as const, padding: '2px 6px', borderRadius: 4, background: `${accent}18`, color: accent }}>Repeats</span>}
+                  </div>
+                ) : (
+                  <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '9px 14px 9px 28px', borderBottom: i < planFields.length - 1 ? `1px solid ${dark ? '#1C1C1E' : '#F4F4F5'}` : 'none' }}>
+                    <div style={{ width: 22, height: 22, borderRadius: 6, background: dark ? '#242426' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--muted)', marginTop: 1, fontSize: 9.5 }}>
+                      {(TYPE_LABELS[f.type] || f.type).charAt(0)}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 12.5, fontWeight: 500, color: 'var(--text)' }}>{f.label}</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2 }}>{TYPE_LABELS[f.type] || f.type}{f.required ? ' · Required' : ''}</div>
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ borderTop: `1px solid ${ghost}`, padding: isMobile ? 12 : 16, flexShrink: 0 }}>
+          <div style={{ display: 'flex', gap: 8, maxWidth: 720, width: '100%', margin: '0 auto' }}>
+            <input
+              value={refinePrompt}
+              onChange={(e) => setRefinePrompt(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleRefine(); } }}
+              disabled={generating}
+              placeholder='Ask for a change — e.g. "also add a signature field"'
+              style={{ flex: 1, padding: '10px 13px', border: `1px solid ${ghost}`, borderRadius: 8, fontSize: 13, color: 'var(--text)', background: 'var(--surface)', outline: 'none' }}
+            />
+            <button onClick={handleRefine} disabled={generating || !refinePrompt.trim()}
+              style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 40, height: 40, borderRadius: 8, border: 'none', background: (generating || !refinePrompt.trim()) ? 'var(--border)' : accent, color: (generating || !refinePrompt.trim()) ? 'var(--muted)' : '#fff', cursor: (generating || !refinePrompt.trim()) ? 'default' : 'pointer', flexShrink: 0 }}>
+              <ArrowUp size={16} />
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflowY: 'auto' }}>
@@ -88,7 +236,7 @@ export default function CreateScreen() {
           {currentUserName ? `What are we building, ${currentUserName.split(' ')[0]}?` : 'What are we building today?'}
         </h1>
         <p style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 28, textAlign: 'center', maxWidth: 480 }}>
-          Describe the checklist or form you need, optionally attach an existing spreadsheet or list for context, and AI will draft a complete field list to review in the builder.
+          Describe the checklist or form you need, optionally attach an existing spreadsheet or list for context. AI will draft a plan for you to review before anything is built.
         </p>
 
         <div style={{ width: '100%', maxWidth: 680, background: 'var(--surface)', border: `1px solid ${ghost}`, borderRadius: 16, padding: 14, boxShadow: dark ? 'none' : '0 2px 12px rgba(0,0,0,.05)' }}>

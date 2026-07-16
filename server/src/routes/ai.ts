@@ -186,32 +186,30 @@ interface FormFieldOut {
   logic: unknown[]; repeatable?: boolean;
 }
 
+// A minimal echo of a previously-generated field back to the model for refinement --
+// deliberately not the full FormField shape (no ids, validation, logic) since none of
+// that is meaningful context for "what should change," and passing it back would just
+// bloat the prompt and risk the model copying stray internal bookkeeping into its output.
+interface FieldSummary {
+  type: string; label: string; helpText?: string; required?: boolean; options?: string[]; repeatable?: boolean;
+}
+
 router.post('/generate-form', async (req, res) => {
   const client = getClient();
   if (!client) { res.status(503).json({ error: 'AI unavailable — ANTHROPIC_API_KEY not configured' }); return; }
 
-  const { prompt, context } = req.body as { prompt?: string; context?: string };
+  const { prompt, context, previousFields } = req.body as { prompt?: string; context?: string; previousFields?: FieldSummary[] };
   if (!prompt || !prompt.trim()) { res.status(400).json({ error: 'prompt is required' }); return; }
   // context is plain text already extracted client-side from an attached .xlsx/.csv/.txt
   // file (e.g. an existing checklist or item list) -- cap defensively even though the
   // client already truncates, since this is still untrusted user input reaching the model.
   const trimmedContext = context && context.trim() ? context.trim().slice(0, 12000) : '';
+  const isRefinement = Array.isArray(previousFields) && previousFields.length > 0;
 
-  try {
-    const message = await client.messages.create({
-      model: MODEL,
-      max_tokens: 8000,
-      messages: [{
-        role: 'user',
-        content: [{
-          type: 'text',
-          text: `You are designing a form/checklist for an industrial or institutional compliance app. Based on this request, produce a complete, sensible list of form fields:
-
-"${prompt.trim()}"
-${trimmedContext ? `\nThe user also attached this reference content (an existing checklist, item list, or spreadsheet export) — use it to ground the specific items, areas, or questions in the generated form wherever relevant, rather than inventing generic ones:\n"""\n${trimmedContext}\n"""\n` : ''}
-
-Rules:
-- Respond with ONLY a JSON array (no markdown, no other text). Each element: {"type": string, "label": string, "helpText"?: string, "required"?: boolean, "options"?: string[], "repeatable"?: boolean}.
+  const instructions = `Rules:
+- Respond with ONLY a JSON object (no markdown, no other text) shaped exactly like: {"summary": string, "fields": [...]}.
+- "summary" is 1-3 sentences in plain language explaining what you understood from the request and, if reference content was attached, specifically what you found in it (e.g. item/area counts) and how it shaped the fields — written for a non-technical reader reviewing the plan before it's built.
+- "fields" is the field list. Each element: {"type": string, "label": string, "helpText"?: string, "required"?: boolean, "options"?: string[], "repeatable"?: boolean}.
 - Valid "type" values: ${VALID_FIELD_TYPES.join(', ')}.
 - Use "section" fields (no options) as group headers to organize related fields (e.g. "Entry Checks", "Area Inspection"). Set "repeatable": true on a section only when the user's request implies a variable number of repeated items (e.g. one entry per area/room/vendor/person) — most sections should NOT be repeatable.
 - Use "dropdown", "radio", "checkbox", or "multiselect" with an "options" array for closed-ended questions.
@@ -219,27 +217,51 @@ Rules:
 - Use "image" or "camera" for a required photo. Use "beforeafter" specifically when the request implies a before/after comparison (e.g. cleaning, repair). Use "photochecklist" when a single photo should be checked against a list of visual criteria.
 - Use "signature" for sign-off fields, "gps" for location capture, "date"/"datetime" for timestamps.
 - Always include a "system" field first for a reference/ID number, and end with a "signature" field for sign-off, unless the request clearly doesn't need either.
-- Produce a thorough, well-organized field list a compliance officer would consider complete — typically 15-40 fields including section headers, depending on the request's scope.`,
-        }],
-      }],
+- Produce a thorough, well-organized field list a compliance officer would consider complete — typically 15-40 fields including section headers, depending on the request's scope.`;
+
+  const promptText = isRefinement
+    ? `You are revising a previously-drafted form/checklist for an industrial or institutional compliance app based on follow-up feedback.
+
+The current field list is:
+${JSON.stringify(previousFields)}
+
+The user's follow-up instruction is:
+"${prompt.trim()}"
+
+Apply the requested change(s) to the field list above -- keep everything else the same unless the instruction implies a broader change. Produce the complete, revised field list (not just the changed fields).
+
+${instructions}`
+    : `You are designing a form/checklist for an industrial or institutional compliance app. Based on this request, produce a complete, sensible list of form fields:
+
+"${prompt.trim()}"
+${trimmedContext ? `\nThe user also attached this reference content (an existing checklist, item list, or spreadsheet export) — use it to ground the specific items, areas, or questions in the generated form wherever relevant, rather than inventing generic ones:\n"""\n${trimmedContext}\n"""\n` : ''}
+
+${instructions}`;
+
+  try {
+    const message = await client.messages.create({
+      model: MODEL,
+      max_tokens: 8000,
+      messages: [{ role: 'user', content: [{ type: 'text', text: promptText }] }],
     });
     const raw = textOf(message).trim();
     if (message.stop_reason === 'max_tokens') {
       res.status(502).json({ error: 'AI response was too long and got cut off — try a narrower or more specific request.' });
       return;
     }
-    const jsonText = raw.startsWith('[') ? raw : raw.slice(raw.indexOf('['), raw.lastIndexOf(']') + 1);
-    let parsed: unknown;
+    const jsonText = raw.startsWith('{') ? raw : raw.slice(raw.indexOf('{'), raw.lastIndexOf('}') + 1);
+    let parsed: any;
     try {
       parsed = JSON.parse(jsonText);
     } catch {
       res.status(502).json({ error: 'AI returned an incomplete response — try again, or narrow the request.' });
       return;
     }
-    if (!Array.isArray(parsed)) throw new Error('Model did not return an array');
-    const fields = parsed.map(sanitizeField).filter((f): f is FormFieldOut => f !== null);
+    if (!parsed || !Array.isArray(parsed.fields)) throw new Error('Model did not return the expected shape');
+    const fields = parsed.fields.map(sanitizeField).filter((f: FormFieldOut | null): f is FormFieldOut => f !== null);
     if (fields.length === 0) { res.status(502).json({ error: 'AI did not return any usable fields' }); return; }
-    res.json({ fields });
+    const summary = typeof parsed.summary === 'string' ? parsed.summary.slice(0, 1000) : '';
+    res.json({ summary, fields });
   } catch (err: any) {
     logAiError('ai/generate-form', err);
     res.status(502).json({ error: 'AI request failed', detail: err?.message });
