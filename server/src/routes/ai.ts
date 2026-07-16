@@ -190,8 +190,12 @@ router.post('/generate-form', async (req, res) => {
   const client = getClient();
   if (!client) { res.status(503).json({ error: 'AI unavailable — ANTHROPIC_API_KEY not configured' }); return; }
 
-  const { prompt } = req.body as { prompt?: string };
+  const { prompt, context } = req.body as { prompt?: string; context?: string };
   if (!prompt || !prompt.trim()) { res.status(400).json({ error: 'prompt is required' }); return; }
+  // context is plain text already extracted client-side from an attached .xlsx/.csv/.txt
+  // file (e.g. an existing checklist or item list) -- cap defensively even though the
+  // client already truncates, since this is still untrusted user input reaching the model.
+  const trimmedContext = context && context.trim() ? context.trim().slice(0, 12000) : '';
 
   try {
     const message = await client.messages.create({
@@ -204,6 +208,7 @@ router.post('/generate-form', async (req, res) => {
           text: `You are designing a form/checklist for an industrial or institutional compliance app. Based on this request, produce a complete, sensible list of form fields:
 
 "${prompt.trim()}"
+${trimmedContext ? `\nThe user also attached this reference content (an existing checklist, item list, or spreadsheet export) — use it to ground the specific items, areas, or questions in the generated form wherever relevant, rather than inventing generic ones:\n"""\n${trimmedContext}\n"""\n` : ''}
 
 Rules:
 - Respond with ONLY a JSON array (no markdown, no other text). Each element: {"type": string, "label": string, "helpText"?: string, "required"?: boolean, "options"?: string[], "repeatable"?: boolean}.

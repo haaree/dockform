@@ -46,7 +46,6 @@ interface AppState {
   customPacks: TemplatePack[];
   showSaveTemplateModal: boolean;
   saveTemplateName: string;
-  showAiGenerateModal: boolean;
 
   // Modals
   showModal: string | null;
@@ -114,7 +113,6 @@ interface AppState {
   setPackIndustryFilter: (v: string) => void;
   setPackSubCategoryFilter: (v: string) => void;
   setShowSaveTemplateModal: (show: boolean) => void;
-  setShowAiGenerateModal: (show: boolean) => void;
   setSaveTemplateName: (name: string) => void;
   saveAsTemplate: (pack: TemplatePack) => void;
   deleteCustomPack: (id: string) => void;
@@ -213,7 +211,7 @@ export const useStore = create<AppState>((set) => ({
   authError: '',
   showAssignModal: false,
   assignModalUserIds: [],
-  nav: 'dashboard',
+  nav: 'create',
   accent: '#2563EB',
   dark: false,
   sidebarOpen: typeof window !== 'undefined' ? window.innerWidth >= 720 : true,
@@ -236,7 +234,6 @@ export const useStore = create<AppState>((set) => ({
   customPacks: [],
   showSaveTemplateModal: false,
   saveTemplateName: '',
-  showAiGenerateModal: false,
   showModal: null,
   modalData: {},
   editingUserId: null,
@@ -308,7 +305,7 @@ export const useStore = create<AppState>((set) => ({
         currentUserId: authUser.id ?? null,
         currentUserRole: isPlatformAdmin ? 'Platform Admin' : isDockformAdmin ? 'Admin' : roleKey,
         activeCompanyId: authUser.companyId || null,
-        nav: !isPlatformAdmin && !isDockformAdmin && roleKey === 'viewer' ? 'forms' : 'dashboard',
+        nav: roleKey === 'viewer' ? 'forms' : roleKey === 'auditor' ? 'dashboard' : 'create',
       };
     }
     if (isAuthed) return { isAuthed };
@@ -320,7 +317,7 @@ export const useStore = create<AppState>((set) => ({
   logout: () => { import('../lib/api').then(({ setToken }) => setToken(null)); set({ isAuthed: false, currentUserId: null, currentUserRole: '', currentUserName: '', isDockformAdmin: false, isPlatformAdmin: false, activeCompanyId: null, onboardingComplete: true, onboardingStep: 0, authEmail: '', authPassword: '', authMode: 'login' }); },
   setActiveCompany: (activeCompanyId) => set({ activeCompanyId }),
   setOnboardingStep: (onboardingStep) => set({ onboardingStep }),
-  completeOnboarding: () => set({ onboardingComplete: true, nav: 'dashboard' }),
+  completeOnboarding: () => set({ onboardingComplete: true, nav: 'create' }),
 
   setNav: (nav) => set({ nav }),
   setAccent: (accent) => set({ accent }),
@@ -486,7 +483,6 @@ export const useStore = create<AppState>((set) => ({
   setPackSubCategoryFilter: (packSubCategoryFilter) => set({ packSubCategoryFilter }),
   setShowSaveTemplateModal: (showSaveTemplateModal) => set({ showSaveTemplateModal }),
   setSaveTemplateName: (saveTemplateName) => set({ saveTemplateName }),
-  setShowAiGenerateModal: (showAiGenerateModal) => set({ showAiGenerateModal }),
 
   saveAsTemplate: (pack) => set((s) => ({
     customPacks: [pack, ...s.customPacks],

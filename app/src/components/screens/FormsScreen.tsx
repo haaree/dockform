@@ -15,7 +15,7 @@ export default function FormsScreen() {
   const accent = useStore((s) => s.accent);
   const dark = useStore((s) => s.dark);
   const openNewForm = useStore((s) => s.openNewForm);
-  const setShowAiGenerateModal = useStore((s) => s.setShowAiGenerateModal);
+  const setNav = useStore((s) => s.setNav);
   const editForm = useStore((s) => s.editForm);
   const deleteForm = useStore((s) => s.deleteForm);
   const fillForm = useStore((s) => s.fillForm);
@@ -143,7 +143,7 @@ export default function FormsScreen() {
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
                   <FilePlus2 size={14} /> Blank Form
                 </button>
-                <button onClick={() => { setShowNewFormMenu(false); setShowAiGenerateModal(true); }}
+                <button onClick={() => { setShowNewFormMenu(false); setNav('create'); }}
                   style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', borderTop: '1px solid var(--border)', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
                   <Sparkles size={14} /> Generate with AI
                 </button>

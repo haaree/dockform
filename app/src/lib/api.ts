@@ -85,7 +85,7 @@ export const api = {
   comparePhotos: (before: string, after: string, context?: string) => request<{ comment: string }>('/ai/compare-photos', { method: 'POST', body: JSON.stringify({ before, after, context }) }),
   scoreChecklistPhoto: (photo: string, items: { id: string; text: string; direction: 'present' | 'absent' }[], context?: string) =>
     request<{ results: { itemId: string; found: boolean; note: string }[] }>('/ai/score-checklist-photo', { method: 'POST', body: JSON.stringify({ photo, items, context }) }),
-  generateForm: (prompt: string) => request<{ fields: any[] }>('/ai/generate-form', { method: 'POST', body: JSON.stringify({ prompt }) }),
+  generateForm: (prompt: string, context?: string) => request<{ fields: any[] }>('/ai/generate-form', { method: 'POST', body: JSON.stringify({ prompt, context }) }),
 
   // Email (best-effort, errors silently ignored)
   sendWelcomeEmail: (to: string, fullName: string) =>

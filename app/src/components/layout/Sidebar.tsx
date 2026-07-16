@@ -2,7 +2,7 @@ import { useState, type CSSProperties } from 'react';
 import {
   PanelLeft, Search, LayoutDashboard, FileText, BookOpen,
   Users, Building2, Factory, Layers, UsersRound, Shield, Key,
-  Settings, HelpCircle, ArrowLeft, ChevronDown, UserCheck,
+  Settings, HelpCircle, ArrowLeft, ChevronDown, UserCheck, Sparkles,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getThemeVars } from '../../lib/theme';
@@ -14,6 +14,7 @@ interface NavItemDef {
 }
 
 const PLATFORM: NavItemDef[] = [
+  { key: 'create', label: 'Create', icon: Sparkles },
   { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { key: 'forms', label: 'Forms', icon: FileText },
   { key: 'packs', label: 'Templates', icon: BookOpen },
@@ -38,7 +39,7 @@ const SYSTEM: NavItemDef[] = [
 // Default nav visibility per role — Admin sees everything; others are scoped down.
 // This is cosmetic only (hides nav items); it does not enforce server-side access.
 const ROLE_NAV_KEYS: Record<string, string[]> = {
-  editor: ['dashboard', 'forms', 'packs'],
+  editor: ['create', 'dashboard', 'forms', 'packs'],
   auditor: ['dashboard', 'forms'],
   viewer: ['forms'],
 };
