@@ -4,7 +4,7 @@ import {
   Calendar, Clock, CalendarClock, List, ListChecks, CheckSquare, CircleDot, ToggleLeft,
   Search, Calculator, Image, Camera, Video, Music, Upload, PenTool, MapPin, QrCode,
   Barcode, Phone, Globe, Palette, EyeOff, Cpu, Sparkles, GripVertical, Copy, Trash2,
-  Sliders, Zap, Plus, Layers, ChevronRight, ChevronDown, type LucideIcon,
+  Sliders, Zap, Plus, Layers, ChevronRight, ChevronDown, Table2, type LucideIcon,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule, ChecklistItemDef } from '../../store/types';
@@ -107,6 +107,11 @@ const FIELD_CATEGORIES: FieldCategory[] = [
     name: 'Structure',
     items: [
       { type: 'section', label: 'Section', icon: Layers },
+      // 'table' isn't a real field type -- addField()/addFieldAt() special-case it into
+      // a section marker with repeatable+tableLayout already on, so table-based data
+      // collection (checklist of machines/assets, one row each) is one click instead of
+      // finding the toggles inside a plain Section's properties panel.
+      { type: 'table', label: 'Table', icon: Table2 },
     ],
   },
 ];

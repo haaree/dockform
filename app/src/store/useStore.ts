@@ -336,30 +336,40 @@ export const useStore = create<AppState>((set) => ({
   setFormName: (currentFormName) => set({ currentFormName }),
   setFormDesc: (currentFormDesc) => set({ currentFormDesc }),
 
+  // 'table' is a palette-only shorthand, not a real field type -- it drops a
+  // repeatable+tableLayout section marker so table-based data collection (e.g. one row
+  // per machine, columns for status/before-after photos) doesn't require digging into
+  // a plain Section's properties panel to discover the toggles.
   addField: (type) => set((s) => {
     const id = 'f' + (s.fieldCounter + 1);
-    const hasOpts = CHOICE_TYPES.includes(type);
+    const isTable = type === 'table';
+    const realType = isTable ? 'section' : type;
+    const hasOpts = CHOICE_TYPES.includes(realType);
     const newField: FormField = {
-      id, type, label: FIELD_LABELS[type] || type,
+      id, type: realType, label: isTable ? 'Table' : (FIELD_LABELS[realType] || realType),
       placeholder: '', helpText: '', defaultValue: '',
       required: false, readOnly: false, hidden: false, searchable: false, indexed: false,
       options: hasOpts ? ['Option 1', 'Option 2', 'Option 3'] : [],
       validation: { min: '', max: '', pattern: '', message: '' },
       logic: [],
+      ...(isTable ? { repeatable: true, tableLayout: true } : {}),
     };
     return { fields: [...s.fields, newField], selectedId: id, fieldCounter: s.fieldCounter + 1 };
   }),
 
   addFieldAt: (type, index) => set((s) => {
     const id = 'f' + (s.fieldCounter + 1);
-    const hasOpts = CHOICE_TYPES.includes(type);
+    const isTable = type === 'table';
+    const realType = isTable ? 'section' : type;
+    const hasOpts = CHOICE_TYPES.includes(realType);
     const newField: FormField = {
-      id, type, label: FIELD_LABELS[type] || type,
+      id, type: realType, label: isTable ? 'Table' : (FIELD_LABELS[realType] || realType),
       placeholder: '', helpText: '', defaultValue: '',
       required: false, readOnly: false, hidden: false, searchable: false, indexed: false,
       options: hasOpts ? ['Option 1', 'Option 2', 'Option 3'] : [],
       validation: { min: '', max: '', pattern: '', message: '' },
       logic: [],
+      ...(isTable ? { repeatable: true, tableLayout: true } : {}),
     };
     const nf = [...s.fields];
     nf.splice(Math.max(0, Math.min(index, nf.length)), 0, newField);
