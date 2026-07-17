@@ -981,6 +981,93 @@ function FieldCard({ field, index }: { field: FormField; index: number }) {
   );
 }
 
+// Renders a table-layout section's member fields as columns side by side, instead of
+// FieldCard's stacked-card list, so the canvas actually looks like the table it'll
+// render as in the Filler. Drag-to-reorder works left/right instead of up/down; each
+// column keeps rename/duplicate/delete but drops FieldCard's full-width drag handle row
+// in favor of a compact header, since ~180px columns can't fit that chrome.
+function TableColumns({ memberIndices, fields }: { memberIndices: number[]; fields: FormField[] }) {
+  const selectedId = useStore((s) => s.selectedId);
+  const accent = useStore((s) => s.accent);
+  const selectField = useStore((s) => s.selectField);
+  const duplicateField = useStore((s) => s.duplicateField);
+  const deleteField = useStore((s) => s.deleteField);
+  const setDragSrcIdx = useStore((s) => s.setDragSrcIdx);
+  const dragSrcIdx = useStore((s) => s.dragSrcIdx);
+  const reorderFields = useStore((s) => s.reorderFields);
+  const updateField = useStore((s) => s.updateField);
+  const [editingId, setEditingId] = useState<string | null>(null);
+
+  if (memberIndices.length === 0) {
+    return <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', padding: '4px 0 12px' }}>Drag fields here to add them as table columns.</div>;
+  }
+
+  return (
+    <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
+      <div style={{ display: 'flex', minWidth: memberIndices.length * 180 }}>
+        {memberIndices.map((idx) => {
+          const field = fields[idx];
+          const selected = selectedId === field.id;
+          return (
+            <div
+              key={field.id}
+              draggable
+              onClick={() => selectField(field.id)}
+              onDragStart={() => setDragSrcIdx(idx)}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); if (dragSrcIdx !== null) reorderFields(dragSrcIdx, idx); }}
+              style={{
+                flex: '0 0 180px', width: 180, padding: 10, cursor: 'pointer',
+                borderRight: '1px solid var(--border)',
+                background: selected ? `${accent}11` : 'var(--surface)',
+                boxShadow: selected ? `inset 0 0 0 2px ${accent}` : 'none',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 8 }}>
+                <span style={{ color: 'var(--muted)', display: 'flex', flexShrink: 0 }}>
+                  <TypeIcon type={field.type} size={13} />
+                </span>
+                {editingId === field.id ? (
+                  <input
+                    autoFocus
+                    value={field.label}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => updateField(field.id, 'label', e.target.value)}
+                    onBlur={() => setEditingId(null)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === 'Escape') setEditingId(null); }}
+                    style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', background: 'var(--surface2)', border: `1px solid ${accent}`, borderRadius: 4, padding: '1px 4px', outline: 'none', minWidth: 0, width: '100%' }}
+                  />
+                ) : (
+                  <span
+                    onClick={(e) => { e.stopPropagation(); selectField(field.id); setEditingId(field.id); }}
+                    title="Click to rename"
+                    style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', cursor: 'text', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  >
+                    {field.label}{field.required && <span style={{ color: '#DC2626' }}> *</span>}
+                  </span>
+                )}
+              </div>
+              <div style={{ transform: 'scale(0.92)', transformOrigin: 'top left', width: '108%' }}>
+                <FieldPreview field={field} />
+              </div>
+              <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                <button type="button" onClick={(e) => { e.stopPropagation(); duplicateField(field.id); }} aria-label="Duplicate column"
+                  style={{ border: 'none', background: 'transparent', color: 'var(--muted)', cursor: 'pointer', display: 'flex' }}>
+                  <Copy size={12} />
+                </button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); deleteField(field.id); }} aria-label="Delete column"
+                  style={{ border: 'none', background: 'transparent', color: '#DC2626', cursor: 'pointer', display: 'flex' }}>
+                  <Trash2 size={12} />
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 function Canvas() {
   const fields = useStore((s) => s.fields);
   const currentFormName = useStore((s) => s.currentFormName);
@@ -1108,17 +1195,23 @@ function Canvas() {
                       <SectionHeader field={f} collapsed={isCollapsed} onToggleCollapse={() => toggleCollapse(f.id)} />
                       {!isCollapsed && (
                         <div style={{ marginLeft: 16, paddingLeft: 14, borderLeft: '2px solid var(--border)' }}>
-                          {memberIndices.length === 0 && dropIndex === null && (
-                            <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', padding: '4px 0 12px' }}>
-                              Drag fields here to add them to this section.
-                            </div>
+                          {f.tableLayout ? (
+                            <TableColumns memberIndices={memberIndices} fields={fields} />
+                          ) : (
+                            <>
+                              {memberIndices.length === 0 && dropIndex === null && (
+                                <div style={{ fontSize: 12, color: 'var(--muted)', fontStyle: 'italic', padding: '4px 0 12px' }}>
+                                  Drag fields here to add them to this section.
+                                </div>
+                              )}
+                              {memberIndices.map((idx) => (
+                                <div key={fields[idx].id}>
+                                  {dropIndex === idx && <DropIndicator />}
+                                  <FieldCard field={fields[idx]} index={idx} />
+                                </div>
+                              ))}
+                            </>
                           )}
-                          {memberIndices.map((idx) => (
-                            <div key={fields[idx].id}>
-                              {dropIndex === idx && <DropIndicator />}
-                              <FieldCard field={fields[idx]} index={idx} />
-                            </div>
-                          ))}
                         </div>
                       )}
                       {isCollapsed && memberIndices.length > 0 && (
