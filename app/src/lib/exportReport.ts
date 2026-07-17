@@ -45,13 +45,23 @@ function renderFieldDisplay(f: FormField, v: string, allFields: FormField[]): st
   }
   if (f.type === 'section' && f.repeatable) {
     try {
-      const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
-      const members = sectionMembers(allFields, f);
+      const instances: { id: string; values: Record<string, string>; label?: string }[] = JSON.parse(v);
+      const members = sectionMembers(allFields, f).filter(sf => !sf.hidden);
       if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">None added</span>';
+      if (f.tableLayout) {
+        return `<table style="border-collapse:collapse;font-size:12px;width:100%;"><thead><tr>
+          <th style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;">${f.label}</th>
+          ${members.map(sf => `<th style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;">${sf.label}</th>`).join('')}
+        </tr></thead><tbody>${instances.map(inst => `
+          <tr>
+            <td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600;white-space:nowrap;">${inst.label || '—'}</td>
+            ${members.map(sf => `<td style="padding:6px 10px;border:1px solid #e5e7eb;">${renderFieldDisplay(sf, inst.values[sf.id] || '', allFields)}</td>`).join('')}
+          </tr>`).join('')}</tbody></table>`;
+      }
       return instances.map((inst, i) => `
         <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
-          <div style="font-size:11px;font-weight:700;font-style:italic;color:#6b7280;margin-bottom:6px;">${f.label || 'Item'} ${i + 1}</div>
-          ${members.filter(sf => !sf.hidden).map(sf => `
+          <div style="font-size:11px;font-weight:700;font-style:italic;color:#6b7280;margin-bottom:6px;">${inst.label || `${f.label || 'Item'} ${i + 1}`}</div>
+          ${members.map(sf => `
             <div style="margin-bottom:6px;">
               <div style="font-size:10px;font-weight:600;color:#9ca3af;">${sf.label}</div>
               <div style="font-size:12px;color:#1f2937;">${renderFieldDisplay(sf, inst.values[sf.id] || '', allFields)}</div>

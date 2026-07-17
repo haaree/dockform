@@ -59,16 +59,30 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
   }
   if (f.type === 'section' && f.repeatable) {
     try {
-      const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
-      const members = sectionMembers(allFields, f);
+      const instances: { id: string; values: Record<string, string>; label?: string }[] = JSON.parse(v);
+      const members = sectionMembers(allFields, f).filter(sf => !sf.hidden);
       if (instances.length === 0) return '';
+      if (f.tableLayout) {
+        return `
+          <div style="margin:10px 0;">
+            <div style="font-size:11px;font-weight:700;font-style:italic;color:#6b7280;margin-bottom:6px;">${f.label}</div>
+            <table style="border-collapse:collapse;font-size:11px;width:100%;"><thead><tr>
+              <th style="padding:5px 8px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;">${f.label}</th>
+              ${members.map(sf => `<th style="padding:5px 8px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;">${sf.label}</th>`).join('')}
+            </tr></thead><tbody>${instances.map(inst => `
+              <tr>
+                <td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:600;white-space:nowrap;">${inst.label || '—'}</td>
+                ${members.map(sf => `<td style="padding:5px 8px;border:1px solid #e5e7eb;">${renderActivityField(sf, inst.values[sf.id] || '', allFields)}</td>`).join('')}
+              </tr>`).join('')}</tbody></table>
+          </div>`;
+      }
       return `
         <div style="margin:10px 0;">
           <div style="font-size:11px;font-weight:700;font-style:italic;color:#6b7280;margin-bottom:6px;">${f.label}</div>
           ${instances.map((inst, i) => `
             <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
-              <div style="font-size:10px;font-weight:700;color:#9ca3af;margin-bottom:4px;">${(f.label || 'ITEM').toUpperCase()} ${i + 1}</div>
-              ${members.filter(sf => !sf.hidden).map(sf => renderActivityField(sf, inst.values[sf.id] || '', allFields)).join('')}
+              <div style="font-size:10px;font-weight:700;color:#9ca3af;margin-bottom:4px;">${(inst.label || `${f.label || 'ITEM'} ${i + 1}`).toUpperCase()}</div>
+              ${members.map(sf => renderActivityField(sf, inst.values[sf.id] || '', allFields)).join('')}
             </div>`).join('')}
         </div>`;
     } catch { return ''; }

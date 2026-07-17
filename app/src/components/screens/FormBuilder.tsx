@@ -1793,15 +1793,110 @@ function PreviewField({ field }: { field: FormField }) {
   );
 }
 
+// Preview's repeatable-section rendering: unlike the Filler, there's no real response to
+// load instances from, so it shows one sample row per seedRow label (or one blank sample
+// row if there are no seed rows) purely to demonstrate the layout -- table columns side by
+// side, or stacked cards -- matching what a filler will actually see.
+function PreviewSection({ marker, members }: { marker: FormField; members: FormField[] }) {
+  if (members.length === 0) return null;
+  if (!marker.repeatable) {
+    return (
+      <>
+        {members.map((mf) => (
+          <div key={mf.id} style={{ marginBottom: 20 }}>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 500, color: 'var(--text)', marginBottom: 6 }}>
+              {mf.label}{mf.required && <span style={{ color: '#DC2626' }}> *</span>}
+            </label>
+            <FieldPreview field={mf} />
+            {mf.helpText && <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 5 }}>{mf.helpText}</div>}
+          </div>
+        ))}
+      </>
+    );
+  }
+
+  const sampleLabels = (marker.seedRows || []).map(s => s.trim()).filter(Boolean);
+  const rows = sampleLabels.length > 0 ? sampleLabels : [marker.label || 'Item 1'];
+
+  if (marker.tableLayout) {
+    return (
+      <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 10, marginBottom: 20 }}>
+        <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: members.length * 160 + 140 }}>
+          <thead>
+            <tr style={{ background: 'var(--surface2)' }}>
+              <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{marker.label}</th>
+              {members.map((mf) => (
+                <th key={mf.id} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)', minWidth: 160 }}>{mf.label}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((label, i) => (
+              <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{label}</td>
+                {members.map((mf) => (
+                  <td key={mf.id} style={{ padding: '8px 10px', verticalAlign: 'top' }}><FieldPreview field={mf} /></td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginBottom: 12 }}>
+      {rows.map((label, i) => (
+        <div key={i} style={{ border: '1px solid var(--border)', borderRadius: 10, padding: 14, marginBottom: 10, background: 'var(--surface2)' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', marginBottom: 10 }}>{label}</div>
+          {members.map((mf) => (
+            <div key={mf.id} style={{ marginBottom: 10 }}>
+              <label style={{ display: 'block', fontSize: 12.5, fontWeight: 600, color: 'var(--text)', marginBottom: 6 }}>
+                {mf.label}{mf.required && <span style={{ color: '#DC2626' }}> *</span>}
+              </label>
+              <FieldPreview field={mf} />
+            </div>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function PreviewMode() {
   const fields = useStore((s) => s.fields);
   const currentFormName = useStore((s) => s.currentFormName);
   const currentFormDesc = useStore((s) => s.currentFormDesc);
   const accent = useStore((s) => s.accent);
 
+  const rows: ReactNode[] = [];
+  let i = 0;
+  while (i < fields.length) {
+    const f = fields[i];
+    if (f.type === 'section') {
+      let end = i + 1;
+      while (end < fields.length && fields[end].type !== 'section') end++;
+      const memberFields = fields.slice(i + 1, end).filter(mf => !mf.hidden);
+      rows.push(
+        <div key={f.id} style={{ marginTop: 20, marginBottom: 12 }}>
+          <div style={{ fontSize: 17, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)', marginBottom: 4, paddingBottom: 8, borderBottom: '2px solid var(--border)' }}>
+            {f.label}
+          </div>
+          {f.helpText && <div style={{ fontSize: 12.5, color: 'var(--muted)', margin: '6px 0 10px' }}>{f.helpText}</div>}
+          <PreviewSection marker={f} members={memberFields} />
+        </div>
+      );
+      i = end;
+    } else {
+      if (!f.hidden) rows.push(<PreviewField key={f.id} field={f} />);
+      i++;
+    }
+  }
+
   return (
     <div style={{ flex: 1, background: 'var(--surface2)', overflowY: 'auto' }}>
-      <div style={{ maxWidth: 640, margin: '0 auto', padding: '32px 24px' }}>
+      <div style={{ maxWidth: 680, margin: '0 auto', padding: '32px 24px' }}>
         <div
           style={{
             background: 'var(--surface)',
@@ -1818,7 +1913,7 @@ function PreviewMode() {
               No fields added yet.
             </div>
           ) : (
-            fields.map((f) => <PreviewField key={f.id} field={f} />)
+            rows
           )}
 
           <button

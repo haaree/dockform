@@ -39,13 +39,23 @@ export function renderCellDisplay(f: FormField, v: string, allFields: FormField[
   }
   if (f.type === 'section' && f.repeatable) {
     try {
-      const instances: { id: string; values: Record<string, string> }[] = JSON.parse(v);
-      const members = sectionMembers(allFields, f);
+      const instances: { id: string; values: Record<string, string>; label?: string }[] = JSON.parse(v);
+      const members = sectionMembers(allFields, f).filter(sf => !sf.hidden);
       if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">None added</span>';
+      if (f.tableLayout) {
+        return `<table style="border-collapse:collapse;font-size:11px;"><thead><tr>
+          <th style="padding:4px 6px;border:1px solid #e2e8f0;background:#f1f5f9;text-align:left;">${f.label}</th>
+          ${members.map(sf => `<th style="padding:4px 6px;border:1px solid #e2e8f0;background:#f1f5f9;text-align:left;">${sf.label}</th>`).join('')}
+        </tr></thead><tbody>${instances.map(inst => `
+          <tr>
+            <td style="padding:4px 6px;border:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${inst.label || '—'}</td>
+            ${members.map(sf => `<td style="padding:4px 6px;border:1px solid #e2e8f0;">${renderCellDisplay(sf, inst.values[sf.id] || '', allFields)}</td>`).join('')}
+          </tr>`).join('')}</tbody></table>`;
+      }
       return instances.map((inst, i) => `
         <div style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-bottom:4px;">
-          <div style="font-size:10px;font-weight:700;color:#6b7280;">${f.label || 'Item'} ${i + 1}</div>
-          ${members.filter(sf => !sf.hidden).map(sf => `<div style="font-size:11px;"><strong>${sf.label}:</strong> ${renderCellDisplay(sf, inst.values[sf.id] || '', allFields)}</div>`).join('')}
+          <div style="font-size:10px;font-weight:700;color:#6b7280;">${inst.label || `${f.label || 'Item'} ${i + 1}`}</div>
+          ${members.map(sf => `<div style="font-size:11px;"><strong>${sf.label}:</strong> ${renderCellDisplay(sf, inst.values[sf.id] || '', allFields)}</div>`).join('')}
         </div>`).join('');
     } catch { return v; }
   }

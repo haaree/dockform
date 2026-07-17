@@ -451,9 +451,42 @@ export default function FormResponses() {
   const renderRepeatableSection = (marker: FormField) => {
     const raw = expandedResponse?.values?.[marker.id] || '';
     const members = sectionMembers(fieldDefs, marker).filter(m => !m.hidden);
-    let instances: { id: string; values: Record<string, string> }[] = [];
+    let instances: { id: string; values: Record<string, string>; label?: string }[] = [];
     if (raw) {
       try { instances = JSON.parse(raw); } catch { /* fall through to empty */ }
+    }
+    if (marker.tableLayout) {
+      return (
+        <div key={marker.id} style={{ marginBottom: 14 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, fontStyle: 'italic', color: 'var(--text)', marginBottom: 8 }}>{marker.label}</div>
+          {instances.length === 0 ? (
+            <div style={{ fontSize: 13, color: 'var(--muted)', fontStyle: 'italic' }}>None added</div>
+          ) : (
+            <div style={{ overflowX: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
+              <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: members.length * 160 + 140 }}>
+                <thead>
+                  <tr style={{ background: 'var(--surface2)' }}>
+                    <th style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)', whiteSpace: 'nowrap' }}>{marker.label}</th>
+                    {members.map((m) => (
+                      <th key={m.id} style={{ textAlign: 'left', padding: '8px 10px', fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid var(--border)', minWidth: 160 }}>{m.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {instances.map((inst) => (
+                    <tr key={inst.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{inst.label || '—'}</td>
+                      {members.map((m) => (
+                        <td key={m.id} style={{ padding: '8px 10px', fontSize: 13, color: 'var(--text)', verticalAlign: 'top' }}>{renderValue(m.id, m.type, inst.values)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      );
     }
     return (
       <div key={marker.id} style={{ marginBottom: 14 }}>
