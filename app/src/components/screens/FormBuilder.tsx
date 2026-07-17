@@ -247,7 +247,14 @@ function BuilderToolbar() {
 
   const handleSaveDraft = async () => {
     if (autoSaveInFlight.current) await autoSaveInFlight.current;
-    await saveDraft();
+    setAutoSaveStatus('saving');
+    try {
+      await saveDraft();
+      setAutoSaveStatus('saved');
+      setTimeout(() => setAutoSaveStatus('idle'), 2000);
+    } catch {
+      setAutoSaveStatus('error');
+    }
   };
 
   const tabs: { key: 'build' | 'logic' | 'preview'; label: string }[] = [
