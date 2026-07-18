@@ -42,7 +42,6 @@ interface AppState {
   activePackId: string | null;
   previewPackId: string | null;
   packSearch: string;
-  packIndustryFilter: string;
   packSubCategoryFilter: string;
   customPacks: TemplatePack[];
   showSaveTemplateModal: boolean;
@@ -111,7 +110,6 @@ interface AppState {
   loadGeneratedFields: (fields: Omit<FormField, 'id'>[], name: string) => void;
   setPreviewPackId: (id: string | null) => void;
   setPackSearch: (s: string) => void;
-  setPackIndustryFilter: (v: string) => void;
   setPackSubCategoryFilter: (v: string) => void;
   setShowSaveTemplateModal: (show: boolean) => void;
   setSaveTemplateName: (name: string) => void;
@@ -235,7 +233,6 @@ export const useStore = create<AppState>((set) => ({
   activePackId: null,
   previewPackId: null,
   packSearch: '',
-  packIndustryFilter: 'All',
   packSubCategoryFilter: 'All',
   customPacks: [],
   showSaveTemplateModal: false,
@@ -495,7 +492,6 @@ export const useStore = create<AppState>((set) => ({
 
   setPreviewPackId: (previewPackId) => set({ previewPackId }),
   setPackSearch: (packSearch) => set({ packSearch }),
-  setPackIndustryFilter: (packIndustryFilter) => set({ packIndustryFilter, packSubCategoryFilter: 'All' }),
   setPackSubCategoryFilter: (packSubCategoryFilter) => set({ packSubCategoryFilter }),
   setShowSaveTemplateModal: (showSaveTemplateModal) => set({ showSaveTemplateModal }),
   setSaveTemplateName: (saveTemplateName) => set({ saveTemplateName }),

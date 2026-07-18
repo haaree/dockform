@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import {
   Search, Shield, Sparkles, X, Zap, Check, Trash2,
-  FlaskConical, Factory, UtensilsCrossed, Building2, GraduationCap, School,
+  FlaskConical, Factory, UtensilsCrossed, Building2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { getBuiltInPacks } from '../../data/templatePacks';
@@ -14,8 +14,6 @@ const SUBCATEGORY_ART: Record<string, { icon: React.ComponentType<{ size?: numbe
   'Manufacturing & Engineering': { icon: Factory, gradient: 'linear-gradient(135deg, #F59E0B, #DC2626)' },
   'Food & Catering': { icon: UtensilsCrossed, gradient: 'linear-gradient(135deg, #16A34A, #059669)' },
   'General & Facilities': { icon: Building2, gradient: 'linear-gradient(135deg, #64748B, #334155)' },
-  'CBSE': { icon: GraduationCap, gradient: 'linear-gradient(135deg, #7C3AED, #4F46E5)' },
-  'State Board': { icon: School, gradient: 'linear-gradient(135deg, #7C3AED, #A855F7)' },
   'Custom': { icon: Sparkles, gradient: 'linear-gradient(135deg, #2563EB, #1D4ED8)' },
 };
 const DEFAULT_ART = { icon: Shield, gradient: 'linear-gradient(135deg, #6B7280, #374151)' };
@@ -37,12 +35,10 @@ export default function TemplatesScreen() {
   const activePackId = useStore((s) => s.activePackId);
   const previewPackId = useStore((s) => s.previewPackId);
   const packSearch = useStore((s) => s.packSearch);
-  const packIndustryFilter = useStore((s) => s.packIndustryFilter);
   const packSubCategoryFilter = useStore((s) => s.packSubCategoryFilter);
   const activatePack = useStore((s) => s.activatePack);
   const setPreviewPackId = useStore((s) => s.setPreviewPackId);
   const setPackSearch = useStore((s) => s.setPackSearch);
-  const setPackIndustryFilter = useStore((s) => s.setPackIndustryFilter);
   const setPackSubCategoryFilter = useStore((s) => s.setPackSubCategoryFilter);
   const deleteCustomPack = useStore((s) => s.deleteCustomPack);
 
@@ -51,27 +47,20 @@ export default function TemplatesScreen() {
 
   const allPacks = useMemo(() => [...getBuiltInPacks(), ...customPacks], [customPacks]);
 
-  const industries = useMemo(() => {
-    const set = new Set(allPacks.map((p) => p.industry));
+  const subCategories = useMemo(() => {
+    const set = new Set(allPacks.map((p) => p.subCategory));
     return ['All', ...Array.from(set)];
   }, [allPacks]);
 
-  const subCategories = useMemo(() => {
-    if (packIndustryFilter === 'All') return [];
-    const set = new Set(allPacks.filter((p) => p.industry === packIndustryFilter).map((p) => p.subCategory));
-    return ['All', ...Array.from(set)];
-  }, [allPacks, packIndustryFilter]);
-
   const filtered = useMemo(() => {
     let packs = allPacks;
-    if (packIndustryFilter !== 'All') packs = packs.filter((p) => p.industry === packIndustryFilter);
     if (packSubCategoryFilter !== 'All') packs = packs.filter((p) => p.subCategory === packSubCategoryFilter);
     const q = packSearch.toLowerCase();
     if (q) packs = packs.filter((p) =>
       p.name.toLowerCase().includes(q) || p.tag.toLowerCase().includes(q) || p.chips.some((c) => c.toLowerCase().includes(q))
     );
     return packs;
-  }, [allPacks, packIndustryFilter, packSubCategoryFilter, packSearch]);
+  }, [allPacks, packSubCategoryFilter, packSearch]);
 
   const previewPack = previewPackId ? allPacks.find((p) => p.id === previewPackId) : null;
 
@@ -88,43 +77,23 @@ export default function TemplatesScreen() {
         </div>
       </div>
 
-      {/* Industry filters */}
+      {/* Category filters */}
       <div style={{ padding: isMobile ? '14px 16px 0' : '14px 32px 0', display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, overflowX: 'auto' }}>
-        {industries.map((d) => (
+        {subCategories.map((sc) => (
           <button
-            key={d}
-            onClick={() => setPackIndustryFilter(d)}
+            key={sc}
+            onClick={() => setPackSubCategoryFilter(sc)}
             style={{
               padding: '7px 15px', fontSize: 12.5, fontWeight: 700, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
-              background: d === packIndustryFilter ? accent : (dark ? '#1C1C1E' : '#FFFFFF'),
-              color: d === packIndustryFilter ? '#fff' : (dark ? '#9CA3AF' : '#6B7280'),
-              border: `1px solid ${d === packIndustryFilter ? accent : ghost}`,
+              background: sc === packSubCategoryFilter ? accent : (dark ? '#1C1C1E' : '#FFFFFF'),
+              color: sc === packSubCategoryFilter ? '#fff' : (dark ? '#9CA3AF' : '#6B7280'),
+              border: `1px solid ${sc === packSubCategoryFilter ? accent : ghost}`,
             }}
           >
-            {d}
+            {sc}
           </button>
         ))}
       </div>
-
-      {/* Sub-category filters (only once an industry is selected) */}
-      {subCategories.length > 0 && (
-        <div style={{ padding: isMobile ? '10px 16px 0' : '10px 32px 0', display: 'flex', gap: 6, flexWrap: 'wrap', flexShrink: 0, overflowX: 'auto' }}>
-          {subCategories.map((sc) => (
-            <button
-              key={sc}
-              onClick={() => setPackSubCategoryFilter(sc)}
-              style={{
-                padding: '5px 11px', fontSize: 11.5, fontWeight: 600, borderRadius: 20, cursor: 'pointer', whiteSpace: 'nowrap',
-                background: sc === packSubCategoryFilter ? `${accent}18` : 'transparent',
-                color: sc === packSubCategoryFilter ? accent : 'var(--muted)',
-                border: `1px solid ${sc === packSubCategoryFilter ? accent : ghost}`,
-              }}
-            >
-              {sc}
-            </button>
-          ))}
-        </div>
-      )}
 
       {/* Content: grid + preview panel */}
       <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
