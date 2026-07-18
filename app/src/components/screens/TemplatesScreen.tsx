@@ -1,6 +1,6 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useState, useEffect } from 'react';
 import {
-  Search, Shield, Sparkles, X, Zap, Check, Trash2,
+  Search, Shield, Sparkles, Trash2, SlidersHorizontal, Check, X,
   FlaskConical, Factory, UtensilsCrossed, Building2,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
@@ -8,7 +8,7 @@ import { getBuiltInPacks } from '../../data/templatePacks';
 import type { TemplatePack } from '../../store/types';
 
 // One illustration identity per sub-category: an icon + a gradient, used as the visual
-// header on each card instead of a real photo (no image asset pipeline in this app).
+// header on each card when the pack has no real photo of its own.
 const SUBCATEGORY_ART: Record<string, { icon: React.ComponentType<{ size?: number; style?: React.CSSProperties }>; gradient: string }> = {
   'Chemical & Pharma': { icon: FlaskConical, gradient: 'linear-gradient(135deg, #0EA5E9, #6366F1)' },
   'Manufacturing & Engineering': { icon: Factory, gradient: 'linear-gradient(135deg, #F59E0B, #DC2626)' },
@@ -18,26 +18,15 @@ const SUBCATEGORY_ART: Record<string, { icon: React.ComponentType<{ size?: numbe
 };
 const DEFAULT_ART = { icon: Shield, gradient: 'linear-gradient(135deg, #6B7280, #374151)' };
 
-const TYPE_LABELS: Record<string, string> = {
-  textbox: 'Text', textarea: 'Textarea', richtext: 'Rich Text', number: 'Number', currency: 'Currency',
-  percent: 'Percent', date: 'Date', time: 'Time', datetime: 'DateTime', dropdown: 'Dropdown',
-  multiselect: 'Multi-Sel', checkbox: 'Checkbox', radio: 'Radio', toggle: 'Toggle', lookup: 'Lookup',
-  formula: 'Formula', image: 'Image', camera: 'Camera', video: 'Video', audio: 'Audio', upload: 'File',
-  signature: 'Signature', gps: 'GPS', qr: 'QR', barcode: 'Barcode', email: 'Email', phone: 'Phone',
-  url: 'URL', rating: 'Rating', color: 'Color', hidden: 'Hidden', system: 'System', ai: 'AI',
-};
-
 export default function TemplatesScreen() {
   const accent = useStore((s) => s.accent);
   const dark = useStore((s) => s.dark);
   const winWidth = useStore((s) => s.winWidth);
   const customPacks = useStore((s) => s.customPacks);
   const activePackId = useStore((s) => s.activePackId);
-  const previewPackId = useStore((s) => s.previewPackId);
   const packSearch = useStore((s) => s.packSearch);
   const packSubCategoryFilter = useStore((s) => s.packSubCategoryFilter);
   const activatePack = useStore((s) => s.activatePack);
-  const setPreviewPackId = useStore((s) => s.setPreviewPackId);
   const setPackSearch = useStore((s) => s.setPackSearch);
   const setPackSubCategoryFilter = useStore((s) => s.setPackSubCategoryFilter);
   const deleteCustomPack = useStore((s) => s.deleteCustomPack);
@@ -45,11 +34,22 @@ export default function TemplatesScreen() {
   const ghost = dark ? '#303036' : '#E4E4E7';
   const isMobile = winWidth < 720;
 
+  const [showFilters, setShowFilters] = useState(false);
+  const filterRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showFilters) return;
+    const handler = (e: MouseEvent) => {
+      if (filterRef.current && !filterRef.current.contains(e.target as Node)) setShowFilters(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showFilters]);
+
   const allPacks = useMemo(() => [...getBuiltInPacks(), ...customPacks], [customPacks]);
 
   const subCategories = useMemo(() => {
     const set = new Set(allPacks.map((p) => p.subCategory));
-    return ['All', ...Array.from(set)];
+    return Array.from(set);
   }, [allPacks]);
 
   const filtered = useMemo(() => {
@@ -62,77 +62,98 @@ export default function TemplatesScreen() {
     return packs;
   }, [allPacks, packSubCategoryFilter, packSearch]);
 
-  const previewPack = previewPackId ? allPacks.find((p) => p.id === previewPackId) : null;
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      <div style={{ padding: isMobile ? 16 : '24px 32px', flexShrink: 0, borderBottom: '1px solid var(--border)', display: 'flex', alignItems: isMobile ? 'stretch' : 'center', gap: 12, flexWrap: 'wrap', flexDirection: isMobile ? 'column' : 'row' }}>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.5px' }}>Templates</h1>
-          <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4 }}>Pre-built compliance templates — activate and customise in the Form Builder</p>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px' }}>
-          <Search size={13} color="var(--muted)" />
-          <input value={packSearch} onChange={(e) => setPackSearch(e.target.value)} placeholder="Search templates…" style={{ border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 13, width: isMobile ? '100%' : 180, outline: 'none' }} />
-        </div>
-      </div>
+      <div style={{ padding: isMobile ? 16 : '24px 32px', flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
+        <h1 style={{ fontSize: isMobile ? 20 : 24, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.5px' }}>Templates</h1>
+        <p style={{ fontSize: 14, color: 'var(--muted)', marginTop: 4, marginBottom: 18 }}>Pre-built compliance templates — activate and customise in the Form Builder</p>
 
-      {/* Category filters */}
-      <div style={{ padding: isMobile ? '14px 16px 0' : '14px 32px 0', display: 'flex', gap: 8, flexWrap: 'wrap', flexShrink: 0, overflowX: 'auto' }}>
-        {subCategories.map((sc) => (
-          <button
-            key={sc}
-            onClick={() => setPackSubCategoryFilter(sc)}
-            style={{
-              padding: '7px 15px', fontSize: 12.5, fontWeight: 700, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
-              background: sc === packSubCategoryFilter ? accent : (dark ? '#1C1C1E' : '#FFFFFF'),
-              color: sc === packSubCategoryFilter ? '#fff' : (dark ? '#9CA3AF' : '#6B7280'),
-              border: `1px solid ${sc === packSubCategoryFilter ? accent : ghost}`,
-            }}
-          >
-            {sc}
-          </button>
-        ))}
-      </div>
-
-      {/* Content: grid + preview panel */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex' }}>
-        <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 16 : '24px 32px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-            {filtered.map((pack) => (
-              <PackCard
-                key={pack.id}
-                pack={pack}
-                isActive={activePackId === pack.id}
-                accent={accent}
-                dark={dark}
-                ghost={ghost}
-                onActivate={() => activatePack(pack)}
-                onPreview={() => setPreviewPackId(pack.id)}
-                onDelete={pack.isCustom ? () => deleteCustomPack(pack.id) : undefined}
-              />
-            ))}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, padding: '9px 14px', flex: isMobile ? '1 1 100%' : '0 1 320px', minWidth: 200 }}>
+            <Search size={14} color="var(--muted)" />
+            <input value={packSearch} onChange={(e) => setPackSearch(e.target.value)} placeholder="Search checklists, forms…" style={{ border: 'none', background: 'transparent', color: 'var(--text)', fontSize: 13.5, width: '100%', outline: 'none' }} />
           </div>
-        </div>
+          <button
+            type="button"
+            style={{ height: 38, padding: '0 18px', borderRadius: 8, border: 'none', background: accent, color: '#fff', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', flexShrink: 0 }}
+          >
+            Search
+          </button>
 
-        {/* Preview panel */}
-        {previewPack && (
-          <PreviewPanel
-            pack={previewPack}
-            dark={dark}
-            ghost={ghost}
-            onClose={() => setPreviewPackId(null)}
-            onActivate={() => activatePack(previewPack)}
-          />
-        )}
+          <div ref={filterRef} style={{ position: 'relative' }}>
+            <button
+              onClick={() => setShowFilters((v) => !v)}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 7, height: 38, padding: '0 14px', borderRadius: 8, cursor: 'pointer',
+                background: packSubCategoryFilter !== 'All' ? `${accent}14` : 'var(--surface)',
+                border: `1px solid ${packSubCategoryFilter !== 'All' ? accent : 'var(--border)'}`,
+                color: packSubCategoryFilter !== 'All' ? accent : 'var(--text)', fontSize: 13, fontWeight: 600,
+              }}
+            >
+              <SlidersHorizontal size={14} /> Filters{packSubCategoryFilter !== 'All' ? ' (1)' : ''}
+            </button>
+            {showFilters && (
+              <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 6, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,.14)', zIndex: 50, minWidth: 220, padding: 8 }}>
+                <div style={{ fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--muted)', padding: '6px 10px 4px' }}>Category</div>
+                {['All', ...subCategories].map((sc) => (
+                  <button
+                    key={sc}
+                    onClick={() => { setPackSubCategoryFilter(sc); setShowFilters(false); }}
+                    style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', padding: '8px 10px', borderRadius: 6,
+                      background: sc === packSubCategoryFilter ? `${accent}12` : 'transparent', border: 'none', cursor: 'pointer',
+                      color: sc === packSubCategoryFilter ? accent : 'var(--text)', fontSize: 13, fontWeight: sc === packSubCategoryFilter ? 600 : 500, textAlign: 'left',
+                    }}
+                  >
+                    {sc}
+                    {sc === packSubCategoryFilter && <Check size={13} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {packSubCategoryFilter !== 'All' && (
+            <>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, height: 38, padding: '0 12px', borderRadius: 20, border: `1px solid ${accent}`, background: `${accent}12`, color: accent, fontSize: 12.5, fontWeight: 600 }}>
+                {packSubCategoryFilter}
+                <button onClick={() => setPackSubCategoryFilter('All')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: accent, display: 'flex' }}>
+                  <X size={12} />
+                </button>
+              </span>
+              <button onClick={() => setPackSubCategoryFilter('All')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--muted)', fontSize: 12.5, fontWeight: 600 }}>
+                Clear all
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: isMobile ? 16 : '24px 32px' }}>
+        <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', marginBottom: 16 }}>
+          {packSubCategoryFilter === 'All' ? 'Browse all' : packSubCategoryFilter} <span style={{ fontWeight: 500, color: 'var(--muted)', fontSize: 14 }}>{filtered.length} result{filtered.length !== 1 ? 's' : ''}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+          {filtered.map((pack) => (
+            <PackCard
+              key={pack.id}
+              pack={pack}
+              isActive={activePackId === pack.id}
+              accent={accent}
+              ghost={ghost}
+              onActivate={() => activatePack(pack)}
+              onDelete={pack.isCustom ? () => deleteCustomPack(pack.id) : undefined}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
 }
 
-function PackCard({ pack, isActive, accent, dark, ghost, onActivate, onPreview, onDelete }: {
-  pack: TemplatePack; isActive: boolean; accent: string; dark: boolean; ghost: string;
-  onActivate: () => void; onPreview: () => void; onDelete?: () => void;
+function PackCard({ pack, isActive, accent, ghost, onActivate, onDelete }: {
+  pack: TemplatePack; isActive: boolean; accent: string; ghost: string;
+  onActivate: () => void; onDelete?: () => void;
 }) {
   const art = SUBCATEGORY_ART[pack.subCategory] || DEFAULT_ART;
   const ArtIcon = art.icon;
@@ -142,98 +163,40 @@ function PackCard({ pack, isActive, accent, dark, ghost, onActivate, onPreview, 
       background: 'var(--surface)', border: `1px solid ${isActive ? accent : ghost}`, borderRadius: 10, overflow: 'hidden',
       boxShadow: isActive ? `0 0 0 3px ${accent}22` : '0 1px 3px rgba(0,0,0,.04)',
     }}>
-      <div style={{ position: 'relative', height: 84, background: art.gradient, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
-        <ArtIcon size={40} style={{ color: 'rgba(255,255,255,.9)' }} />
-        <div style={{ position: 'absolute', top: 8, left: 8, fontSize: 9.5, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: 'rgba(0,0,0,.28)', color: '#fff', letterSpacing: '0.3px' }}>{pack.subCategory}</div>
+      <div style={{ position: 'relative', height: 148, background: pack.image ? undefined : art.gradient, overflow: 'hidden' }}>
+        {pack.image ? (
+          <img src={pack.image} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+        ) : (
+          <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ArtIcon size={40} style={{ color: 'rgba(255,255,255,.9)' }} />
+          </div>
+        )}
+        <div style={{ position: 'absolute', top: 10, left: 10, fontSize: 9.5, fontWeight: 700, padding: '3px 8px', borderRadius: 4, background: 'rgba(0,0,0,.4)', color: '#fff', letterSpacing: '0.3px' }}>{pack.subCategory}</div>
         {isActive && (
-          <div style={{ position: 'absolute', top: 8, right: 8, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#DCFCE7', color: '#15803D', whiteSpace: 'nowrap' }}>
+          <div style={{ position: 'absolute', top: 10, right: 10, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 20, background: '#DCFCE7', color: '#15803D', whiteSpace: 'nowrap' }}>
             <Check size={11} /> Active
           </div>
         )}
       </div>
       <div style={{ padding: '14px 16px' }}>
         <div style={{ fontSize: 13.5, fontWeight: 600, color: 'var(--text)', marginBottom: 4, lineHeight: 1.3 }}>{pack.name}</div>
-        <p style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.4, marginBottom: 10, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 1, WebkitBoxOrient: 'vertical' as const }}>{pack.description}</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-          <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--muted)' }}>{pack.fields.length} fields</span>
-          <span style={{ fontSize: 10, color: 'var(--muted)' }}>·</span>
-          <span style={{ fontSize: 10, fontWeight: 700, color: accent }}>{pack.tag}</span>
-        </div>
+        <p style={{ fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.4, marginBottom: 14, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as const }}>{pack.description}</p>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={onActivate} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 14px', fontSize: 12, fontWeight: isActive ? 700 : 600, borderRadius: 7, cursor: 'pointer',
+            flex: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 5, padding: '8px 14px', fontSize: 12.5, fontWeight: isActive ? 700 : 600, borderRadius: 7, cursor: 'pointer',
             background: isActive ? '#DCFCE7' : accent, color: isActive ? '#15803D' : '#fff', border: isActive ? '1px solid #86EFAC' : 'none',
           }}>
-            {isActive ? '✓ Activated' : 'Use This Pack'}
-          </button>
-          <button onClick={onPreview} style={{
-            display: 'inline-flex', alignItems: 'center', gap: 5, padding: '7px 12px', fontSize: 12, fontWeight: 500,
-            background: dark ? '#28282C' : '#FFFFFF', color: dark ? '#E5E7EB' : '#374151', border: `1px solid ${ghost}`, borderRadius: 7, cursor: 'pointer',
-          }}>
-            Preview fields
+            {isActive ? '✓ Activated' : 'Use This Template'}
           </button>
           {onDelete && (
             <button onClick={(e) => { e.stopPropagation(); onDelete(); }} style={{
-              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 7,
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 8,
               background: 'transparent', border: `1px solid ${ghost}`, borderRadius: 7, cursor: 'pointer', color: '#EF4444',
             }}>
-              <Trash2 size={12} />
+              <Trash2 size={13} />
             </button>
           )}
         </div>
-      </div>
-      <div style={{ borderTop: '1px solid var(--border)', padding: '10px 20px', display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-        {pack.chips.map((chip) => (
-          <span key={chip} style={{ fontSize: 10, fontWeight: 500, padding: '3px 8px', borderRadius: 20, background: dark ? '#28282C' : '#F4F4F5', color: dark ? '#9CA3AF' : '#6B7280' }}>
-            {chip}
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function PreviewPanel({ pack, dark, ghost, onClose, onActivate }: {
-  pack: TemplatePack; dark: boolean; ghost: string; onClose: () => void; onActivate: () => void;
-}) {
-  return (
-    <div style={{ width: 340, flexShrink: 0, borderLeft: `1px solid ${ghost}`, background: dark ? '#161618' : '#FAFAF8', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-      <div style={{ padding: '16px 18px', borderBottom: `1px solid ${ghost}`, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: '0.8px', color: dark ? '#52525B' : '#A1A1AA', marginBottom: 5 }}>Pack Preview</div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', lineHeight: 1.3 }}>{pack.name}</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-            <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 7px', borderRadius: 4, background: `${pack.color}18`, color: pack.color }}>{pack.tag}</span>
-            <span style={{ fontSize: 11, color: 'var(--muted)' }}>{pack.fields.length} fields</span>
-          </div>
-        </div>
-        <button onClick={onClose} style={{ padding: 4, background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--muted)', display: 'flex', alignItems: 'center' }}>
-          <X size={16} />
-        </button>
-      </div>
-      <div style={{ flex: 1, overflowY: 'auto', padding: '8px 0' }}>
-        {pack.fields.map((f, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 18px', borderBottom: `1px solid ${dark ? '#1C1C1E' : '#F4F4F5'}` }}>
-            <div style={{ width: 24, height: 24, borderRadius: 6, background: dark ? '#242426' : '#F4F4F5', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, color: 'var(--muted)', marginTop: 1, fontSize: 10 }}>
-              {(TYPE_LABELS[f.type] || f.type).charAt(0)}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }}>{f.label}</div>
-              <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 2 }}>{TYPE_LABELS[f.type] || f.type}{f.required ? ' · Required' : ''}</div>
-            </div>
-          </div>
-        ))}
-      </div>
-      <div style={{ padding: '14px 18px', borderTop: `1px solid ${ghost}`, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-        <div style={{ fontSize: 11, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 2 }}>
-          Activating this pack will load all {pack.fields.length} fields into the Form Builder. You can add, edit, or remove any field.
-        </div>
-        <button onClick={onActivate} style={{
-          width: '100%', padding: 10, background: pack.color, color: '#fff', border: 'none', borderRadius: 8,
-          fontSize: 13, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-        }}>
-          <Zap size={14} /> Activate This Pack
-        </button>
       </div>
     </div>
   );

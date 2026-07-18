@@ -221,4 +221,7 @@ export interface TemplatePack {
   // `domain`, which stays as the display tag / becomes the created form's category).
   industry: string;
   subCategory: string;
+  // Optional real photo for the template card header. Falls back to the subCategory's
+  // icon + gradient illustration when absent.
+  image?: string;
 }

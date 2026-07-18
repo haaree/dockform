@@ -40,7 +40,6 @@ interface AppState {
 
   // Templates
   activePackId: string | null;
-  previewPackId: string | null;
   packSearch: string;
   packSubCategoryFilter: string;
   customPacks: TemplatePack[];
@@ -108,7 +107,6 @@ interface AppState {
 
   activatePack: (pack: TemplatePack) => void;
   loadGeneratedFields: (fields: Omit<FormField, 'id'>[], name: string) => void;
-  setPreviewPackId: (id: string | null) => void;
   setPackSearch: (s: string) => void;
   setPackSubCategoryFilter: (v: string) => void;
   setShowSaveTemplateModal: (show: boolean) => void;
@@ -231,7 +229,6 @@ export const useStore = create<AppState>((set) => ({
   dragSrcIdx: null,
   dragSrcSectionId: null,
   activePackId: null,
-  previewPackId: null,
   packSearch: '',
   packSubCategoryFilter: 'All',
   customPacks: [],
@@ -472,7 +469,6 @@ export const useStore = create<AppState>((set) => ({
       fieldCounter: fields.length,
       builderTab: 'build',
       nav: 'builder',
-      previewPackId: null,
     });
   },
 
@@ -490,7 +486,6 @@ export const useStore = create<AppState>((set) => ({
     });
   },
 
-  setPreviewPackId: (previewPackId) => set({ previewPackId }),
   setPackSearch: (packSearch) => set({ packSearch }),
   setPackSubCategoryFilter: (packSubCategoryFilter) => set({ packSubCategoryFilter }),
   setShowSaveTemplateModal: (showSaveTemplateModal) => set({ showSaveTemplateModal }),
