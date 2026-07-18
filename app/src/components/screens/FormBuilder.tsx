@@ -4,7 +4,7 @@ import {
   Calendar, Clock, CalendarClock, List, ListChecks, CheckSquare, CircleDot, ToggleLeft,
   Search, Calculator, Image, Camera, Video, Music, Upload, PenTool, MapPin, QrCode,
   Barcode, Phone, Globe, Palette, EyeOff, Cpu, Sparkles, GripVertical, Copy, Trash2,
-  Sliders, Zap, Plus, Layers, ChevronRight, ChevronDown, Table2, type LucideIcon,
+  Sliders, Zap, Plus, Layers, ChevronRight, ChevronDown, Table2, StickyNote, type LucideIcon,
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule, ChecklistItemDef } from '../../store/types';
@@ -29,6 +29,7 @@ const FIELD_CATEGORIES: FieldCategory[] = [
       { type: 'textbox', label: 'Text', icon: Type },
       { type: 'textarea', label: 'Textarea', icon: AlignLeft },
       { type: 'richtext', label: 'Rich Text', icon: Pilcrow },
+      { type: 'notes', label: 'Notes', icon: StickyNote },
       { type: 'email', label: 'Email', icon: Mail },
     ],
   },
@@ -606,6 +607,7 @@ function FieldPreview({ field }: { field: FormField }) {
       return <input disabled placeholder={placeholder || 'Enter value…'} style={inputStyle()} />;
 
     case 'textarea':
+    case 'notes':
       return <textarea disabled placeholder={placeholder || 'Enter value…'} style={{ ...inputStyle(), height: 72, resize: 'none', padding: 8 }} />;
 
     case 'richtext':

@@ -186,7 +186,7 @@ function toFieldDefs(apiFields: any[] | undefined): FormField[] {
 }
 
 const FIELD_LABELS: Record<string, string> = {
-  textbox: 'Text Field', textarea: 'Text Area', richtext: 'Rich Text', number: 'Number', currency: 'Currency', percent: 'Percentage',
+  textbox: 'Text Field', textarea: 'Text Area', richtext: 'Rich Text', notes: 'Notes', number: 'Number', currency: 'Currency', percent: 'Percentage',
   date: 'Date', time: 'Time', datetime: 'Date & Time', dropdown: 'Dropdown', multiselect: 'Multi Select', checkbox: 'Checkbox',
   radio: 'Radio', toggle: 'Toggle', lookup: 'Lookup', formula: 'Formula', image: 'Image', camera: 'Camera', video: 'Video',
   beforeafter: 'Before/After Photo', photochecklist: 'Photo Checklist', audio: 'Audio', upload: 'File Upload', signature: 'Signature', gps: 'GPS Location', qr: 'QR Code', barcode: 'Barcode',

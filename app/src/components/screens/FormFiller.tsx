@@ -619,6 +619,7 @@ function FieldInput({ field, value, onChange, lockToToday }: { field: FormField;
   switch (field.type) {
     case 'textarea':
     case 'richtext':
+    case 'notes':
       return <textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}…`} rows={4} style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }} />;
 
     case 'number':
