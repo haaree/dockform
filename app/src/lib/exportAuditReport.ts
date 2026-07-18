@@ -2,6 +2,7 @@ import type { FormField } from '../store/types';
 import { formatDate } from './format';
 import { buildInlineImageMap, applyInlineImageMap } from './imageInline';
 import { noteKey, mediaKey } from './fieldAnnotations';
+import { isYesNoOptions, yesNoColor } from './yesNoNa';
 
 interface AuditResponseData {
   submittedBy: string;
@@ -100,6 +101,10 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
   if (f.type === 'rating') {
     const n = parseInt(v) || 0;
     return `<div style="margin:4px 0;display:flex;gap:8px;align-items:center;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:14px;letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span></div>`;
+  }
+  if ((f.type === 'radio' || f.type === 'dropdown') && isYesNoOptions(f.options)) {
+    const c = yesNoColor(v);
+    if (c) return `<div style="margin:4px 0;display:flex;gap:8px;align-items:center;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;background:${c.bg};color:${c.fg};">${v}</span></div>`;
   }
   return `<div style="margin:4px 0;display:flex;gap:8px;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:12px;color:#1f2937;">${v.replace(/\|\|/g, ', ').replace(/</g, '&lt;')}</span></div>`;
 }

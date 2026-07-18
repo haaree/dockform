@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule, ChecklistItemDef } from '../../store/types';
+import { isYesNoOptions, yesNoColor } from '../../lib/yesNoNa';
 
 const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox'];
 
@@ -693,6 +694,20 @@ function FieldPreview({ field }: { field: FormField }) {
       );
 
     case 'radio':
+      if (isYesNoOptions(options)) {
+        return (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {options.map((o) => {
+              const c = yesNoColor(o)!;
+              return (
+                <div key={o} style={{ padding: '6px 14px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: '1px solid var(--border)', background: c.bg, color: c.fg, opacity: 0.7 }}>
+                  {o}
+                </div>
+              );
+            })}
+          </div>
+        );
+      }
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {options.map((o) => (

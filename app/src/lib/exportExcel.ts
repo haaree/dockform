@@ -2,6 +2,7 @@ import type { FormField } from '../store/types';
 import { formatDate } from './format';
 import { buildInlineImageMap, applyInlineImageMap } from './imageInline';
 import { noteKey, mediaKey } from './fieldAnnotations';
+import { isYesNoOptions, yesNoColor } from './yesNoNa';
 
 interface ResponseData {
   submittedBy: string;
@@ -22,6 +23,10 @@ export function sectionMembers(allFields: FormField[], marker: FormField): FormF
 
 export function renderCellDisplay(f: FormField, v: string, allFields: FormField[]): string {
   if (!v) return '<span style="color:#9ca3af;font-style:italic;">—</span>';
+  if ((f.type === 'radio' || f.type === 'dropdown') && isYesNoOptions(f.options)) {
+    const c = yesNoColor(v);
+    if (c) return `<span style="display:inline-block;padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;background:${c.bg};color:${c.fg};">${v}</span>`;
+  }
   if (f.type === 'beforeafter') {
     try {
       const ba = JSON.parse(v);

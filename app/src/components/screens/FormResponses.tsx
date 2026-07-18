@@ -8,6 +8,7 @@ import { downloadExcelReport, sectionMembers } from '../../lib/exportExcel';
 import { downloadAuditReport } from '../../lib/exportAuditReport';
 import { formatDate } from '../../lib/format';
 import { noteKey, mediaKey } from '../../lib/fieldAnnotations';
+import { isYesNoOptions, yesNoColor } from '../../lib/yesNoNa';
 
 const EMPTY_CELL = <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</span>;
 
@@ -367,9 +368,13 @@ export default function FormResponses() {
       })
     : formResponses;
 
-  const renderValue = (fieldId: string, type: string, valuesOverride?: Record<string, string>) => {
+  const renderValue = (fieldId: string, type: string, valuesOverride?: Record<string, string>, options?: string[]) => {
     const val = (valuesOverride ?? expandedResponse?.values ?? {})[fieldId] || '';
     if (!val) return <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>Not answered</span>;
+    if ((type === 'radio' || type === 'dropdown') && options && isYesNoOptions(options)) {
+      const c = yesNoColor(val);
+      if (c) return <span style={{ padding: '2px 10px', borderRadius: 12, fontSize: 12, fontWeight: 600, background: c.bg, color: c.fg }}>{val}</span>;
+    }
     if (type === 'beforeafter') {
       try {
         const ba = JSON.parse(val);
@@ -467,7 +472,7 @@ export default function FormResponses() {
   const renderFieldBlock = (f: FormField) => (
     <div key={f.id} style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{f.label}</div>
-      <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(f.id, f.type)}</div>
+      <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(f.id, f.type, undefined, f.options)}</div>
       {renderAnnotation(f.id)}
     </div>
   );
@@ -502,7 +507,7 @@ export default function FormResponses() {
                       <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{inst.label || '—'}</td>
                       {members.map((m) => (
                         <td key={m.id} style={{ padding: '8px 10px', fontSize: 13, color: 'var(--text)', verticalAlign: 'top' }}>
-                          {renderValue(m.id, m.type, inst.values)}
+                          {renderValue(m.id, m.type, inst.values, m.options)}
                           {renderAnnotation(m.id, inst.values)}
                         </td>
                       ))}
@@ -526,7 +531,7 @@ export default function FormResponses() {
             {members.map((m) => (
               <div key={m.id} style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{m.label}</div>
-                <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(m.id, m.type, inst.values)}</div>
+                <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(m.id, m.type, inst.values, m.options)}</div>
                 {renderAnnotation(m.id, inst.values)}
               </div>
             ))}

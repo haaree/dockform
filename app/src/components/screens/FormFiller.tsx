@@ -5,6 +5,7 @@ import type { FormField, LogicRule } from '../../store/types';
 import { api } from '../../lib/api';
 import { resizeImageFile } from '../../lib/image';
 import { noteKey, mediaKey } from '../../lib/fieldAnnotations';
+import { isYesNoOptions, yesNoColor } from '../../lib/yesNoNa';
 
 // Uploads a data URL (photo, signature, or file) to object storage and returns a short
 // "/api/files/:key" reference. Falls back to embedding the raw data URL only if object
@@ -741,6 +742,26 @@ function FieldInput({ field, value, onChange, lockToToday }: { field: FormField;
       );
 
     case 'radio':
+      if (isYesNoOptions(field.options)) {
+        return (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {field.options.map((opt) => {
+              const selected = value === opt;
+              const c = yesNoColor(opt)!;
+              return (
+                <button key={opt} type="button" onClick={() => onChange(opt)}
+                  style={{
+                    padding: '8px 18px', borderRadius: 8, fontSize: 13.5, fontWeight: 600, cursor: 'pointer',
+                    border: selected ? `1.5px solid ${c.fg}` : '1px solid var(--border)',
+                    background: selected ? c.bg : 'var(--surface)', color: selected ? c.fg : 'var(--muted)',
+                  }}>
+                  {opt}
+                </button>
+              );
+            })}
+          </div>
+        );
+      }
       return (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {field.options.map((opt) => (
