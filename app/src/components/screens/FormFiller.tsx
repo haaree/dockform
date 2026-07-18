@@ -425,17 +425,24 @@ function FieldAnnotation({ note, media, onNoteChange, onMediaChange, locked }: {
   note: string; media: string; onNoteChange: (v: string) => void; onMediaChange: (v: string) => void; locked?: boolean;
 }) {
   const [userOpened, setUserOpened] = useState(false);
-  const expanded = userOpened || !!note || !!media;
+  const [userClosed, setUserClosed] = useState(false);
+  const expanded = !userClosed && (userOpened || !!note || !!media);
   if (!expanded) {
     return (
-      <button type="button" onClick={() => setUserOpened(true)} disabled={locked}
+      <button type="button" onClick={() => { setUserOpened(true); setUserClosed(false); }} disabled={locked}
         style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, fontSize: 11.5, color: 'var(--muted)', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.5 : 1 }}>
-        <Plus size={11} /> Add note / photo
+        <Plus size={11} /> {note || media ? 'Note / photo added' : 'Add note / photo'}
       </button>
     );
   }
   return (
     <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+        <button type="button" onClick={() => setUserClosed(true)} disabled={locked}
+          style={{ background: 'none', border: 'none', padding: 0, fontSize: 11.5, color: 'var(--muted)', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.5 : 1 }}>
+          Close
+        </button>
+      </div>
       <textarea value={note} onChange={(e) => onNoteChange(e.target.value)} disabled={locked} placeholder="Add a note…" rows={2}
         style={{ width: '100%', padding: '8px 10px', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 6, background: locked ? 'var(--surface2)' : 'var(--surface)', color: 'var(--text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
       <fieldset disabled={locked} style={{ border: 'none', margin: 0, padding: 0 }}>
