@@ -1,6 +1,7 @@
 import type { FormField } from '../store/types';
 import { formatDate } from './format';
 import { buildInlineImageMap, applyInlineImageMap } from './imageInline';
+import { noteKey, mediaKey } from './fieldAnnotations';
 
 interface AuditResponseData {
   submittedBy: string;
@@ -72,7 +73,7 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
             </tr></thead><tbody>${instances.map(inst => `
               <tr>
                 <td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:600;white-space:nowrap;">${inst.label || '—'}</td>
-                ${members.map(sf => `<td style="padding:5px 8px;border:1px solid #e5e7eb;">${renderActivityField(sf, inst.values[sf.id] || '', allFields)}</td>`).join('')}
+                ${members.map(sf => `<td style="padding:5px 8px;border:1px solid #e5e7eb;">${renderActivityField(sf, inst.values[sf.id] || '', allFields)}${renderAnnotationCell(sf.id, inst.values)}</td>`).join('')}
               </tr>`).join('')}</tbody></table>
           </div>`;
       }
@@ -82,7 +83,7 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
           ${instances.map((inst, i) => `
             <div style="border:1px solid #e5e7eb;border-radius:8px;padding:10px 12px;margin-bottom:8px;background:#f9fafb;">
               <div style="font-size:10px;font-weight:700;color:#9ca3af;margin-bottom:4px;">${(inst.label || `${f.label || 'ITEM'} ${i + 1}`).toUpperCase()}</div>
-              ${members.map(sf => renderActivityField(sf, inst.values[sf.id] || '', allFields)).join('')}
+              ${members.map(sf => renderActivityField(sf, inst.values[sf.id] || '', allFields) + renderAnnotationCell(sf.id, inst.values)).join('')}
             </div>`).join('')}
         </div>`;
     } catch { return ''; }
@@ -103,6 +104,17 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
   return `<div style="margin:4px 0;display:flex;gap:8px;"><span style="font-size:11px;font-weight:600;color:#6b7280;">${f.label}:</span><span style="font-size:12px;color:#1f2937;">${v.replace(/\|\|/g, ', ').replace(/</g, '&lt;')}</span></div>`;
 }
 
+// Optional note/photo a filler attached to a field, stored as sidecar keys alongside the
+// field's own value (see lib/fieldAnnotations). Returns '' if neither was set.
+function renderAnnotationCell(fieldId: string, values: Record<string, string>): string {
+  const note = values[noteKey(fieldId)] || '';
+  const media = values[mediaKey(fieldId)] || '';
+  if (!note && !media) return '';
+  const noteHtml = note ? `<div style="font-size:10px;color:#374151;margin:2px 0 0 0;"><strong>Note:</strong> ${note.replace(/</g, '&lt;')}</div>` : '';
+  const mediaHtml = media.startsWith('data:image') ? `<img src="${media}" style="max-width:140px;max-height:100px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />` : (media ? `<div style="font-size:10px;color:#2563eb;margin-top:2px;">[Photo attached]</div>` : '');
+  return noteHtml + mediaHtml;
+}
+
 export async function downloadAuditReport(
   formName: string,
   description: string,
@@ -118,7 +130,7 @@ export async function downloadAuditReport(
   const activityRows = responses.map((r, i) => {
     const vals = r.values || {};
     const rowFields = fieldDefs.filter(f => !f.hidden && !repeatableMemberIds.has(f.id));
-    const fields = rowFields.map(f => renderActivityField(f, vals[f.id] || '', fieldDefs)).filter(Boolean).join('');
+    const fields = rowFields.map(f => renderActivityField(f, vals[f.id] || '', fieldDefs) + renderAnnotationCell(f.id, vals)).filter(Boolean).join('');
 
     return `
       <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;overflow:hidden;page-break-inside:avoid;">

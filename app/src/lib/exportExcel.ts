@@ -1,6 +1,7 @@
 import type { FormField } from '../store/types';
 import { formatDate } from './format';
 import { buildInlineImageMap, applyInlineImageMap } from './imageInline';
+import { noteKey, mediaKey } from './fieldAnnotations';
 
 interface ResponseData {
   submittedBy: string;
@@ -49,13 +50,13 @@ export function renderCellDisplay(f: FormField, v: string, allFields: FormField[
         </tr></thead><tbody>${instances.map(inst => `
           <tr>
             <td style="padding:4px 6px;border:1px solid #e2e8f0;font-weight:600;white-space:nowrap;">${inst.label || '—'}</td>
-            ${members.map(sf => `<td style="padding:4px 6px;border:1px solid #e2e8f0;">${renderCellDisplay(sf, inst.values[sf.id] || '', allFields)}</td>`).join('')}
+            ${members.map(sf => `<td style="padding:4px 6px;border:1px solid #e2e8f0;">${renderCellDisplay(sf, inst.values[sf.id] || '', allFields)}${renderAnnotationCell(sf.id, inst.values)}</td>`).join('')}
           </tr>`).join('')}</tbody></table>`;
       }
       return instances.map((inst, i) => `
         <div style="border:1px solid #e2e8f0;border-radius:6px;padding:6px 8px;margin-bottom:4px;">
           <div style="font-size:10px;font-weight:700;color:#6b7280;">${inst.label || `${f.label || 'Item'} ${i + 1}`}</div>
-          ${members.map(sf => `<div style="font-size:11px;"><strong>${sf.label}:</strong> ${renderCellDisplay(sf, inst.values[sf.id] || '', allFields)}</div>`).join('')}
+          ${members.map(sf => `<div style="font-size:11px;"><strong>${sf.label}:</strong> ${renderCellDisplay(sf, inst.values[sf.id] || '', allFields)}${renderAnnotationCell(sf.id, inst.values)}</div>`).join('')}
         </div>`).join('');
     } catch { return v; }
   }
@@ -72,6 +73,18 @@ export function renderCellDisplay(f: FormField, v: string, allFields: FormField[
     return `<span style="font-size:14px;letter-spacing:1px;">${'★'.repeat(n)}${'☆'.repeat(5 - n)}</span>`;
   }
   return v.replace(/\|\|/g, ', ').replace(/</g, '&lt;');
+}
+
+// Optional note/photo a filler attached to a field, stored as sidecar keys alongside the
+// field's own value (see lib/fieldAnnotations). Returns '' if neither was set, so it can
+// be safely concatenated after renderCellDisplay's output.
+export function renderAnnotationCell(fieldId: string, values: Record<string, string>): string {
+  const note = values[noteKey(fieldId)] || '';
+  const media = values[mediaKey(fieldId)] || '';
+  if (!note && !media) return '';
+  const noteHtml = note ? `<div style="font-size:10px;color:#374151;margin-top:4px;"><strong>Note:</strong> ${note.replace(/</g, '&lt;')}</div>` : '';
+  const mediaHtml = media.startsWith('data:image') ? `<img src="${media}" style="max-width:80px;max-height:80px;border-radius:4px;margin-top:4px;" />` : (media ? `<div style="font-size:10px;color:#2563eb;margin-top:4px;">[Photo attached]</div>` : '');
+  return noteHtml + mediaHtml;
 }
 
 export async function downloadExcelReport(formName: string, description: string, fieldDefs: FormField[], formResponses: ResponseData[]) {
@@ -100,7 +113,7 @@ export async function downloadExcelReport(formName: string, description: string,
     ];
 
     const fieldCells = visibleFields.map(f => {
-      const display = renderCellDisplay(f, vals[f.id] || '', fieldDefs);
+      const display = renderCellDisplay(f, vals[f.id] || '', fieldDefs) + renderAnnotationCell(f.id, vals);
       return `<td style="padding:8px 12px;border:1px solid #e2e8f0;font-size:12px;color:#1f2937;vertical-align:top;">${display}</td>`;
     }).join('');
 

@@ -7,6 +7,7 @@ import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport, sectionMembers } from '../../lib/exportExcel';
 import { downloadAuditReport } from '../../lib/exportAuditReport';
 import { formatDate } from '../../lib/format';
+import { noteKey, mediaKey } from '../../lib/fieldAnnotations';
 
 const EMPTY_CELL = <span style={{ color: 'var(--muted)', fontStyle: 'italic' }}>—</span>;
 
@@ -436,6 +437,28 @@ export default function FormResponses() {
     return <span>{val.replace(/\|\|/g, ', ')}</span>;
   };
 
+  // Displays a filler's optional note/photo attached to a field, stored as sidecar keys
+  // alongside the field's own value (see lib/fieldAnnotations). Renders nothing if the
+  // filler left both empty.
+  const renderAnnotation = (fieldId: string, valuesOverride?: Record<string, string>) => {
+    const source = valuesOverride ?? expandedResponse?.values ?? {};
+    const note = source[noteKey(fieldId)] || '';
+    const media = source[mediaKey(fieldId)] || '';
+    if (!note && !media) return null;
+    return (
+      <div style={{ marginTop: 6, display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {note && (
+          <div style={{ fontSize: 12.5, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px' }}>
+            <strong style={{ color: 'var(--muted)' }}>Note:</strong> {note}
+          </div>
+        )}
+        {media && (
+          <img src={media} alt="Attached" onClick={() => setImageModal(media)} style={{ width: 100, height: 80, objectFit: 'cover', borderRadius: 6, cursor: 'pointer', border: '1px solid var(--border)' }} />
+        )}
+      </div>
+    );
+  };
+
   const expandedResponse = formResponses.find(r => r.id === expandedId);
 
   const repeatableMemberIds = new Set<string>();
@@ -445,6 +468,7 @@ export default function FormResponses() {
     <div key={f.id} style={{ marginBottom: 14 }}>
       <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{f.label}</div>
       <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(f.id, f.type)}</div>
+      {renderAnnotation(f.id)}
     </div>
   );
 
@@ -477,7 +501,10 @@ export default function FormResponses() {
                     <tr key={inst.id} style={{ borderBottom: '1px solid var(--border)' }}>
                       <td style={{ padding: '8px 10px', fontSize: 13, fontWeight: 600, color: 'var(--text)', whiteSpace: 'nowrap', verticalAlign: 'top' }}>{inst.label || '—'}</td>
                       {members.map((m) => (
-                        <td key={m.id} style={{ padding: '8px 10px', fontSize: 13, color: 'var(--text)', verticalAlign: 'top' }}>{renderValue(m.id, m.type, inst.values)}</td>
+                        <td key={m.id} style={{ padding: '8px 10px', fontSize: 13, color: 'var(--text)', verticalAlign: 'top' }}>
+                          {renderValue(m.id, m.type, inst.values)}
+                          {renderAnnotation(m.id, inst.values)}
+                        </td>
                       ))}
                     </tr>
                   ))}
@@ -500,6 +527,7 @@ export default function FormResponses() {
               <div key={m.id} style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{m.label}</div>
                 <div style={{ fontSize: 14, color: 'var(--text)' }}>{renderValue(m.id, m.type, inst.values)}</div>
+                {renderAnnotation(m.id, inst.values)}
               </div>
             ))}
           </div>

@@ -4,6 +4,7 @@ import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule } from '../../store/types';
 import { api } from '../../lib/api';
 import { resizeImageFile } from '../../lib/image';
+import { noteKey, mediaKey } from '../../lib/fieldAnnotations';
 
 // Uploads a data URL (photo, signature, or file) to object storage and returns a short
 // "/api/files/:key" reference. Falls back to embedding the raw data URL only if object
@@ -413,6 +414,62 @@ function LockedFieldWrapper({ locked, comments, children }: { locked: boolean; c
   );
 }
 
+// Per-field note + photo the filler can optionally attach while answering -- distinct
+// from the approval workflow's manager comments (LockedFieldWrapper) which are read-only
+// annotations added by a reviewer afterward. Collapsed by default so 30+ fields don't
+// each show two extra always-visible inputs; auto-expands once either has a value so
+// existing annotations aren't hidden on reopen. Disabled together with the field itself
+// under a locked/resubmit state, since editing an answer's own note makes no sense once
+// the answer itself is locked.
+function FieldAnnotation({ note, media, onNoteChange, onMediaChange, locked }: {
+  note: string; media: string; onNoteChange: (v: string) => void; onMediaChange: (v: string) => void; locked?: boolean;
+}) {
+  const [userOpened, setUserOpened] = useState(false);
+  const expanded = userOpened || !!note || !!media;
+  if (!expanded) {
+    return (
+      <button type="button" onClick={() => setUserOpened(true)} disabled={locked}
+        style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, fontSize: 11.5, color: 'var(--muted)', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.5 : 1 }}>
+        <Plus size={11} /> Add note / photo
+      </button>
+    );
+  }
+  return (
+    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <textarea value={note} onChange={(e) => onNoteChange(e.target.value)} disabled={locked} placeholder="Add a note…" rows={2}
+        style={{ width: '100%', padding: '8px 10px', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 6, background: locked ? 'var(--surface2)' : 'var(--surface)', color: 'var(--text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
+      <fieldset disabled={locked} style={{ border: 'none', margin: 0, padding: 0 }}>
+        <FileUploadField value={media} onChange={onMediaChange} accept="image/*" label="Attach a photo" />
+      </fieldset>
+    </div>
+  );
+}
+
+// Read-only display of a note/photo the filler attached to their own answer -- shown in
+// the manager's review view, right where they're composing their own comment on that
+// field. Renders nothing if the filler left both empty, so ordinary fields with no
+// annotation don't grow extra empty chrome in the review screen.
+function FieldAnnotationDisplay({ note, media }: { note: string; media: string }) {
+  if (!note && !media) return null;
+  return (
+    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {note && (
+        <div style={{ fontSize: 12, color: 'var(--text)', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 6, padding: '6px 10px' }}>
+          <strong style={{ color: 'var(--muted)' }}>Note:</strong> {note}
+        </div>
+      )}
+      {media && media.startsWith('data:image') && (
+        <img src={media} alt="Attached" style={{ maxWidth: 160, maxHeight: 120, borderRadius: 6, border: '1px solid var(--border)', objectFit: 'cover' }} />
+      )}
+      {media && !media.startsWith('data:image') && (
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: 'var(--muted)' }}>
+          <Upload size={11} /> Photo attached
+        </div>
+      )}
+    </div>
+  );
+}
+
 function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLabel, isFieldLocked, getComments, tableLayout, seedRows, readOnly }: {
   value: string; onChange: (v: string) => void; memberFields: FormField[]; accent: string; sectionLabel: string;
   isFieldLocked?: (fieldId: string, instanceId: string) => boolean;
@@ -488,6 +545,13 @@ function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLa
                         <LockedFieldWrapper locked={readOnly || locked} comments={fieldEntries}>
                           <FieldInput field={sf} value={instance.values[sf.id] || sf.defaultValue || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
                         </LockedFieldWrapper>
+                        {!readOnly && (
+                          <FieldAnnotation
+                            note={instance.values[noteKey(sf.id)] || ''} media={instance.values[mediaKey(sf.id)] || ''}
+                            onNoteChange={(v) => setInstanceValue(instance.id, noteKey(sf.id), v)} onMediaChange={(v) => setInstanceValue(instance.id, mediaKey(sf.id), v)}
+                            locked={locked}
+                          />
+                        )}
                       </td>
                     );
                   })}
@@ -539,6 +603,13 @@ function SectionInstanceGroup({ value, onChange, memberFields, accent, sectionLa
                   <LockedFieldWrapper locked={readOnly || locked} comments={fieldEntries}>
                     <FieldInput field={sf} value={instance.values[sf.id] || sf.defaultValue || ''} onChange={(v) => setInstanceValue(instance.id, sf.id, v)} />
                   </LockedFieldWrapper>
+                  {!readOnly && (
+                    <FieldAnnotation
+                      note={instance.values[noteKey(sf.id)] || ''} media={instance.values[mediaKey(sf.id)] || ''}
+                      onNoteChange={(v) => setInstanceValue(instance.id, noteKey(sf.id), v)} onMediaChange={(v) => setInstanceValue(instance.id, mediaKey(sf.id), v)}
+                      locked={locked}
+                    />
+                  )}
                 </div>
               );
             })}
@@ -1057,6 +1128,7 @@ export default function FormFiller() {
                                         <LockedFieldWrapper locked comments={[]}>
                                           <FieldInput field={mf} value={instance.values[mf.id] || mf.defaultValue || ''} onChange={() => {}} />
                                         </LockedFieldWrapper>
+                                        <FieldAnnotationDisplay note={instance.values[noteKey(mf.id)] || ''} media={instance.values[mediaKey(mf.id)] || ''} />
                                         <input type="text" placeholder="Comment…"
                                           value={reviewFieldComments[`${mf.id}:${instance.id}`] || ''}
                                           onChange={(e) => setReviewFieldComment(mf.id, instance.id, e.target.value)}
@@ -1078,6 +1150,7 @@ export default function FormFiller() {
                                   <LockedFieldWrapper locked comments={[]}>
                                     <FieldInput field={mf} value={instance.values[mf.id] || mf.defaultValue || ''} onChange={() => {}} />
                                   </LockedFieldWrapper>
+                                  <FieldAnnotationDisplay note={instance.values[noteKey(mf.id)] || ''} media={instance.values[mediaKey(mf.id)] || ''} />
                                   <input type="text" placeholder={`Comment on ${mf.label} for this ${field.label || 'item'}…`}
                                     value={reviewFieldComments[`${mf.id}:${instance.id}`] || ''}
                                     onChange={(e) => setReviewFieldComment(mf.id, instance.id, e.target.value)}
@@ -1101,6 +1174,7 @@ export default function FormFiller() {
                             <LockedFieldWrapper locked comments={[]}>
                               <FieldInput field={mf} value={values[mf.id] || mf.defaultValue || ''} onChange={() => {}} />
                             </LockedFieldWrapper>
+                            <FieldAnnotationDisplay note={values[noteKey(mf.id)] || ''} media={values[mediaKey(mf.id)] || ''} />
                             <input type="text" placeholder={`Comment on ${mf.label}…`}
                               value={reviewFieldComments[mf.id] || ''}
                               onChange={(e) => setReviewFieldComment(mf.id, undefined, e.target.value)}
@@ -1118,6 +1192,7 @@ export default function FormFiller() {
                       <LockedFieldWrapper locked comments={[]}>
                         <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={() => {}} />
                       </LockedFieldWrapper>
+                      <FieldAnnotationDisplay note={values[noteKey(field.id)] || ''} media={values[mediaKey(field.id)] || ''} />
                       <input type="text" placeholder={`Comment on ${field.label}…`}
                         value={reviewFieldComments[field.id] || ''}
                         onChange={(e) => setReviewFieldComment(field.id, undefined, e.target.value)}
@@ -1414,6 +1489,11 @@ export default function FormFiller() {
                               <FieldInput field={mf} value={values[mf.id] || mf.defaultValue || ''} onChange={(v) => setValue(mf.id, v)}
                                 lockToToday={mf.type === 'date' && form.schedule?.frequency === 'daily'} />
                             </LockedFieldWrapper>
+                            <FieldAnnotation
+                              note={values[noteKey(mf.id)] || ''} media={values[mediaKey(mf.id)] || ''}
+                              onNoteChange={(v) => setValue(noteKey(mf.id), v)} onMediaChange={(v) => setValue(mediaKey(mf.id), v)}
+                              locked={locked}
+                            />
                           </div>
                         );
                       })
@@ -1436,6 +1516,11 @@ export default function FormFiller() {
                       <FieldInput field={field} value={values[field.id] || field.defaultValue || ''} onChange={(v) => setValue(field.id, v)}
                         lockToToday={field.type === 'date' && form.schedule?.frequency === 'daily'} />
                     </LockedFieldWrapper>
+                    <FieldAnnotation
+                      note={values[noteKey(field.id)] || ''} media={values[mediaKey(field.id)] || ''}
+                      onNoteChange={(v) => setValue(noteKey(field.id), v)} onMediaChange={(v) => setValue(mediaKey(field.id), v)}
+                      locked={locked}
+                    />
                   </div>
                 );
                 i++;
