@@ -245,13 +245,28 @@ function BuilderToolbar() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fields, currentFormName, currentFormDesc]);
 
-  const handleSaveDraft = async () => {
+  const [showSaveMenu, setShowSaveMenu] = useState(false);
+  const saveMenuRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showSaveMenu) return;
+    const handler = (e: MouseEvent) => {
+      if (saveMenuRef.current && !saveMenuRef.current.contains(e.target as Node)) setShowSaveMenu(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showSaveMenu]);
+
+  const handleSaveDraft = async (opts?: { close?: boolean }) => {
     if (autoSaveInFlight.current) await autoSaveInFlight.current;
     setAutoSaveStatus('saving');
     try {
       await saveDraft();
-      setAutoSaveStatus('saved');
-      setTimeout(() => setAutoSaveStatus('idle'), 2000);
+      if (opts?.close) {
+        setNav('forms');
+      } else {
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus('idle'), 2000);
+      }
     } catch {
       setAutoSaveStatus('error');
     }
@@ -359,7 +374,42 @@ function BuilderToolbar() {
         </span>
       )}
       <SecondaryButton onClick={() => setShowSaveTemplateModal(true)}>Save as Template</SecondaryButton>
-      <SecondaryButton onClick={handleSaveDraft}>Save Draft</SecondaryButton>
+
+      <div ref={saveMenuRef} style={{ position: 'relative', display: 'inline-flex' }}>
+        <button
+          type="button"
+          onClick={() => handleSaveDraft()}
+          style={{
+            height: 32, padding: '0 12px', borderTopLeftRadius: 7, borderBottomLeftRadius: 7,
+            border: '1px solid var(--border)', borderRight: 'none', background: 'var(--surface)', color: 'var(--text)',
+            fontSize: 12.5, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap',
+          }}
+        >
+          Save Draft
+        </button>
+        <button
+          type="button"
+          aria-label="More save options"
+          onClick={() => setShowSaveMenu(v => !v)}
+          style={{
+            height: 32, width: 26, borderTopRightRadius: 7, borderBottomRightRadius: 7,
+            border: '1px solid var(--border)', background: 'var(--surface)', color: 'var(--text)',
+            cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <ChevronDown size={13} />
+        </button>
+        {showSaveMenu && (
+          <div style={{ position: 'absolute', top: '100%', left: 0, marginTop: 4, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 4px 16px rgba(0,0,0,.18)', zIndex: 50, minWidth: 180, overflow: 'hidden' }}>
+            <button
+              onClick={() => { setShowSaveMenu(false); handleSaveDraft({ close: true }); }}
+              style={{ display: 'block', width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}
+            >
+              Save &amp; Close
+            </button>
+          </div>
+        )}
+      </div>
 
       <button
         type="button"
