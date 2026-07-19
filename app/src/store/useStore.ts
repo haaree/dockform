@@ -585,10 +585,19 @@ export const useStore = create<AppState>((set) => ({
 
   refreshForms: async () => {
     const { api } = await import('../lib/api');
+    const { cacheList, getCachedList } = await import('../lib/offlineQueue');
     try {
       const forms = await api.getForms();
       set({ forms });
-    } catch { /* leave forms as-is if the fetch fails */ }
+      cacheList('forms', forms).catch(() => {});
+    } catch (err) {
+      // Cold boot with no connection has nothing else to populate the forms list from --
+      // without this, there's nothing to tap into at all. Only a network failure falls
+      // back; a real server error still leaves forms as-is (existing behavior).
+      if (!(err instanceof TypeError)) return;
+      const cached = await getCachedList('forms');
+      if (cached && useStore.getState().forms.length === 0) set({ forms: cached as any });
+    }
   },
 
   openNewForm: () => set({
@@ -690,16 +699,31 @@ export const useStore = create<AppState>((set) => ({
   activeResponseStatus: null as string | null,
   fillForm: async (id: string) => {
     set({ fillingFormId: id, nav: 'fill', activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
-    await useStore.getState().ensureFieldDefs(id);
+    // Deliberately not awaited/caught before this point -- ensureFieldDefs and the draft
+    // lookup below already fall back to a durable local cache on a network failure (see
+    // their own try/catches), and letting either genuinely throw here would leave the
+    // Filler screen wedged mid-navigation. Both fill in activeResponseValues/fieldDefs
+    // asynchronously once resolved either way.
+    try {
+      await useStore.getState().ensureFieldDefs(id);
+    } catch { /* no cached fallback available either -- FormFiller renders with empty fields */ }
 
     const { api } = await import('../lib/api');
+    const { cacheResponse, getCachedResponse } = await import('../lib/offlineQueue');
     const { currentUserId, responses } = useStore.getState();
     const draft = responses.find(r => r.formId === id
       && RESUMABLE_RESPONSE_STATUSES.includes(r.status)
       && (r.submittedById === currentUserId || r.assignedToId === currentUserId));
     if (draft) {
-      const full = await api.getResponse(draft.id);
-      set({ activeResponseId: draft.id, activeResponseValues: full.values || {}, activeResponseStatus: draft.status });
+      try {
+        const full = await api.getResponse(draft.id);
+        set({ activeResponseId: draft.id, activeResponseValues: full.values || {}, activeResponseStatus: draft.status });
+        cacheResponse(draft.id, full.values || {}, draft.status).catch(() => {});
+      } catch (err) {
+        if (!(err instanceof TypeError)) return;
+        const cached = await getCachedResponse(draft.id);
+        if (cached) set({ activeResponseId: draft.id, activeResponseValues: cached.values, activeResponseStatus: draft.status });
+      }
     }
   },
 
@@ -712,14 +736,42 @@ export const useStore = create<AppState>((set) => ({
     const existing = useStore.getState().forms.find(f => f.id === id);
     if (existing?.fieldDefs && existing.fieldDefs.length > 0) return;
     const { api } = await import('../lib/api');
-    const full = await api.getForm(id);
-    const fieldDefs = toFieldDefs(full.fields);
+    const { cacheForm, getCachedForm } = await import('../lib/offlineQueue');
+    let fieldDefs: FormField[];
+    try {
+      const full = await api.getForm(id);
+      fieldDefs = toFieldDefs(full.fields);
+      cacheForm(id, fieldDefs).catch(() => {});
+    } catch (err) {
+      // A form opened successfully at least once before is durably cached (see
+      // lib/offlineQueue's cacheForm), so a network failure here -- e.g. offline -- falls
+      // back to that instead of leaving the Filler stuck on a rejected promise with no
+      // fields to render. A form that was truly never opened before has nothing to fall
+      // back to and this rethrows, same as before.
+      if (!(err instanceof TypeError)) throw err;
+      const cached = await getCachedForm(id);
+      if (!cached) throw err;
+      fieldDefs = cached.fieldDefs as FormField[];
+    }
     set((s) => ({ forms: s.forms.map(fm => fm.id === id ? { ...fm, fieldDefs } : fm) }));
   },
 
   refreshResponses: async () => {
     const { api } = await import('../lib/api');
-    try { const responses = await api.getResponses(); set({ responses }); } catch { /* ignore */ }
+    const { cacheList, getCachedList } = await import('../lib/offlineQueue');
+    try {
+      const responses = await api.getResponses();
+      set({ responses });
+      cacheList('responses', responses).catch(() => {});
+    } catch (err) {
+      // Without this, fillForm's own-draft lookup (which reads `responses`) finds nothing
+      // on a cold offline boot, and a form with an in-progress server draft would open
+      // blank instead of resuming -- the local draft snapshot only covers a fill that never
+      // made it to the server at all.
+      if (!(err instanceof TypeError)) return;
+      const cached = await getCachedList('responses');
+      if (cached && useStore.getState().responses.length === 0) set({ responses: cached as any });
+    }
   },
 
   saveResponseDraft: async (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean; explicit?: boolean }) => {

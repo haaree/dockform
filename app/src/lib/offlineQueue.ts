@@ -4,9 +4,12 @@
 // (see api.ts's setUnauthorizedHandler) -- a token expiring mid-sync must never take queued
 // field data down with it.
 const DB_NAME = 'dockform-offline';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 const STORE_NAME = 'queued_responses';
 const DRAFT_STORE_NAME = 'local_drafts';
+const FORM_CACHE_STORE = 'form_cache';
+const RESPONSE_CACHE_STORE = 'response_cache';
+const LISTS_STORE = 'lists_cache';
 
 export interface QueuedResponse {
   id: string; // client-generated, stable across retries -- lets a partial sync resume without duplicating
@@ -38,6 +41,15 @@ function openDb(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(DRAFT_STORE_NAME)) {
         db.createObjectStore(DRAFT_STORE_NAME, { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains(FORM_CACHE_STORE)) {
+        db.createObjectStore(FORM_CACHE_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(RESPONSE_CACHE_STORE)) {
+        db.createObjectStore(RESPONSE_CACHE_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(LISTS_STORE)) {
+        db.createObjectStore(LISTS_STORE, { keyPath: 'key' });
       }
     };
     req.onsuccess = () => resolve(req.result);
@@ -113,6 +125,54 @@ export async function getLocalDraft(formId: string, responseId: string | null): 
 
 export async function clearLocalDraft(formId: string, responseId: string | null): Promise<void> {
   await withStore(DRAFT_STORE_NAME, 'readwrite', (store) => store.delete(localDraftKey(formId, responseId)));
+}
+
+// Durable, deliberate cache of a form's own definition and a resumable draft's saved values --
+// distinct from relying on the service worker's opportunistic HTTP cache, which only holds
+// whatever GET requests happened to fire while online and offers no guarantee that a specific
+// form/response was ever actually fetched (or wasn't evicted). Written every time these are
+// successfully loaded online, so a form opened online at least once is deterministically
+// available offline afterwards, not "maybe, if the browser felt like caching it."
+export interface CachedForm {
+  id: string;
+  fieldDefs: unknown[];
+  savedAt: string;
+}
+
+export async function cacheForm(id: string, fieldDefs: unknown[]): Promise<void> {
+  await withStore(FORM_CACHE_STORE, 'readwrite', (store) => store.put({ id, fieldDefs, savedAt: new Date().toISOString() } satisfies CachedForm));
+}
+
+export async function getCachedForm(id: string): Promise<CachedForm | undefined> {
+  return withStore(FORM_CACHE_STORE, 'readonly', (store) => store.get(id));
+}
+
+export interface CachedResponse {
+  id: string;
+  values: Record<string, string>;
+  status: string;
+  savedAt: string;
+}
+
+export async function cacheResponse(id: string, values: Record<string, string>, status: string): Promise<void> {
+  await withStore(RESPONSE_CACHE_STORE, 'readwrite', (store) => store.put({ id, values, status, savedAt: new Date().toISOString() } satisfies CachedResponse));
+}
+
+export async function getCachedResponse(id: string): Promise<CachedResponse | undefined> {
+  return withStore(RESPONSE_CACHE_STORE, 'readonly', (store) => store.get(id));
+}
+
+// The forms list and the responses list are what make the app navigable at all on a cold
+// boot with no connection -- without them there's nothing to tap into. Same write-through
+// durable-cache treatment as an individual form/response: written on every successful online
+// fetch, read back only when that fetch fails with a network error.
+export async function cacheList(key: 'forms' | 'responses', items: unknown[]): Promise<void> {
+  await withStore(LISTS_STORE, 'readwrite', (store) => store.put({ key, items, savedAt: new Date().toISOString() }));
+}
+
+export async function getCachedList<T = unknown>(key: 'forms' | 'responses'): Promise<T[] | undefined> {
+  const row = await withStore<{ key: string; items: T[] } | undefined>(LISTS_STORE, 'readonly', (store) => store.get(key));
+  return row?.items;
 }
 
 // navigator.onLine only reflects whether the device has *a* network interface up -- it can
