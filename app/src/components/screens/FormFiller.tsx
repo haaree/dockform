@@ -938,6 +938,7 @@ export default function FormFiller() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [saveOffline, setSaveOffline] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [showHandoff, setShowHandoff] = useState(false);
   const [handoffUsers, setHandoffUsers] = useState<any[]>([]);
@@ -1027,9 +1028,17 @@ export default function FormFiller() {
       if (autoSaveInFlight.current) return;
       setSaving(true);
       setSaveError('');
+      setSaveOffline(false);
       const p = saveResponseDraft(form.id, values)
         .then(() => { setSaved(true); setTimeout(() => setSaved(false), 2000); })
-        .catch((err: any) => setSaveError(err?.message || 'Auto-save failed'))
+        .catch((err: any) => {
+          // A network-unreachable failure isn't a real error here -- the local draft
+          // snapshot written just above already protects these answers, so surfacing the
+          // browser's raw fetch error text ("Load failed" on Safari, "Failed to fetch" on
+          // Chrome) would needlessly alarm someone who's simply working offline as expected.
+          if (err instanceof TypeError) { setSaveOffline(true); setSaveError('Working offline — your answers are saved on this device.'); return; }
+          setSaveError(err?.message || 'Auto-save failed');
+        })
         .finally(() => { setSaving(false); autoSaveInFlight.current = null; });
       autoSaveInFlight.current = p;
     }, 2000);
@@ -1517,7 +1526,9 @@ export default function FormFiller() {
       <div style={{ flex: 1, overflowY: 'auto', background: 'var(--surface2)' }}>
         <div style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? 16 : 24 }}>
           {saveError && (
-            <div style={{ fontSize: 12.5, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
+            <div style={saveOffline
+              ? { fontSize: 12.5, color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }
+              : { fontSize: 12.5, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 14px', marginBottom: 12 }}>
               {saveError}
             </div>
           )}
