@@ -320,6 +320,16 @@ function App() {
     return () => window.removeEventListener('resize', handleResize);
   }, [setWinWidth]);
 
+  // Rehydrate auth from any token already in localStorage before this component's first
+  // render depends on isAuthed -- works fully offline (see rehydrateAuth), and a stale/
+  // invalid token gets caught by setUnauthorizedHandler the moment a real request 401s.
+  useEffect(() => {
+    useStore.getState().rehydrateAuth();
+    import('./lib/api').then(({ setUnauthorizedHandler }) => {
+      setUnauthorizedHandler(() => useStore.getState().logout());
+    });
+  }, []);
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get('signup') === 'true' && !isAuthed) {

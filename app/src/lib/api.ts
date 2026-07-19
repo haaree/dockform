@@ -10,11 +10,43 @@ export function setToken(t: string | null) {
 
 export function getToken() { return token; }
 
+// Decodes the JWT payload locally (no network call, no signature verification) purely to
+// rehydrate the client's own auth state (userId/roleKey/companyId) on a cold boot -- the
+// server independently verifies the signature on every request, so this never grants
+// access on its own; it only lets the offline-first shell render as "logged in" instead of
+// bouncing to the login screen just because there's no connection to re-check with.
+export function decodeToken(t: string): { userId: string; roleKey: string; companyId: string | null } | null {
+  try {
+    const payload = t.split('.')[1];
+    let base64 = payload.replace(/-/g, '+').replace(/_/g, '/');
+    while (base64.length % 4 !== 0) base64 += '=';
+    const json = atob(base64);
+    const decoded = JSON.parse(json);
+    if (!decoded.userId) return null;
+    return { userId: decoded.userId, roleKey: decoded.roleKey || 'viewer', companyId: decoded.companyId ?? null };
+  } catch {
+    return null;
+  }
+}
+
+// Fires once, the first time any request gets a 401 (expired/invalid token) -- rather than
+// every call site checking this individually. Bounces to the login screen without touching
+// anything an offline queue may have pending, so a stale token surfaced by a background
+// sync attempt doesn't silently drop queued work.
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: () => void) {
+  onUnauthorized = fn;
+}
+
 async function request<T>(path: string, opts: RequestInit = {}): Promise<T> {
   const headers: Record<string, string> = { 'Content-Type': 'application/json', ...opts.headers as Record<string, string> };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { ...opts, headers });
   if (!res.ok) {
+    if (res.status === 401 && token) {
+      setToken(null);
+      onUnauthorized?.();
+    }
     const body = await res.json().catch(() => ({}));
     const message = [body.error, body.detail].filter(Boolean).join(': ');
     throw new Error(message || `HTTP ${res.status}`);

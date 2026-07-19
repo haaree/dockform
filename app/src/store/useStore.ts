@@ -70,6 +70,7 @@ interface AppState {
 
   // Actions
   setAuth: (isAuthed: boolean, authUser?: { id?: string; roleKey?: string; companyId?: string | null }) => void;
+  rehydrateAuth: () => void;
   setAuthMode: (mode: 'login' | 'signup') => void;
   setAuthField: (key: 'authEmail' | 'authPassword', val: string) => void;
   setAuthError: (err: string) => void;
@@ -311,6 +312,21 @@ export const useStore = create<AppState>((set) => ({
     if (isAuthed) return { isAuthed };
     return { isAuthed, currentUserId: null, currentUserRole: '', isDockformAdmin: false, isPlatformAdmin: false };
   }),
+  // Restores auth state from the JWT already sitting in localStorage on a cold boot, purely
+  // by decoding its payload client-side -- no network call, so this works with no
+  // connection. The server still verifies the token's signature on every real request, so
+  // this never grants access by itself; it only lets the offline-first shell render as
+  // logged in instead of bouncing to the login screen for lack of connectivity. A stale/
+  // invalid token is caught the moment any request 401s (see setUnauthorizedHandler).
+  rehydrateAuth: () => {
+    import('../lib/api').then(({ getToken, decodeToken }) => {
+      const token = getToken();
+      if (!token) return;
+      const decoded = decodeToken(token);
+      if (!decoded) return;
+      useStore.getState().setAuth(true, { id: decoded.userId, roleKey: decoded.roleKey, companyId: decoded.companyId });
+    });
+  },
   setAuthMode: (authMode) => set({ authMode, authError: '' }),
   setAuthField: (key, val) => set({ [key]: val, authError: '' }),
   setAuthError: (authError) => set({ authError }),
