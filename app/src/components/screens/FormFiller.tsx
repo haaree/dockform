@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
-import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2, Sparkles, UserCheck, Plus } from 'lucide-react';
+import { ArrowLeft, Send, Star, CheckSquare, Upload, X, Trash2, Sparkles, UserCheck, Plus, MapPin } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule } from '../../store/types';
 import { api } from '../../lib/api';
@@ -686,6 +686,47 @@ function FileUploadField({ value, onChange, accept, label }: { value: string; on
   );
 }
 
+// Captures the device's current coordinates via the Geolocation API rather than requiring
+// manual lat/long entry -- the field previously fell through to a plain text input with no
+// actual capture behavior wired up (the Builder's "Capture" button was a disabled preview
+// mock only). Stores "lat,lng" as the field's value, matching what the fallback text input
+// already produced, so nothing downstream (exports, reports) needs to change.
+function GpsField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [status, setStatus] = useState<'idle' | 'locating' | 'error'>('idle');
+  const [error, setError] = useState('');
+
+  const capture = () => {
+    if (!navigator.geolocation) { setStatus('error'); setError('Geolocation is not supported on this device.'); return; }
+    setStatus('locating');
+    setError('');
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        onChange(`${pos.coords.latitude.toFixed(6)},${pos.coords.longitude.toFixed(6)}`);
+        setStatus('idle');
+      },
+      (err) => {
+        setStatus('error');
+        setError(err.code === err.PERMISSION_DENIED ? 'Location permission denied. Enable it in your browser/device settings.' : 'Could not get current location. Try again.');
+      },
+      { enableHighAccuracy: true, timeout: 15000 },
+    );
+  };
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder="Latitude, Longitude"
+          style={{ flex: 1, padding: '10px 12px', fontSize: 14, border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface)', color: 'var(--text)', outline: 'none' }} />
+        <button type="button" onClick={capture} disabled={status === 'locating'}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 14px', fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', border: '1px solid var(--border)', borderRadius: 8, background: 'var(--surface2)', color: 'var(--text)', cursor: status === 'locating' ? 'default' : 'pointer', opacity: status === 'locating' ? 0.7 : 1 }}>
+          <MapPin size={14} /> {status === 'locating' ? 'Locating…' : 'Use Current Location'}
+        </button>
+      </div>
+      {status === 'error' && <div style={{ fontSize: 11.5, color: '#DC2626', marginTop: 6 }}>{error}</div>}
+    </div>
+  );
+}
+
 function FieldInput({ field, value, onChange, lockToToday }: { field: FormField; value: string; onChange: (v: string) => void; lockToToday?: boolean }) {
   const dark = useStore((s) => s.dark);
   const accent = useStore((s) => s.accent);
@@ -836,6 +877,9 @@ function FieldInput({ field, value, onChange, lockToToday }: { field: FormField;
 
     case 'signature':
       return <SignaturePad value={value} onChange={onChange} accent={accent} />;
+
+    case 'gps':
+      return <GpsField value={value} onChange={onChange} />;
 
     default:
       return <input type="text" value={value} onChange={(e) => onChange(e.target.value)} placeholder={field.placeholder || `Enter ${field.label.toLowerCase()}…`} style={inputStyle} />;

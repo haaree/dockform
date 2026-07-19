@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../index.js';
 import { sendResponseSubmittedEmail, sendApprovalRequestedEmail, sendChangesRequestedEmail, sendResponseApprovedEmail } from '../lib/email.js';
 import { isWithinDailyWindow } from '../lib/schedule.js';
+import { splitAnnotations, mergeAnnotations } from '../lib/annotations.js';
 
 const router = Router();
 
@@ -93,13 +94,13 @@ router.get('/full', async (req, res) => {
     const responses = await prisma.response.findMany({
       where: { formId, form: { companyId: req.auth.companyId } },
       orderBy: { submittedAt: 'desc' },
-      include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true },
+      include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true, annotations: true },
     });
     res.json(responses.map((r: any) => ({
       id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
       assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
       plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
-      values: Object.fromEntries(r.values.map((v: any) => [v.fieldId, v.value])),
+      values: mergeAnnotations(Object.fromEntries(r.values.map((v: any) => [v.fieldId, v.value])), r.annotations),
     })));
   } catch (err: any) {
     console.error('[GET /responses/full] failed:', err?.message, err?.meta);
@@ -110,47 +111,55 @@ router.get('/full', async (req, res) => {
 router.get('/:id', async (req, res) => {
   const response = await prisma.response.findUnique({
     where: { id: req.params.id },
-    include: { form: { select: { id: true, companyId: true, name: true } }, values: true },
+    include: { form: { select: { id: true, companyId: true, name: true } }, values: true, annotations: true },
   });
   if (!response || response.form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
   res.json({
     id: response.id, formId: response.form.id, form: response.form.name, status: response.status,
     submittedById: response.submittedBy, assignedToId: response.assignedToId, date: response.submittedAt.toISOString(),
-    values: Object.fromEntries(response.values.map((v: any) => [v.fieldId, v.value])),
+    values: mergeAnnotations(Object.fromEntries(response.values.map((v: any) => [v.fieldId, v.value])), response.annotations),
   });
 });
 
 router.post('/', async (req, res) => {
   const { formId, plantId, values, status, assignedToId, clientLocalDate } = req.body as { formId: string; plantId?: string; values?: Record<string, string>; status?: string; assignedToId?: string; clientLocalDate?: string };
-  const form = await prisma.form.findUnique({ where: { id: formId } });
-  if (!form || form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Form not found' }); return; }
+  try {
+    const form = await prisma.form.findUnique({ where: { id: formId } });
+    if (!form || form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Form not found' }); return; }
 
-  if (!(status && IN_PROGRESS_STATUSES.includes(status)) && !isWithinDailyWindow(form.scheduleMeta as any, new Date(), clientLocalDate)) {
-    res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
-    return;
-  }
-
-  const valueEntries = values ? Object.entries(values) : [];
-  const response = await prisma.response.create({
-    data: {
-      formId, submittedBy: req.auth?.userId, plantId, assignedToId: assignedToId || null,
-      status: status && IN_PROGRESS_STATUSES.includes(status) ? status : 'submitted',
-      values: valueEntries.length > 0 ? { create: valueEntries.map(([fieldId, value]) => ({ fieldId, value })) } : undefined,
-    },
-    include: { values: true },
-  });
-  res.status(201).json(response);
-
-  if (response.status === 'submitted') {
-    const formWithCreator = await prisma.form.findUnique({ where: { id: formId }, include: { createdBy: true } });
-    if (formWithCreator?.createdBy?.email) {
-      const submitter = await prisma.user.findUnique({ where: { id: req.auth?.userId } });
-      sendResponseSubmittedEmail(formWithCreator.createdBy.email, formWithCreator.createdBy.fullName, formWithCreator.name, submitter?.fullName || 'Someone');
+    if (!(status && IN_PROGRESS_STATUSES.includes(status)) && !isWithinDailyWindow(form.scheduleMeta as any, new Date(), clientLocalDate)) {
+      res.status(400).json({ error: 'This form is scheduled daily and can only be submitted for today — not a past or future day.' });
+      return;
     }
+
+    const { fieldValues, annotations } = splitAnnotations(values || {});
+    const valueEntries = Object.entries(fieldValues);
+    const response = await prisma.response.create({
+      data: {
+        formId, submittedBy: req.auth?.userId, plantId, assignedToId: assignedToId || null,
+        status: status && IN_PROGRESS_STATUSES.includes(status) ? status : 'submitted',
+        values: valueEntries.length > 0 ? { create: valueEntries.map(([fieldId, value]) => ({ fieldId, value })) } : undefined,
+        annotations: annotations.length > 0 ? { create: annotations } : undefined,
+      },
+      include: { values: true, annotations: true },
+    });
+    res.status(201).json(response);
+
+    if (response.status === 'submitted') {
+      const formWithCreator = await prisma.form.findUnique({ where: { id: formId }, include: { createdBy: true } });
+      if (formWithCreator?.createdBy?.email) {
+        const submitter = await prisma.user.findUnique({ where: { id: req.auth?.userId } });
+        sendResponseSubmittedEmail(formWithCreator.createdBy.email, formWithCreator.createdBy.fullName, formWithCreator.name, submitter?.fullName || 'Someone');
+      }
+    }
+  } catch (err: any) {
+    console.error('[POST /responses] failed:', err?.message, err?.meta);
+    res.status(500).json({ error: 'Failed to save response', detail: err?.message });
   }
 });
 
 router.patch('/:id', async (req, res) => {
+ try {
   const existing = await prisma.response.findUnique({ where: { id: req.params.id }, include: { form: true } });
   if (!existing || existing.form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
   const isOwner = existing.submittedBy === req.auth?.userId || existing.assignedToId === req.auth?.userId;
@@ -173,11 +182,18 @@ router.patch('/:id', async (req, res) => {
   }
 
   if (values) {
-    const valueEntries = Object.entries(values);
+    const { fieldValues, annotations } = splitAnnotations(values);
+    const valueEntries = Object.entries(fieldValues);
     await prisma.responseValue.deleteMany({ where: { responseId: req.params.id } });
     if (valueEntries.length > 0) {
       await prisma.responseValue.createMany({
         data: valueEntries.map(([fieldId, value]) => ({ responseId: req.params.id, fieldId, value })),
+      });
+    }
+    await prisma.responseAnnotation.deleteMany({ where: { responseId: req.params.id } });
+    if (annotations.length > 0) {
+      await prisma.responseAnnotation.createMany({
+        data: annotations.map(a => ({ responseId: req.params.id, ...a })),
       });
     }
   }
@@ -244,6 +260,10 @@ router.patch('/:id', async (req, res) => {
     ]);
     if (submitter?.email) sendResponseApprovedEmail(submitter.email, submitter.fullName, existing.form.name, actor?.fullName || 'Someone');
   }
+ } catch (err: any) {
+  console.error('[PATCH /responses/:id] failed:', err?.message, err?.meta);
+  res.status(500).json({ error: 'Failed to save response', detail: err?.message });
+ }
 });
 
 router.get('/:id/comments', async (req, res) => {
