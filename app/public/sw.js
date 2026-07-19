@@ -27,6 +27,17 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
 
+  const url = new URL(event.request.url);
+  // /api/health is deliberately never cached: the offline queue's connectivity probe
+  // (isReallyOnline) depends on this request actually reaching the network -- if a prior
+  // online fetch got cached here, a later offline fetch would be served the stale cached
+  // {status:"ok"} response instead of failing, and the queue would wrongly believe it's
+  // online. Let it hit the network directly and fail naturally when offline.
+  if (url.pathname === '/api/health') {
+    event.respondWith(fetch(event.request));
+    return;
+  }
+
   event.respondWith(
     fetch(event.request)
       .then((response) => {

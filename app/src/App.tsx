@@ -1,5 +1,5 @@
 import { useState, useEffect, type CSSProperties } from 'react';
-import { Menu, Search, Check, Users, CalendarClock } from 'lucide-react';
+import { Menu, Search, Check, Users, CalendarClock, CloudOff } from 'lucide-react';
 import type { FormSchedule } from './store/types';
 import { useStore } from './store/useStore';
 import { getThemeVars } from './lib/theme';
@@ -313,12 +313,24 @@ function App() {
   const logout = useStore((s) => s.logout);
 
   const fillForm = useStore((s) => s.fillForm);
+  const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
   useEffect(() => {
     const handleResize = () => setWinWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [setWinWidth]);
+
+  // Surfaces the offline queue's size so a queued-but-not-yet-synced response isn't
+  // silently invisible to the person who filled it out.
+  useEffect(() => {
+    let unsubscribe: (() => void) | undefined;
+    import('./lib/offlineSync').then(({ onQueueChange }) => {
+      unsubscribe = onQueueChange(setPendingSyncCount);
+    });
+    import('./lib/offlineQueue').then(({ queuedCount }) => queuedCount().then(setPendingSyncCount).catch(() => {}));
+    return () => unsubscribe?.();
+  }, []);
 
   // Rehydrate auth from any token already in localStorage before this component's first
   // render depends on isAuthed -- works fully offline (see rehydrateAuth), and a stale/
@@ -327,6 +339,14 @@ function App() {
     useStore.getState().rehydrateAuth();
     import('./lib/api').then(({ setUnauthorizedHandler }) => {
       setUnauthorizedHandler(() => useStore.getState().logout());
+    });
+    // Arms the reconnect listener/backstop poll AND drains anything already queued from a
+    // prior session (e.g. submitted offline, then the tab was closed before reconnecting) --
+    // without this call here, a queued response only ever syncs if the user happens to hit
+    // another failed submit later in the same session to re-trigger it.
+    import('./lib/offlineSync').then(({ startAutoSync, syncQueue }) => {
+      startAutoSync();
+      syncQueue();
     });
   }, []);
 
@@ -435,6 +455,19 @@ function App() {
       <div style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column', minWidth: 0, position: 'relative', padding: isMobile ? '56px 12px 12px' : 0 }}>
         <ScreenSwitch />
       </div>
+
+      {pendingSyncCount > 0 && (
+        <div style={{
+          position: 'fixed', bottom: 16, right: 16, zIndex: 30,
+          display: 'flex', alignItems: 'center', gap: 8,
+          padding: '9px 14px', borderRadius: 10,
+          background: '#92400E', color: '#fff', fontSize: 12.5, fontWeight: 600,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+        }}>
+          <CloudOff size={14} />
+          {pendingSyncCount} response{pendingSyncCount > 1 ? 's' : ''} waiting to sync
+        </div>
+      )}
 
       <SaveTemplateModal />
       <AssignUsersModal />

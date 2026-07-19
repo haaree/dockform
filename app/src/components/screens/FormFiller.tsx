@@ -967,6 +967,19 @@ export default function FormFiller() {
     if (activeResponseValues) setValues(activeResponseValues);
   }, [activeResponseValues]);
 
+  // Restores an in-progress fill that was saved locally (offline auto-save has nowhere else
+  // to persist to -- see lib/offlineQueue's saveLocalDraft) but never reached the server, so
+  // reopening this form after a closed tab/crash doesn't start from a blank slate. Only
+  // applies on a genuinely fresh open (no server-loaded values yet) so it can't clobber a
+  // response that did load successfully.
+  useEffect(() => {
+    if (!form || activeResponseValues) return;
+    import('../../lib/offlineQueue').then(({ getLocalDraft }) => getLocalDraft(form.id, activeResponseId)).then((draft) => {
+      if (draft && Object.keys(draft.values).length > 0) setValues(prev => (Object.keys(prev).length > 0 ? prev : draft.values));
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form?.id, activeResponseId]);
+
   // Fetch comments when reopening a response the manager sent back (so the submitter can
   // see which fields were flagged), or when a manager opens a response to review it (so
   // they can see earlier rounds' comments for context).
@@ -1006,6 +1019,11 @@ export default function FormFiller() {
     // approval loop (and, in reviewer mode, overwrite the submitter's response entirely).
     if (!form || submitted || isReviewer || isLocked || isPendingMyApproval || Object.keys(values).length === 0) return;
     const timer = setTimeout(() => {
+      // Written locally on every debounce tick regardless of whether the server call below
+      // succeeds -- this is what actually protects an offline fill from a closed tab/crash,
+      // since the server call below simply won't complete with no connection. `put` on a
+      // fixed key means repeated ticks overwrite in place rather than accumulating.
+      import('../../lib/offlineQueue').then(({ saveLocalDraft }) => saveLocalDraft(form.id, activeResponseId, values)).catch(() => {});
       if (autoSaveInFlight.current) return;
       setSaving(true);
       setSaveError('');
@@ -1362,6 +1380,7 @@ export default function FormFiller() {
       // second response instead of finalizing the one auto-save just made.
       if (autoSaveInFlight.current) await autoSaveInFlight.current;
       await submitResponse(form.id, values);
+      import('../../lib/offlineQueue').then(({ clearLocalDraft }) => clearLocalDraft(form.id, activeResponseId)).catch(() => {});
       setSubmitted(true);
     } catch (err: any) {
       setSubmitError(err?.message || 'Failed to submit response');
@@ -1412,7 +1431,7 @@ export default function FormFiller() {
     setSaving(true);
     setSaveError('');
     try {
-      await saveResponseDraft(form.id, values);
+      await saveResponseDraft(form.id, values, { explicit: true });
       setSaved(true);
       setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
@@ -1435,7 +1454,7 @@ export default function FormFiller() {
     setHandoffError('');
     try {
       if (autoSaveInFlight.current) await autoSaveInFlight.current;
-      await saveResponseDraft(form.id, values, { assignedToId: handoffTarget, handOff: true });
+      await saveResponseDraft(form.id, values, { assignedToId: handoffTarget, handOff: true, explicit: true });
       setShowHandoff(false);
       setNav('forms');
     } catch (err: any) {

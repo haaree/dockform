@@ -51,3 +51,25 @@ export function isWithinDailyWindow(schedule: FormSchedule | undefined | null, n
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   return occurrenceStart.getTime() === today.getTime();
 }
+
+// Same idea as isWithinDailyWindow, but for a response that was captured offline and is only
+// syncing now that connectivity is back -- by the time it reaches the server, "today" may no
+// longer be the day it was actually filled in. Accepts clientLocalDate if it matches *any* daily
+// occurrence within the last `maxDaysBack` days (not just today), since the whole point of an
+// offline queue is that the sync can lag capture by more than zero days. Deliberately not folded
+// into isWithinDailyWindow itself -- that function's same-day-only behavior is the correct check
+// for a live, online submission, and should stay strict there.
+export function isWithinDailyWindowForSync(schedule: FormSchedule | undefined | null, now: Date, clientLocalDate: string | undefined, maxDaysBack = 7): boolean {
+  if (!schedule || schedule.frequency !== 'daily') return true;
+  if (!clientLocalDate || !/^\d{4}-\d{2}-\d{2}$/.test(clientLocalDate)) return false;
+  const [y, m, d] = clientLocalDate.split('-').map(Number);
+  const claimed = new Date(y, m - 1, d).getTime();
+
+  for (let i = 0; i <= maxDaysBack; i++) {
+    const check = new Date(now);
+    check.setDate(check.getDate() - i);
+    const occurrenceStart = getCurrentOccurrenceStart(schedule, check);
+    if (occurrenceStart && occurrenceStart.getTime() === claimed) return true;
+  }
+  return false;
+}

@@ -157,7 +157,7 @@ interface AppState {
   resubmitForApproval: (responseId: string, values: Record<string, string>) => Promise<void>;
   approveResponse: (responseId: string) => Promise<void>;
   sendResponseBack: (responseId: string, overallComment: string, fieldComments: { fieldId: string; instanceId?: string; text: string }[]) => Promise<void>;
-  saveResponseDraft: (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean }) => Promise<void>;
+  saveResponseDraft: (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean; explicit?: boolean }) => Promise<void>;
   refreshResponses: () => Promise<void>;
   viewingFormId: string | null;
   viewFormResponses: (id: string) => void;
@@ -722,32 +722,64 @@ export const useStore = create<AppState>((set) => ({
     try { const responses = await api.getResponses(); set({ responses }); } catch { /* ignore */ }
   },
 
-  saveResponseDraft: async (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean }) => {
+  saveResponseDraft: async (formId: string, values: Record<string, string>, opts?: { assignedToId?: string; handOff?: boolean; explicit?: boolean }) => {
     const { api } = await import('../lib/api');
     const { activeResponseId } = useStore.getState();
     const status = opts?.handOff ? 'awaiting_supervisor' : 'draft';
     const clientLocalDate = getLocalDateString();
-    if (activeResponseId) {
-      await api.updateResponse(activeResponseId, { values, status, clientLocalDate, ...(opts?.assignedToId !== undefined && { assignedToId: opts.assignedToId }) });
-    } else {
-      const created = await api.createResponse({ formId, values, status, clientLocalDate, assignedToId: opts?.assignedToId });
-      set({ activeResponseId: created.id });
+    // Only an explicit user-initiated save (opts.explicit, e.g. "Save & Continue Later") is
+    // allowed to fall back to the offline queue on a network failure -- the silent 2s
+    // autosave debounce (no opts.explicit) must NEVER queue, or every failed tick offline
+    // would enqueue a duplicate create/update. The debounce's own safety net is the local
+    // draft snapshot written alongside it in FormFiller, not this queue.
+    try {
+      if (activeResponseId) {
+        await api.updateResponse(activeResponseId, { values, status, clientLocalDate, ...(opts?.assignedToId !== undefined && { assignedToId: opts.assignedToId }) });
+      } else {
+        const created = await api.createResponse({ formId, values, status, clientLocalDate, assignedToId: opts?.assignedToId });
+        set({ activeResponseId: created.id });
+      }
+    } catch (err) {
+      if (!opts?.explicit || !(err instanceof TypeError)) throw err;
+      const { enqueueResponse } = await import('../lib/offlineQueue');
+      await enqueueResponse({
+        kind: activeResponseId ? 'update' : 'create', responseId: activeResponseId || undefined,
+        formId, values, status, assignedToId: opts?.assignedToId, clientLocalDate,
+      });
+      const { startAutoSync } = await import('../lib/offlineSync');
+      startAutoSync();
     }
     if (opts?.handOff) set({ activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
-    await useStore.getState().refreshResponses();
+    await useStore.getState().refreshResponses().catch(() => {});
   },
 
   submitResponse: async (formId: string, values: Record<string, string>) => {
     const { api } = await import('../lib/api');
     const { activeResponseId } = useStore.getState();
     const clientLocalDate = getLocalDateString();
-    if (activeResponseId) {
-      await api.updateResponse(activeResponseId, { values, status: 'submitted', clientLocalDate });
-    } else {
-      await api.createResponse({ formId, values, status: 'submitted', clientLocalDate });
+    try {
+      if (activeResponseId) {
+        await api.updateResponse(activeResponseId, { values, status: 'submitted', clientLocalDate });
+      } else {
+        await api.createResponse({ formId, values, status: 'submitted', clientLocalDate });
+      }
+    } catch (err) {
+      // A network-level failure (offline, DNS, timeout) -- not a server-side rejection like a
+      // validation 400 -- gets queued locally instead of losing the response. TypeError is
+      // what fetch throws for "couldn't reach the server at all"; anything else (a thrown
+      // Error from a non-ok response in api.ts's request()) is a real server response and
+      // should surface to the user as-is rather than being silently queued.
+      if (!(err instanceof TypeError)) throw err;
+      const { enqueueResponse } = await import('../lib/offlineQueue');
+      await enqueueResponse({
+        kind: activeResponseId ? 'update' : 'create', responseId: activeResponseId || undefined,
+        formId, values, status: 'submitted', clientLocalDate,
+      });
+      const { startAutoSync } = await import('../lib/offlineSync');
+      startAutoSync();
     }
     set({ activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
-    await useStore.getState().refreshResponses();
+    await useStore.getState().refreshResponses().catch(() => {});
   },
 
   // Send for Approval: an alternative final action to plain Submit, for forms that need a
@@ -761,13 +793,24 @@ export const useStore = create<AppState>((set) => ({
     const { api } = await import('../lib/api');
     const { activeResponseId } = useStore.getState();
     const clientLocalDate = getLocalDateString();
-    if (activeResponseId) {
-      await api.updateResponse(activeResponseId, { values, status: 'awaiting_approval', assignedToId: managerId, clientLocalDate });
-    } else {
-      await api.createResponse({ formId, values, status: 'awaiting_approval', assignedToId: managerId, clientLocalDate });
+    try {
+      if (activeResponseId) {
+        await api.updateResponse(activeResponseId, { values, status: 'awaiting_approval', assignedToId: managerId, clientLocalDate });
+      } else {
+        await api.createResponse({ formId, values, status: 'awaiting_approval', assignedToId: managerId, clientLocalDate });
+      }
+    } catch (err) {
+      if (!(err instanceof TypeError)) throw err;
+      const { enqueueResponse } = await import('../lib/offlineQueue');
+      await enqueueResponse({
+        kind: activeResponseId ? 'update' : 'create', responseId: activeResponseId || undefined,
+        formId, values, status: 'awaiting_approval', assignedToId: managerId, clientLocalDate,
+      });
+      const { startAutoSync } = await import('../lib/offlineSync');
+      startAutoSync();
     }
     set({ activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
-    await useStore.getState().refreshResponses();
+    await useStore.getState().refreshResponses().catch(() => {});
   },
 
   // Resubmit after changes_requested: same response, same manager (assignedToId is left
@@ -775,9 +818,17 @@ export const useStore = create<AppState>((set) => ({
   resubmitForApproval: async (responseId: string, values: Record<string, string>) => {
     const { api } = await import('../lib/api');
     const clientLocalDate = getLocalDateString();
-    await api.updateResponse(responseId, { values, status: 'awaiting_approval', clientLocalDate });
+    try {
+      await api.updateResponse(responseId, { values, status: 'awaiting_approval', clientLocalDate });
+    } catch (err) {
+      if (!(err instanceof TypeError)) throw err;
+      const { enqueueResponse } = await import('../lib/offlineQueue');
+      await enqueueResponse({ kind: 'update', responseId, formId: '', values, status: 'awaiting_approval', clientLocalDate });
+      const { startAutoSync } = await import('../lib/offlineSync');
+      startAutoSync();
+    }
     set({ activeResponseId: null, activeResponseValues: null, activeResponseStatus: null });
-    await useStore.getState().refreshResponses();
+    await useStore.getState().refreshResponses().catch(() => {});
   },
 
   // Manager actions on someone else's response -- operate by responseId directly rather
