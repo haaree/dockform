@@ -68,6 +68,9 @@ export function renderCellDisplay(f: FormField, v: string, allFields: FormField[
   if (v.startsWith('data:image')) {
     return `<img src="${v}" style="max-width:160px;max-height:120px;border-radius:4px;border:1px solid #e2e8f0;display:block;" />`;
   }
+  if (v.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(v)) {
+    return `<img src="${v}" style="max-width:160px;max-height:120px;border-radius:4px;border:1px solid #e2e8f0;display:block;" />`;
+  }
   if (v.startsWith('data:')) return '<span style="color:#2563eb;font-size:11px;">[File]</span>';
   if (f.type === 'toggle') {
     const yes = v === 'true';
@@ -88,7 +91,8 @@ export function renderAnnotationCell(fieldId: string, values: Record<string, str
   const media = values[mediaKey(fieldId)] || '';
   if (!note && !media) return '';
   const noteHtml = note ? `<div style="font-size:10px;color:#374151;margin-top:4px;"><strong>Note:</strong> ${note.replace(/</g, '&lt;')}</div>` : '';
-  const mediaHtml = media.startsWith('data:image') ? `<img src="${media}" style="max-width:80px;max-height:80px;border-radius:4px;margin-top:4px;" />` : (media ? `<div style="font-size:10px;color:#2563eb;margin-top:4px;">[Photo attached]</div>` : '');
+  const isImage = media.startsWith('data:image') || (media.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(media));
+  const mediaHtml = isImage ? `<img src="${media}" style="max-width:80px;max-height:80px;border-radius:4px;margin-top:4px;" />` : (media ? `<div style="font-size:10px;color:#2563eb;margin-top:4px;">[Photo attached]</div>` : '');
   return noteHtml + mediaHtml;
 }
 

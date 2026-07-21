@@ -31,9 +31,9 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
       return `
         <div style="margin:10px 0;">
           <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}</div>
-          <div style="display:flex;gap:10px;">
-            ${ba.before ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">BEFORE</div><img src="${ba.before}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}
-            ${ba.after ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">AFTER</div><img src="${ba.after}" style="width:100%;max-height:180px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}
+          <div style="display:flex;gap:10px;page-break-inside:avoid;">
+            ${ba.before ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">BEFORE</div><img src="${ba.before}" style="width:100%;max-height:130px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.beforeDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.beforeDesc}</div>` : ''}</div>` : ''}
+            ${ba.after ? `<div style="flex:1;text-align:center;"><div style="font-size:10px;font-weight:600;color:#9ca3af;margin-bottom:4px;">AFTER</div><img src="${ba.after}" style="width:100%;max-height:130px;object-fit:cover;border-radius:6px;border:1px solid #e5e7eb;" />${ba.afterDesc ? `<div style="font-size:11px;color:#6b7280;margin-top:4px;">${ba.afterDesc}</div>` : ''}</div>` : ''}
           </div>
           ${ba.observation ? `<div style="margin-top:8px;padding:8px 12px;background:#eff6ff;border-radius:6px;font-size:12px;color:#1e40af;border-left:3px solid #3b82f6;"><strong>Observation:</strong> ${ba.observation}</div>` : ''}
         </div>`;
@@ -52,9 +52,9 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
         return `<div style="font-size:11px;color:#1f2937;margin-top:2px;">${r.found ? '✅' : '❌'} <strong>${item.text}</strong> (${item.direction === 'absent' ? 'must be absent' : 'must be present'}) — ${r.note}</div>`;
       }).join('');
       return `
-        <div style="margin:10px 0;">
+        <div style="margin:10px 0;page-break-inside:avoid;">
           <div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:6px;">${f.label}${attempts.length > 1 ? ` (attempt ${attempts.length})` : ''}</div>
-          <img src="${latest.photo}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />
+          <img src="${latest.photo}" style="max-width:140px;max-height:105px;border-radius:6px;border:1px solid #e5e7eb;margin-bottom:6px;" />
           ${rows}
         </div>`;
     } catch { return ''; }
@@ -68,13 +68,16 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
         return `
           <div style="margin:10px 0;">
             <div style="font-size:11px;font-weight:700;font-style:italic;color:#6b7280;margin-bottom:6px;">${f.label}</div>
-            <table style="border-collapse:collapse;font-size:11px;width:100%;"><thead><tr>
-              <th style="padding:5px 8px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;">${f.label}</th>
-              ${members.map(sf => `<th style="padding:5px 8px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;">${sf.label}</th>`).join('')}
+            <table style="border-collapse:collapse;font-size:11px;width:100%;table-layout:fixed;"><colgroup>
+              <col style="width:22%;" />
+              ${members.map(() => `<col style="width:${Math.round(78 / Math.max(members.length, 1))}%;" />`).join('')}
+            </colgroup><thead><tr>
+              <th style="padding:5px 8px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;word-wrap:break-word;overflow-wrap:break-word;">${f.label}</th>
+              ${members.map(sf => `<th style="padding:5px 8px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;word-wrap:break-word;overflow-wrap:break-word;">${sf.label}</th>`).join('')}
             </tr></thead><tbody>${instances.map(inst => `
               <tr>
-                <td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:600;white-space:nowrap;">${inst.label || '—'}</td>
-                ${members.map(sf => `<td style="padding:5px 8px;border:1px solid #e5e7eb;">${renderActivityField(sf, inst.values[sf.id] || '', allFields)}${renderAnnotationCell(sf.id, inst.values)}</td>`).join('')}
+                <td style="padding:5px 8px;border:1px solid #e5e7eb;font-weight:600;word-wrap:break-word;overflow-wrap:break-word;">${inst.label || '—'}</td>
+                ${members.map(sf => `<td style="padding:5px 8px;border:1px solid #e5e7eb;word-wrap:break-word;overflow-wrap:break-word;">${renderActivityField(sf, inst.values[sf.id] || '', allFields)}${renderAnnotationCell(sf.id, inst.values)}</td>`).join('')}
               </tr>`).join('')}</tbody></table>
           </div>`;
       }
@@ -90,8 +93,8 @@ function renderActivityField(f: FormField, v: string, allFields: FormField[]): s
     } catch { return ''; }
   }
   if (!v) return '';
-  if (v.startsWith('data:image')) {
-    return `<div style="margin:6px 0;"><div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;">${f.label}</div><img src="${v}" style="max-width:200px;max-height:150px;border-radius:6px;border:1px solid #e5e7eb;" /></div>`;
+  if (v.startsWith('data:image') || (v.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(v))) {
+    return `<div style="margin:6px 0;page-break-inside:avoid;"><div style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;">${f.label}</div><img src="${v}" style="max-width:140px;max-height:105px;border-radius:6px;border:1px solid #e5e7eb;" /></div>`;
   }
   if (v.startsWith('data:')) return '';
   if (f.type === 'toggle') {
@@ -116,7 +119,8 @@ function renderAnnotationCell(fieldId: string, values: Record<string, string>): 
   const media = values[mediaKey(fieldId)] || '';
   if (!note && !media) return '';
   const noteHtml = note ? `<div style="font-size:10px;color:#374151;margin:2px 0 0 0;"><strong>Note:</strong> ${note.replace(/</g, '&lt;')}</div>` : '';
-  const mediaHtml = media.startsWith('data:image') ? `<img src="${media}" style="max-width:140px;max-height:100px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />` : (media ? `<div style="font-size:10px;color:#2563eb;margin-top:2px;">[Photo attached]</div>` : '');
+  const isImage = media.startsWith('data:image') || (media.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(media));
+  const mediaHtml = isImage ? `<img src="${media}" style="max-width:110px;max-height:80px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />` : (media ? `<div style="font-size:10px;color:#2563eb;margin-top:2px;">[Photo attached]</div>` : '');
   return noteHtml + mediaHtml;
 }
 
@@ -138,8 +142,8 @@ export async function downloadAuditReport(
     const fields = rowFields.map(f => renderActivityField(f, vals[f.id] || '', fieldDefs) + renderAnnotationCell(f.id, vals)).filter(Boolean).join('');
 
     return `
-      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;overflow:hidden;page-break-inside:avoid;">
-        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;">
+      <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;overflow:hidden;">
+        <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;page-break-after:avoid;">
           <span style="font-size:13px;font-weight:700;color:#111827;">Activity #${i + 1}</span>
           <div style="font-size:11px;color:#9ca3af;">${r.assignedToName ? `Assigned by ${r.submittedBy} &rarr; ${r.status === 'submitted' ? 'Completed' : 'Pending with'} ${r.assignedToName}` : r.submittedBy} · ${r.plant} · ${formatDate(r.date)}</div>
         </div>
@@ -156,9 +160,11 @@ export async function downloadAuditReport(
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1f2937; }
+  img { max-width: 100%; }
   @media print {
     .no-print { display: none !important; }
     body { font-size: 11px; }
+    a { color: inherit; text-decoration: none; }
   }
   @page { margin: 15mm; }
 </style>

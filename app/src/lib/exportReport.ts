@@ -55,13 +55,16 @@ function renderFieldDisplay(f: FormField, v: string, allFields: FormField[]): st
       const members = sectionMembers(allFields, f).filter(sf => !sf.hidden);
       if (instances.length === 0) return '<span style="color:#9ca3af;font-style:italic;">None added</span>';
       if (f.tableLayout) {
-        return `<table style="border-collapse:collapse;font-size:12px;width:100%;"><thead><tr>
-          <th style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;">${f.label}</th>
-          ${members.map(sf => `<th style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;">${sf.label}</th>`).join('')}
+        return `<table style="border-collapse:collapse;font-size:12px;width:100%;table-layout:fixed;"><colgroup>
+          <col style="width:22%;" />
+          ${members.map(() => `<col style="width:${Math.round(78 / Math.max(members.length, 1))}%;" />`).join('')}
+        </colgroup><thead><tr>
+          <th style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;word-wrap:break-word;overflow-wrap:break-word;">${f.label}</th>
+          ${members.map(sf => `<th style="padding:6px 10px;border:1px solid #e5e7eb;background:#f9fafb;text-align:left;word-wrap:break-word;overflow-wrap:break-word;">${sf.label}</th>`).join('')}
         </tr></thead><tbody>${instances.map(inst => `
           <tr>
-            <td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600;white-space:nowrap;">${inst.label || '—'}</td>
-            ${members.map(sf => `<td style="padding:6px 10px;border:1px solid #e5e7eb;">${renderFieldDisplay(sf, inst.values[sf.id] || '', allFields)}${renderAnnotationCell(sf.id, inst.values)}</td>`).join('')}
+            <td style="padding:6px 10px;border:1px solid #e5e7eb;font-weight:600;word-wrap:break-word;overflow-wrap:break-word;">${inst.label || '—'}</td>
+            ${members.map(sf => `<td style="padding:6px 10px;border:1px solid #e5e7eb;word-wrap:break-word;overflow-wrap:break-word;">${renderFieldDisplay(sf, inst.values[sf.id] || '', allFields)}${renderAnnotationCell(sf.id, inst.values)}</td>`).join('')}
           </tr>`).join('')}</tbody></table>`;
       }
       return instances.map((inst, i) => `
@@ -76,6 +79,9 @@ function renderFieldDisplay(f: FormField, v: string, allFields: FormField[]): st
     } catch { return v; }
   }
   if (v.startsWith('data:image')) {
+    return `<img src="${v}" style="max-width:300px;max-height:200px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />`;
+  }
+  if (v.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(v)) {
     return `<img src="${v}" style="max-width:300px;max-height:200px;border-radius:6px;border:1px solid #e5e7eb;margin-top:4px;" />`;
   }
   if (v.startsWith('data:')) return '<span style="color:#2563eb;">[File attached]</span>';
@@ -97,7 +103,8 @@ function renderAnnotationCell(fieldId: string, values: Record<string, string>): 
   const media = values[mediaKey(fieldId)] || '';
   if (!note && !media) return '';
   const noteHtml = note ? `<div style="font-size:11px;color:#374151;margin-top:6px;"><strong>Note:</strong> ${note.replace(/</g, '&lt;')}</div>` : '';
-  const mediaHtml = media.startsWith('data:image') ? `<img src="${media}" style="max-width:160px;max-height:120px;border-radius:6px;border:1px solid #e5e7eb;margin-top:6px;" />` : (media ? `<div style="font-size:11px;color:#2563eb;margin-top:6px;">[Photo attached]</div>` : '');
+  const isImage = media.startsWith('data:image') || (media.startsWith('/api/files/') && /\.(png|jpe?g|gif|webp)$/i.test(media));
+  const mediaHtml = isImage ? `<img src="${media}" style="max-width:160px;max-height:120px;border-radius:6px;border:1px solid #e5e7eb;margin-top:6px;" />` : (media ? `<div style="font-size:11px;color:#2563eb;margin-top:6px;">[Photo attached]</div>` : '');
   return noteHtml + mediaHtml;
 }
 
