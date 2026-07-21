@@ -124,7 +124,7 @@ function renderAnnotationCell(fieldId: string, values: Record<string, string>): 
   return noteHtml + mediaHtml;
 }
 
-function renderActivityCard(r: AuditResponseData, i: number, fieldDefs: FormField[], repeatableMemberIds: Set<string>): string {
+function renderActivityCard(r: AuditResponseData, fieldDefs: FormField[], repeatableMemberIds: Set<string>): string {
   const vals = r.values || {};
   const rowFields = fieldDefs.filter(f => !f.hidden && !repeatableMemberIds.has(f.id));
   const fields = rowFields.map(f => renderActivityField(f, vals[f.id] || '', fieldDefs) + renderAnnotationCell(f.id, vals)).filter(Boolean).join('');
@@ -132,8 +132,8 @@ function renderActivityCard(r: AuditResponseData, i: number, fieldDefs: FormFiel
   return `
     <div style="background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin-bottom:12px;">
       <div style="padding:10px 14px;background:#f8fafc;border-bottom:1px solid #e5e7eb;border-radius:8px 8px 0 0;display:flex;justify-content:space-between;align-items:center;page-break-after:avoid;">
-        <span style="font-size:13px;font-weight:700;color:#111827;">Activity #${i + 1}</span>
-        <div style="font-size:11px;color:#9ca3af;">${r.assignedToName ? `Assigned by ${r.submittedBy} &rarr; ${r.status === 'submitted' ? 'Completed' : 'Pending with'} ${r.assignedToName}` : r.submittedBy} · ${r.plant} · ${formatDate(r.date)}</div>
+        <span style="font-size:13px;font-weight:700;color:#111827;">${r.assignedToName ? `Assigned by ${r.submittedBy} &rarr; ${r.status === 'submitted' ? 'Completed' : 'Pending with'} ${r.assignedToName}` : r.submittedBy}</span>
+        <div style="font-size:11px;color:#9ca3af;">${r.plant} · ${formatDate(r.date)}</div>
       </div>
       <div style="padding:12px 14px;">${fields}</div>
     </div>`;
@@ -144,7 +144,6 @@ function buildReportHtml(
   description: string,
   companyName: string,
   activitiesHtml: string,
-  activityCount: number,
   now: string,
 ): string {
   return `<!DOCTYPE html>
@@ -168,31 +167,10 @@ function buildReportHtml(
 <body>
 <div style="max-width:800px;margin:0 auto;padding:24px 20px;">
 
-  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:20px;">
-    <div>
-      <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">Audit Report</div>
-      <div style="font-size:22px;font-weight:800;color:#111827;margin-top:2px;">${formName}</div>
-      ${description ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${description}</div>` : ''}
-    </div>
-    <div style="text-align:right;">
-      <div style="width:40px;height:40px;border-radius:10px;background:#1a3f8f;color:#fff;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:800;margin-left:auto;">D</div>
-      <div style="font-size:10px;color:#9ca3af;margin-top:4px;">DockForm</div>
-    </div>
-  </div>
-
-  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:20px;">
-    <div style="padding:10px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;flex:1;min-width:120px;">
-      <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;">Company</div>
-      <div style="font-size:14px;font-weight:700;color:#111827;margin-top:2px;">${companyName}</div>
-    </div>
-    <div style="padding:10px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;flex:1;min-width:120px;">
-      <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;">Activities</div>
-      <div style="font-size:14px;font-weight:700;color:#111827;margin-top:2px;">${activityCount}</div>
-    </div>
-    <div style="padding:10px 16px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;flex:1;min-width:120px;">
-      <div style="font-size:10px;font-weight:600;color:#9ca3af;text-transform:uppercase;">Generated</div>
-      <div style="font-size:14px;font-weight:700;color:#111827;margin-top:2px;">${now}</div>
-    </div>
+  <div style="border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:20px;">
+    <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">${companyName}</div>
+    <div style="font-size:22px;font-weight:800;color:#111827;margin-top:2px;">${formName}</div>
+    ${description ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${description}</div>` : ''}
   </div>
 
   <div class="no-print" style="margin-bottom:16px;">
@@ -231,9 +209,9 @@ export async function downloadAuditReport(
 
   const repeatableMemberIds = new Set<string>();
   fieldDefs.forEach((f) => { if (f.type === 'section' && f.repeatable) sectionMembers(fieldDefs, f).forEach(m => repeatableMemberIds.add(m.id)); });
-  const activitiesHtml = responses.map((r, i) => renderActivityCard(r, i, fieldDefs, repeatableMemberIds)).join('');
+  const activitiesHtml = responses.map((r) => renderActivityCard(r, fieldDefs, repeatableMemberIds)).join('');
 
-  const html = buildReportHtml(formName, description, companyName, activitiesHtml, responses.length, now);
+  const html = buildReportHtml(formName, description, companyName, activitiesHtml, now);
   const finalHtml = applyInlineImageMap(html, imageMap);
   triggerHtmlDownload(finalHtml, `${formName.replace(/[^a-z0-9]+/gi, '_')}_audit_report.html`);
 }
@@ -257,8 +235,8 @@ export async function downloadAuditReportsSeparate(
     const r = responses[i];
     const now = new Date().toLocaleString();
     const imageMap = await buildInlineImageMap(Object.values(r.values || {}));
-    const activityHtml = renderActivityCard(r, 0, fieldDefs, repeatableMemberIds);
-    const html = buildReportHtml(formName, description, companyName, activityHtml, 1, now);
+    const activityHtml = renderActivityCard(r, fieldDefs, repeatableMemberIds);
+    const html = buildReportHtml(formName, description, companyName, activityHtml, now);
     const finalHtml = applyInlineImageMap(html, imageMap);
     const datePart = formatDate(r.date).replace(/[^a-z0-9]+/gi, '_');
     triggerHtmlDownload(finalHtml, `${formName.replace(/[^a-z0-9]+/gi, '_')}_${datePart}_${i + 1}.html`);
