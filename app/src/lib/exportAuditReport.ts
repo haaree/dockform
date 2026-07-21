@@ -156,10 +156,16 @@ function buildReportHtml(
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1f2937; }
   img { max-width: 100%; }
+  .editable { outline: none; border-radius: 4px; cursor: text; transition: box-shadow .15s; }
+  .editable:hover { box-shadow: 0 0 0 2px #dbeafe; }
+  .editable:focus { box-shadow: 0 0 0 2px #93c5fd; }
+  .editable:empty:before { content: attr(data-placeholder); color: #9ca3af; font-style: italic; }
   @media print {
     .no-print { display: none !important; }
     body { font-size: 11px; }
     a { color: inherit; text-decoration: none; }
+    .editable { box-shadow: none !important; }
+    .editable:empty { display: none; }
   }
   @page { margin: 15mm; }
 </style>
@@ -168,13 +174,14 @@ function buildReportHtml(
 <div style="max-width:800px;margin:0 auto;padding:24px 20px;">
 
   <div style="border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:20px;">
-    <div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">${companyName}</div>
-    <div style="font-size:22px;font-weight:800;color:#111827;margin-top:2px;">${formName}</div>
-    ${description ? `<div style="font-size:12px;color:#6b7280;margin-top:4px;">${description}</div>` : ''}
+    <div contenteditable="true" spellcheck="false" class="editable" style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">${companyName}</div>
+    <div contenteditable="true" spellcheck="false" class="editable" style="font-size:22px;font-weight:800;color:#111827;margin-top:2px;">${formName}</div>
+    <div contenteditable="true" spellcheck="false" class="editable" style="font-size:12px;color:#6b7280;margin-top:4px;min-height:1em;" data-placeholder="Add a description…">${description}</div>
   </div>
 
-  <div class="no-print" style="margin-bottom:16px;">
+  <div class="no-print" style="margin-bottom:16px;display:flex;align-items:center;gap:10px;">
     <button onclick="window.print()" style="padding:8px 18px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#374151;font-size:13px;font-weight:600;cursor:pointer;">Print / Save as PDF</button>
+    <span style="font-size:12px;color:#9ca3af;">Click the title or description above to edit before printing</span>
   </div>
 
   ${activitiesHtml}
