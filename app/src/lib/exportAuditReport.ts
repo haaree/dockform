@@ -155,6 +155,7 @@ function buildReportHtml(
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #1f2937; }
+  #reportRoot { zoom: 1; }
   img { max-width: 100%; }
   .editable { outline: none; border-radius: 4px; cursor: text; transition: box-shadow .15s; }
   .editable:hover { box-shadow: 0 0 0 2px #dbeafe; }
@@ -171,7 +172,7 @@ function buildReportHtml(
 </style>
 </head>
 <body>
-<div style="max-width:800px;margin:0 auto;padding:24px 20px;">
+<div id="reportRoot" style="max-width:800px;margin:0 auto;padding:24px 20px;">
 
   <div style="border-bottom:2px solid #111827;padding-bottom:16px;margin-bottom:20px;">
     <div contenteditable="true" spellcheck="false" class="editable" style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.1em;">${companyName}</div>
@@ -179,10 +180,25 @@ function buildReportHtml(
     <div contenteditable="true" spellcheck="false" class="editable" style="font-size:12px;color:#6b7280;margin-top:4px;min-height:1em;" data-placeholder="Add a description…">${description}</div>
   </div>
 
-  <div class="no-print" style="margin-bottom:16px;display:flex;align-items:center;gap:10px;">
+  <div class="no-print" style="margin-bottom:16px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
     <button onclick="window.print()" style="padding:8px 18px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#374151;font-size:13px;font-weight:600;cursor:pointer;">Print / Save as PDF</button>
+    <div style="display:inline-flex;align-items:center;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;">
+      <button onclick="window.__adjustFontSize(-1)" title="Decrease font size" style="width:32px;height:34px;border:none;background:#fff;color:#374151;font-size:13px;font-weight:700;cursor:pointer;border-right:1px solid #e5e7eb;">A-</button>
+      <span id="fontSizeLabel" style="padding:0 10px;font-size:12px;color:#6b7280;min-width:38px;text-align:center;">100%</span>
+      <button onclick="window.__adjustFontSize(1)" title="Increase font size" style="width:32px;height:34px;border:none;background:#fff;color:#374151;font-size:13px;font-weight:700;cursor:pointer;border-left:1px solid #e5e7eb;">A+</button>
+    </div>
     <span style="font-size:12px;color:#9ca3af;">Click the title or description above to edit before printing</span>
   </div>
+  <script>
+    (function() {
+      var scale = 100;
+      window.__adjustFontSize = function(step) {
+        scale = Math.min(160, Math.max(70, scale + step * 10));
+        document.getElementById('reportRoot').style.zoom = (scale / 100);
+        document.getElementById('fontSizeLabel').textContent = scale + '%';
+      };
+    })();
+  </script>
 
   ${activitiesHtml}
 
