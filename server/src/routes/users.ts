@@ -13,14 +13,17 @@ router.get('/', async (req, res) => {
   const users = await prisma.user.findMany({
     where: { companyId: req.auth.companyId },
     orderBy: { fullName: 'asc' },
-    include: { role: true, department: true, trades: { include: { trade: true } } },
+    include: { role: true, department: true, plant: true, team: true, trades: { include: { trade: true } } },
   });
   res.json(users.map((u: any, i: number) => {
     const parts = u.fullName.split(' ');
     const initials = (parts[0]?.[0] || '') + (parts[1]?.[0] || '');
     return {
       id: u.id, name: u.fullName, email: u.email,
-      role: u.role?.name || 'Viewer', department: u.department?.name || '—',
+      role: u.role?.name || 'Viewer', roleId: u.roleId,
+      department: u.department?.name || '—', departmentId: u.departmentId,
+      plant: u.plant?.name || '—', plantId: u.plantId,
+      team: u.team?.name || '—', teamId: u.teamId,
       status: u.status, initials: initials.toUpperCase(), color: COLORS[i % COLORS.length],
       availabilityStatus: u.availabilityStatus,
       trades: u.trades.map((t: any) => ({ id: t.trade.id, name: t.trade.name })),
@@ -57,12 +60,31 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   if (req.auth?.roleKey !== 'admin') { res.status(403).json({ error: 'Admin access required' }); return; }
-  const { status, roleId, availabilityStatus } = req.body;
-  const data: Record<string, string> = {};
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!existing || existing.companyId !== req.auth.companyId) { res.status(404).json({ error: 'User not found' }); return; }
+
+  const { status, roleId, availabilityStatus, fullName, email, plantId, departmentId, teamId } = req.body as {
+    status?: string; roleId?: string; availabilityStatus?: string; fullName?: string; email?: string;
+    // Empty string clears the assignment (e.g. "no team") -- undefined leaves it untouched.
+    plantId?: string | null; departmentId?: string | null; teamId?: string | null;
+  };
+
+  if (email && email !== existing.email) {
+    const clash = await prisma.user.findUnique({ where: { email } });
+    if (clash && clash.id !== existing.id) { res.status(409).json({ error: 'Email already registered' }); return; }
+  }
+
+  const data: Record<string, unknown> = {};
   if (status) data.status = status;
   if (roleId) data.roleId = roleId;
   if (availabilityStatus) data.availabilityStatus = availabilityStatus;
-  const user = await prisma.user.update({ where: { id: req.params.id }, data, include: { role: true } });
+  if (fullName) data.fullName = fullName;
+  if (email) data.email = email;
+  if (plantId !== undefined) data.plantId = plantId || null;
+  if (departmentId !== undefined) data.departmentId = departmentId || null;
+  if (teamId !== undefined) data.teamId = teamId || null;
+
+  const user = await prisma.user.update({ where: { id: req.params.id }, data, include: { role: true, department: true, plant: true, team: true } });
   res.json(user);
 });
 

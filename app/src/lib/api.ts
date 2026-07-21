@@ -88,6 +88,8 @@ export const api = {
   inviteUser: (email: string, fullName: string, roleId?: string) => request<any>('/users', { method: 'POST', body: JSON.stringify({ email, fullName, roleId }) }),
   updateUserStatus: (id: string, status: string) => request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   updateUserAvailability: (id: string, availabilityStatus: string) => request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify({ availabilityStatus }) }),
+  updateUserDetails: (id: string, data: { fullName?: string; email?: string; roleId?: string; plantId?: string | null; departmentId?: string | null; teamId?: string | null }) =>
+    request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
 
   getTrades: () => request<{ id: string; name: string; status: string }[]>('/trades'),

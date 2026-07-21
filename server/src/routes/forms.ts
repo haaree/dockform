@@ -43,6 +43,7 @@ router.post('/', async (req, res) => {
           options: f.options || [], validation: f.validation || {}, isRequired: f.required || false,
           isReadOnly: f.readOnly || false, isHidden: f.hidden || false,
           isSearchable: f.searchable || false, isIndexed: f.indexed || false, logic: f.logic || [],
+          isTradeSelector: f.isTradeSelector || false,
         })),
       } : undefined,
     },
@@ -79,6 +80,7 @@ router.put('/:id', async (req, res) => {
           options: f.options || [], validation: f.validation || {}, isRequired: f.required || false,
           isReadOnly: f.readOnly || false, isHidden: f.hidden || false,
           isSearchable: f.searchable || false, isIndexed: f.indexed || false, logic: f.logic || [],
+          isTradeSelector: f.isTradeSelector || false,
         };
         if (existingIds.has(f.id)) {
           await prisma.formField.update({ where: { id: f.id }, data });

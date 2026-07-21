@@ -183,6 +183,7 @@ function toFieldDefs(apiFields: any[] | undefined): FormField[] {
     searchable: f.isSearchable, indexed: f.isIndexed,
     options: f.options || [], validation: f.validation || { min: '', max: '', pattern: '', message: '' },
     logic: f.logic || [],
+    isTradeSelector: !!f.isTradeSelector,
   }));
 }
 

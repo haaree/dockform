@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { UserPlus, Search, MoreHorizontal, Trash2, Edit3, CheckCircle2, XCircle, Wrench } from 'lucide-react';
+import { UserPlus, Search, MoreHorizontal, Trash2, Edit3, CheckCircle2, XCircle } from 'lucide-react';
 import { useStore } from '../../store/useStore';
 import { StatusBadge } from '../ui/StatusBadge';
 import { Modal, ModalField, ModalButtons } from '../ui/Modal';
@@ -24,19 +24,25 @@ export default function UsersScreen() {
   const storeUsers = useStore((s) => s.users);
   const accent = useStore((s) => s.accent);
   const winWidth = useStore((s) => s.winWidth);
-  const updateUser = useStore((s) => s.updateUser);
   const isDockformAdmin = useStore((s) => s.isDockformAdmin);
   const [search, setSearch] = useState('');
   const [menuId, setMenuId] = useState<string | number | null>(null);
   const [showAdd, setShowAdd] = useState(false);
   const [editId, setEditId] = useState<string | number | null>(null);
-  const [form, setForm] = useState({ name: '', email: '', role: '', department: '' });
+  const [form, setForm] = useState({ name: '', email: '', role: '', roleId: '', department: '', plantId: '', departmentId: '', teamId: '' });
   const [apiUsers, setApiUsers] = useState<any[] | null>(null);
-  const [tradesUser, setTradesUser] = useState<any | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+
+  // Org-structure lookups for the Edit User modal's real dropdowns (plant/department/team/role)
+  // instead of free-typed strings that never matched a real Plant/Department/Team/Role row.
+  const [roles, setRoles] = useState<{ id: string; name: string }[]>([]);
+  const [plants, setPlants] = useState<{ id: string; name: string }[]>([]);
+  const [departments, setDepartments] = useState<{ id: string; name: string }[]>([]);
+  const [teams, setTeams] = useState<{ id: string; name: string }[]>([]);
+
   const [allTrades, setAllTrades] = useState<{ id: string; name: string }[]>([]);
   const [selectedTradeIds, setSelectedTradeIds] = useState<Set<string>>(new Set());
   const [newTradeName, setNewTradeName] = useState('');
-  const [tradesSaving, setTradesSaving] = useState(false);
 
   const activeCompanyId = useStore((s) => s.activeCompanyId);
   const isMobile = winWidth < 720;
@@ -47,12 +53,10 @@ export default function UsersScreen() {
 
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
-  const openTrades = (user: any) => {
-    setMenuId(null);
-    setTradesUser(user);
-    setSelectedTradeIds(new Set((user.trades || []).map((t: any) => t.id)));
-    api.getTrades().then(setAllTrades).catch(() => setAllTrades([]));
-  };
+  // Roles are needed by both Invite (openAdd) and Edit (openEdit) -- fetched once here rather
+  // than per-open, so Invite's Role dropdown isn't empty the way it would be if roles were
+  // only loaded inside openEdit.
+  useEffect(() => { api.getRoles().then(setRoles).catch(() => {}); }, []);
 
   const toggleTrade = (id: string) => {
     setSelectedTradeIds((prev) => {
@@ -73,20 +77,6 @@ export default function UsersScreen() {
     }
   };
 
-  const handleSaveTrades = async () => {
-    if (!tradesUser) return;
-    setTradesSaving(true);
-    try {
-      await api.setUserTrades(tradesUser.id, Array.from(selectedTradeIds));
-      setTradesUser(null);
-      fetchUsers();
-    } catch (err: unknown) {
-      alert(err instanceof Error ? err.message : 'Failed to save trades');
-    } finally {
-      setTradesSaving(false);
-    }
-  };
-
   const users = apiUsers || storeUsers;
   const companyUsers = activeCompanyId ? users.filter((u: any) => !u.companyId || u.companyId === activeCompanyId) : users;
   const filtered = companyUsers.filter((u: any) =>
@@ -96,8 +86,17 @@ export default function UsersScreen() {
     (u.department || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const openAdd = () => { setForm({ name: '', email: '', role: '', department: '' }); setShowAdd(true); };
-  const openEdit = (u: any) => { setForm({ name: u.name, email: u.email, role: u.role, department: u.department }); setEditId(u.id); setMenuId(null); };
+  const openAdd = () => { setForm({ name: '', email: '', role: '', roleId: '', department: '', plantId: '', departmentId: '', teamId: '' }); setShowAdd(true); };
+
+  const openEdit = (u: any) => {
+    setForm({ name: u.name, email: u.email, role: u.role, roleId: u.roleId || '', department: u.department, plantId: u.plantId || '', departmentId: u.departmentId || '', teamId: u.teamId || '' });
+    setEditId(u.id);
+    setMenuId(null);
+    setSelectedTradeIds(new Set((u.trades || []).map((t: any) => t.id)));
+    Promise.all([api.getPlants(), api.getDepartments(), api.getTeams(), api.getTrades()])
+      .then(([p, d, t, tr]) => { setPlants(p); setDepartments(d); setTeams(t); setAllTrades(tr); })
+      .catch(() => {});
+  };
   const closeForm = () => { setShowAdd(false); setEditId(null); };
 
   const handleApprove = async (user: any) => {
@@ -124,13 +123,26 @@ export default function UsersScreen() {
 
   const handleSave = async () => {
     if (!form.name || !form.email) return;
-    if (editId !== null) {
-      updateUser(editId as string, { name: form.name, email: form.email, role: form.role, department: form.department });
-      setEditId(null);
-    } else {
-      await api.inviteUser(form.email, form.name);
-      setShowAdd(false);
-      fetchUsers();
+    setEditSaving(true);
+    try {
+      if (editId !== null) {
+        await api.updateUserDetails(editId as string, {
+          fullName: form.name, email: form.email,
+          roleId: form.roleId || undefined,
+          plantId: form.plantId, departmentId: form.departmentId, teamId: form.teamId,
+        });
+        await api.setUserTrades(editId as string, Array.from(selectedTradeIds));
+        setEditId(null);
+        fetchUsers();
+      } else {
+        await api.inviteUser(form.email, form.name, form.roleId || undefined);
+        setShowAdd(false);
+        fetchUsers();
+      }
+    } catch (err: unknown) {
+      alert(err instanceof Error ? err.message : 'Failed to save user');
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -219,10 +231,6 @@ export default function UsersScreen() {
                                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
                                 <Edit3 size={14} /> Edit User
                               </button>
-                              <button onClick={() => openTrades(user)}
-                                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left' }}>
-                                <Wrench size={14} /> Manage Trades
-                              </button>
                               <button onClick={() => handleDelete(user)}
                                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: '#EF4444', cursor: 'pointer', textAlign: 'left' }}>
                                 <Trash2 size={14} /> Delete User
@@ -245,39 +253,76 @@ export default function UsersScreen() {
       </div>
 
       {(showAdd || editId !== null) && (
-        <Modal title={editId !== null ? 'Edit User' : 'Invite User'} onClose={closeForm}>
+        <Modal title={editId !== null ? 'Edit User' : 'Invite User'} onClose={closeForm} width={480}>
           <ModalField label="Full Name" value={form.name} onChange={(v) => setForm({ ...form, name: v })} placeholder="John Doe" />
           <ModalField label="Email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} placeholder="john@acme.com" type="email" />
-          <ModalField label="Role" value={form.role} onChange={(v) => setForm({ ...form, role: v })} options={['Admin', 'Editor', 'Auditor', 'Viewer']} />
-          <ModalField label="Department" value={form.department} onChange={(v) => setForm({ ...form, department: v })} options={['Engineering', 'Operations', 'Quality', 'Safety', 'HR', 'Maintenance']} />
-          <ModalButtons onCancel={closeForm} onSave={handleSave} saveLabel={editId !== null ? 'Update' : 'Invite'} accent={accent} disabled={!form.name || !form.email} />
-        </Modal>
-      )}
 
-      {tradesUser && (
-        <Modal title={`Trades — ${tradesUser.name}`} onClose={() => setTradesUser(null)}>
-          <div style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 12 }}>
-            Trades determine which work permits this person can be auto-assigned to. A person can hold more than one.
+          <div style={{ marginBottom: 14 }}>
+            <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', marginBottom: 6, display: 'block' }}>Role</label>
+            <select value={form.roleId} onChange={(e) => setForm({ ...form, roleId: e.target.value })}
+              style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text)', background: 'var(--surface)', outline: 'none' }}>
+              <option value="">Select…</option>
+              {roles.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14, maxHeight: 220, overflowY: 'auto' }}>
-            {allTrades.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--muted)', fontStyle: 'italic' }}>No trades defined yet — add one below.</div>}
-            {allTrades.map((t) => (
-              <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer', padding: '4px 0' }}>
-                <input type="checkbox" checked={selectedTradeIds.has(t.id)} onChange={() => toggleTrade(t.id)} />
-                {t.name}
-              </label>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
-            <input value={newTradeName} onChange={(e) => setNewTradeName(e.target.value)} placeholder="Add a new trade…"
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTrade(); } }}
-              style={{ flex: 1, padding: '8px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none' }} />
-            <button type="button" onClick={handleAddTrade}
-              style={{ padding: '8px 14px', fontSize: 12.5, fontWeight: 600, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface2)', color: 'var(--text)', cursor: 'pointer' }}>
-              Add
-            </button>
-          </div>
-          <ModalButtons onCancel={() => setTradesUser(null)} onSave={handleSaveTrades} saveLabel={tradesSaving ? 'Saving…' : 'Save'} accent={accent} disabled={tradesSaving} />
+
+          {editId !== null && (
+            <>
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', marginBottom: 6, display: 'block' }}>Plant</label>
+                <select value={form.plantId} onChange={(e) => setForm({ ...form, plantId: e.target.value })}
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text)', background: 'var(--surface)', outline: 'none' }}>
+                  <option value="">None</option>
+                  {plants.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', marginBottom: 6, display: 'block' }}>Department</label>
+                <select value={form.departmentId} onChange={(e) => setForm({ ...form, departmentId: e.target.value })}
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text)', background: 'var(--surface)', outline: 'none' }}>
+                  <option value="">None</option>
+                  {departments.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 14 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', marginBottom: 6, display: 'block' }}>Team</label>
+                <select value={form.teamId} onChange={(e) => setForm({ ...form, teamId: e.target.value })}
+                  style={{ width: '100%', padding: '9px 12px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, color: 'var(--text)', background: 'var(--surface)', outline: 'none' }}>
+                  <option value="">None</option>
+                  {teams.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+              </div>
+
+              <div style={{ marginBottom: 6 }}>
+                <label style={{ fontSize: 13, fontWeight: 500, color: 'var(--muted)', marginBottom: 6, display: 'block' }}>Trades</label>
+                <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>
+                  Determines which work permits this person can be auto-assigned to.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginBottom: 10, maxHeight: 160, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 6, padding: '8px 10px' }}>
+                  {allTrades.length === 0 && <div style={{ fontSize: 12.5, color: 'var(--muted)', fontStyle: 'italic' }}>No trades defined yet — add one below.</div>}
+                  {allTrades.map((t) => (
+                    <label key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={selectedTradeIds.has(t.id)} onChange={() => toggleTrade(t.id)} />
+                      {t.name}
+                    </label>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                  <input value={newTradeName} onChange={(e) => setNewTradeName(e.target.value)} placeholder="Add a new trade…"
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); handleAddTrade(); } }}
+                    style={{ flex: 1, padding: '8px 10px', fontSize: 13, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface)', color: 'var(--text)', outline: 'none' }} />
+                  <button type="button" onClick={handleAddTrade}
+                    style={{ padding: '8px 14px', fontSize: 12.5, fontWeight: 600, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface2)', color: 'var(--text)', cursor: 'pointer' }}>
+                    Add
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <ModalButtons onCancel={closeForm} onSave={handleSave} saveLabel={editSaving ? 'Saving…' : (editId !== null ? 'Update' : 'Invite')} accent={accent} disabled={!form.name || !form.email || editSaving} />
         </Modal>
       )}
     </div>
