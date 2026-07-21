@@ -34,6 +34,13 @@ export interface FormField {
   // line in the Builder), pre-populating that many instances with a fixed label when
   // the form is first filled. Filler can still add further rows beyond the seeded ones.
   seedRows?: string[];
+  // Marks a dropdown field (e.g. "Nature of Work" on a work-permit form) whose options
+  // are the company's trades (Electrician, Plumber, ...) rather than admin-typed text.
+  // Submitting a response with a value here triggers server-side auto-assignment: the
+  // least-recently-assigned free user holding that trade is set as assignedToId. Reuses
+  // the plain 'dropdown' field type/rendering everywhere (builder, filler, exports) --
+  // this flag only changes where its options come from and what submit does with it.
+  isTradeSelector?: boolean;
 }
 
 // For a repeatable section: instances are stored as a JSON array under the section
@@ -170,6 +177,11 @@ export interface ResponseItem {
   submittedById?: string | null;
   assignedToId?: string | null;
   assignedToName?: string | null;
+  // The maintenance worker auto-assigned by trade/availability for a work-permit-style form
+  // (see server's lib/workPermitAssignment.ts) -- separate from assignedToId, which is the
+  // approval-routing target (a manager), not a worker.
+  autoAssignedUserId?: string | null;
+  autoAssignedUserName?: string | null;
   plant: string;
   date: string;
   status: string;

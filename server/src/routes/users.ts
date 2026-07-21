@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
   const users = await prisma.user.findMany({
     where: { companyId: req.auth.companyId },
     orderBy: { fullName: 'asc' },
-    include: { role: true, department: true },
+    include: { role: true, department: true, trades: { include: { trade: true } } },
   });
   res.json(users.map((u: any, i: number) => {
     const parts = u.fullName.split(' ');
@@ -22,6 +22,8 @@ router.get('/', async (req, res) => {
       id: u.id, name: u.fullName, email: u.email,
       role: u.role?.name || 'Viewer', department: u.department?.name || '—',
       status: u.status, initials: initials.toUpperCase(), color: COLORS[i % COLORS.length],
+      availabilityStatus: u.availabilityStatus,
+      trades: u.trades.map((t: any) => ({ id: t.trade.id, name: t.trade.name })),
     };
   }));
 });
@@ -55,10 +57,11 @@ router.post('/', async (req, res) => {
 
 router.patch('/:id', async (req, res) => {
   if (req.auth?.roleKey !== 'admin') { res.status(403).json({ error: 'Admin access required' }); return; }
-  const { status, roleId } = req.body;
+  const { status, roleId, availabilityStatus } = req.body;
   const data: Record<string, string> = {};
   if (status) data.status = status;
   if (roleId) data.roleId = roleId;
+  if (availabilityStatus) data.availabilityStatus = availabilityStatus;
   const user = await prisma.user.update({ where: { id: req.params.id }, data, include: { role: true } });
   res.json(user);
 });

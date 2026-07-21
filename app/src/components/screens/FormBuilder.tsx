@@ -9,6 +9,7 @@ import {
 import { useStore } from '../../store/useStore';
 import type { FormField, LogicRule, ChecklistItemDef } from '../../store/types';
 import { isYesNoOptions, yesNoColor } from '../../lib/yesNoNa';
+import { api } from '../../lib/api';
 
 const CHOICE_TYPES = ['dropdown', 'multiselect', 'radio', 'checkbox'];
 
@@ -1557,6 +1558,20 @@ function PropertiesTab({ field }: { field: FormField }) {
         </PropField>
       )}
 
+      {field.type === 'dropdown' && (
+        <PropField label="Work-Permit Auto-Assignment">
+          <ToggleRow label="This is the trade/skill selector" on={!!field.isTradeSelector} onChange={(v) => updateField(field.id, 'isTradeSelector', v)} />
+          {field.isTradeSelector && (
+            <>
+              <div style={{ fontSize: 11.5, color: 'var(--muted)', margin: '6px 0 8px' }}>
+                Submitting this form auto-assigns the least-busy free person holding the matching trade. Options below should match your company's trade names exactly (Users → Manage Trades).
+              </div>
+              <TradeOptionsSync fieldId={field.id} />
+            </>
+          )}
+        </PropField>
+      )}
+
       {field.type !== 'section' && (
         <>
           <div style={{ height: 1, background: 'var(--border)', margin: '4px 0 4px' }} />
@@ -1568,6 +1583,38 @@ function PropertiesTab({ field }: { field: FormField }) {
           <ToggleRow label="Indexed" on={field.indexed} onChange={(v) => updateField(field.id, 'indexed', v)} />
         </>
       )}
+    </div>
+  );
+}
+
+// Pulls the company's Trade list (managed in Users → Manage Trades) and replaces this
+// dropdown field's options with the trade names, so the trade-selector field's options
+// always match real trade rows exactly rather than an admin having to hand-type them.
+function TradeOptionsSync({ fieldId }: { fieldId: string }) {
+  const updateField = useStore((s) => s.updateField);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const sync = async () => {
+    setLoading(true);
+    setError('');
+    try {
+      const trades = await api.getTrades();
+      updateField(fieldId, 'options', trades.map((t) => t.name));
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to load trades');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div>
+      <button type="button" onClick={sync} disabled={loading}
+        style={{ width: '100%', padding: '7px 0', fontSize: 12, fontWeight: 600, border: '1px solid var(--border)', borderRadius: 6, background: 'var(--surface2)', color: 'var(--text)', cursor: loading ? 'default' : 'pointer' }}>
+        {loading ? 'Loading…' : 'Load Company Trades into Options'}
+      </button>
+      {error && <div style={{ fontSize: 11, color: '#DC2626', marginTop: 6 }}>{error}</div>}
     </div>
   );
 }

@@ -3,6 +3,7 @@ import { prisma } from '../index.js';
 import { sendResponseSubmittedEmail, sendApprovalRequestedEmail, sendChangesRequestedEmail, sendResponseApprovedEmail } from '../lib/email.js';
 import { isWithinDailyWindow, isWithinDailyWindowForSync } from '../lib/schedule.js';
 import { splitAnnotations, mergeAnnotations } from '../lib/annotations.js';
+import { autoAssignByTrade, releaseAssigneeIfTerminal } from '../lib/workPermitAssignment.js';
 
 const router = Router();
 
@@ -23,11 +24,12 @@ router.get('/', async (req, res) => {
     const responses = await prisma.response.findMany({
       where: { form: { companyId: req.auth.companyId } },
       orderBy: { submittedAt: 'desc' },
-      include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } } },
+      include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, autoAssignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } } },
     });
     res.json(responses.map((r: any) => ({
       id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
       assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
+      autoAssignedUserId: r.autoAssignedTo?.id || null, autoAssignedUserName: r.autoAssignedTo?.fullName || null,
       plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
     })));
   } catch (err: any) {
@@ -66,7 +68,7 @@ router.get('/page', async (req, res) => {
         orderBy: { submittedAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
-        include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } } },
+        include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, autoAssignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } } },
       }),
       prisma.response.count({ where }),
     ]);
@@ -74,6 +76,7 @@ router.get('/page', async (req, res) => {
       items: responses.map((r: any) => ({
         id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
         assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
+        autoAssignedUserId: r.autoAssignedTo?.id || null, autoAssignedUserName: r.autoAssignedTo?.fullName || null,
         plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
       })),
       total,
@@ -94,11 +97,12 @@ router.get('/full', async (req, res) => {
     const responses = await prisma.response.findMany({
       where: { formId, form: { companyId: req.auth.companyId } },
       orderBy: { submittedAt: 'desc' },
-      include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true, annotations: true },
+      include: { form: { select: { id: true, name: true } }, user: { select: { id: true, fullName: true } }, assignedTo: { select: { id: true, fullName: true } }, autoAssignedTo: { select: { id: true, fullName: true } }, plant: { select: { name: true } }, values: true, annotations: true },
     });
     res.json(responses.map((r: any) => ({
       id: r.id, formId: r.form.id, form: r.form.name, submittedBy: r.user?.fullName || 'Unknown', submittedById: r.user?.id || null,
       assignedToId: r.assignedTo?.id || null, assignedToName: r.assignedTo?.fullName || null,
+      autoAssignedUserId: r.autoAssignedTo?.id || null, autoAssignedUserName: r.autoAssignedTo?.fullName || null,
       plant: r.plant?.name || '—', date: r.submittedAt.toISOString(), status: r.status,
       values: mergeAnnotations(Object.fromEntries(r.values.map((v: any) => [v.fieldId, v.value])), r.annotations),
     })));
@@ -116,7 +120,8 @@ router.get('/:id', async (req, res) => {
   if (!response || response.form.companyId !== req.auth?.companyId) { res.status(404).json({ error: 'Not found' }); return; }
   res.json({
     id: response.id, formId: response.form.id, form: response.form.name, status: response.status,
-    submittedById: response.submittedBy, assignedToId: response.assignedToId, date: response.submittedAt.toISOString(),
+    submittedById: response.submittedBy, assignedToId: response.assignedToId,
+    autoAssignedUserId: response.autoAssignedUserId, date: response.submittedAt.toISOString(),
     values: mergeAnnotations(Object.fromEntries(response.values.map((v: any) => [v.fieldId, v.value])), response.annotations),
   });
 });
@@ -141,10 +146,27 @@ router.post('/', async (req, res) => {
 
     const { fieldValues, annotations } = splitAnnotations(values || {});
     const valueEntries = Object.entries(fieldValues);
+    const finalStatus = status && IN_PROGRESS_STATUSES.includes(status) ? status : 'submitted';
+
+    // Work-permit-style forms (a dropdown field marked isTradeSelector) get a maintenance
+    // worker picked automatically by trade + real-time availability, stored separately from
+    // assignedToId (which stays whatever the client sent -- the manager reviewing this
+    // response, if any). Only triggers on awaiting_approval, not 'submitted' -- a permit
+    // template is expected to always go through Send for Approval, so the later approval is
+    // the "job done" signal that frees the worker (releaseAssigneeIfTerminal only watches
+    // 'approved'); if 'submitted' also assigned, a plain direct-submit would trigger both
+    // assign and (since 'submitted' would then also be terminal) release in the same request.
+    // Covers the direct-create case; the far more common case (draft already exists, then
+    // PATCHed to awaiting_approval) is handled in the PATCH route below.
+    let autoAssignedUserId: string | null = null;
+    if (finalStatus === 'awaiting_approval' && req.auth?.companyId) {
+      autoAssignedUserId = await autoAssignByTrade(formId, req.auth.companyId, plantId || null, fieldValues);
+    }
+
     const response = await prisma.response.create({
       data: {
-        formId, submittedBy: req.auth?.userId, plantId, assignedToId: assignedToId || null,
-        status: status && IN_PROGRESS_STATUSES.includes(status) ? status : 'submitted',
+        formId, submittedBy: req.auth?.userId, plantId, assignedToId: assignedToId || null, autoAssignedUserId,
+        status: finalStatus,
         values: valueEntries.length > 0 ? { create: valueEntries.map(([fieldId, value]) => ({ fieldId, value })) } : undefined,
         annotations: annotations.length > 0 ? { create: annotations } : undefined,
       },
@@ -232,12 +254,35 @@ router.patch('/:id', async (req, res) => {
     }
   }
 
+  // The common path for a work-permit form: it autosaves as a draft first, then this PATCH
+  // is what actually raises the permit (Send for Approval), so this is where auto-assignment
+  // has to run -- not just on POST, which only covers a permit created already-final in one
+  // shot. Only triggers on awaiting_approval (see workPermitAssignment.ts for why 'submitted'
+  // must stay out of both the assign and release lists). Guarded to first-time raises only
+  // (existing.autoAssignedUserId still null): a resubmit after changes_requested re-PATCHes
+  // to awaiting_approval too, and that must NOT hand the job to a different person mid-job.
+  let autoAssignedUserId: string | null | undefined;
+  if (
+    status === 'awaiting_approval'
+    && existing.autoAssignedUserId == null
+    && req.auth?.companyId
+  ) {
+    const currentValues = Object.fromEntries((await prisma.responseValue.findMany({ where: { responseId: req.params.id } })).map((v: any) => [v.fieldId, v.value]));
+    autoAssignedUserId = await autoAssignByTrade(existing.formId, req.auth.companyId, existing.plantId, currentValues);
+  }
+
   const response = await prisma.response.update({
     where: { id: req.params.id },
-    data: { ...(status && { status }), ...(assignedToId !== undefined && { assignedToId: assignedToId || null }) },
+    data: {
+      ...(status && { status }),
+      ...(assignedToId !== undefined && { assignedToId: assignedToId || null }),
+      ...(autoAssignedUserId != null && { autoAssignedUserId }),
+    },
     include: { values: true },
   });
   res.json(response);
+
+  if (status) releaseAssigneeIfTerminal(req.params.id, status).catch((err) => console.error('[releaseAssigneeIfTerminal] failed:', err?.message));
 
   if (status === 'submitted') {
     const formWithCreator = await prisma.form.findUnique({ where: { id: existing.formId }, include: { createdBy: true } });

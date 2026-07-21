@@ -87,7 +87,14 @@ export const api = {
   getUsers: () => request<any[]>('/users'),
   inviteUser: (email: string, fullName: string, roleId?: string) => request<any>('/users', { method: 'POST', body: JSON.stringify({ email, fullName, roleId }) }),
   updateUserStatus: (id: string, status: string) => request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  updateUserAvailability: (id: string, availabilityStatus: string) => request<any>(`/users/${id}`, { method: 'PATCH', body: JSON.stringify({ availabilityStatus }) }),
   deleteUser: (id: string) => request<void>(`/users/${id}`, { method: 'DELETE' }),
+
+  getTrades: () => request<{ id: string; name: string; status: string }[]>('/trades'),
+  createTrade: (name: string) => request<{ id: string; name: string; status: string }>('/trades', { method: 'POST', body: JSON.stringify({ name }) }),
+  deleteTrade: (id: string) => request<void>(`/trades/${id}`, { method: 'DELETE' }),
+  getUserTrades: (userId: string) => request<{ id: string; name: string }[]>(`/trades/user/${userId}`),
+  setUserTrades: (userId: string, tradeIds: string[]) => request<void>(`/trades/user/${userId}`, { method: 'PUT', body: JSON.stringify({ tradeIds }) }),
 
   getForms: () => request<any[]>('/forms'),
   getForm: (id: string) => request<any>(`/forms/${id}`),

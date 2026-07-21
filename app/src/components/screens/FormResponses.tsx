@@ -671,6 +671,11 @@ export default function FormResponses() {
                       <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>{r.submittedBy}</div>
                       <div style={{ fontSize: 12, color: 'var(--muted)' }}>{r.plant} · {formatDate(r.date)}</div>
                     </div>
+                    {r.autoAssignedUserName && (
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '3px 9px', borderRadius: 10, background: '#FEF3C7', color: '#92400E', flexShrink: 0 }}>
+                        Assigned: {r.autoAssignedUserName}
+                      </span>
+                    )}
                     {r.values && Object.values(r.values).some(v => v.startsWith('data:image') || (v.startsWith('{') && v.includes('"before"'))) && (
                       <ImageIcon size={14} color={accent} style={{ flexShrink: 0 }} />
                     )}
