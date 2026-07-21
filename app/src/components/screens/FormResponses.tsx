@@ -5,7 +5,7 @@ import { api } from '../../lib/api';
 import type { ResponseItem, FormField } from '../../store/types';
 import { downloadHTMLReport } from '../../lib/exportReport';
 import { downloadExcelReport, sectionMembers } from '../../lib/exportExcel';
-import { downloadAuditReport } from '../../lib/exportAuditReport';
+import { downloadAuditReport, downloadAuditReportsSeparate } from '../../lib/exportAuditReport';
 import { formatDate } from '../../lib/format';
 import { noteKey, mediaKey } from '../../lib/fieldAnnotations';
 import { isYesNoOptions, yesNoColor } from '../../lib/yesNoNa';
@@ -345,6 +345,12 @@ export default function FormResponses() {
     setShowExportMenu(false);
   };
 
+  const downloadAuditSeparate = () => {
+    const companyName = companies.find(c => c.id === (form.companyId || activeCompanyId))?.name || 'Company';
+    downloadAuditReportsSeparate(form.name, form.description || '', fieldDefs, displayedResponses, companyName);
+    setShowExportMenu(false);
+  };
+
   const periods = isScheduled ? getPeriodsForSchedule(form.schedule!, formResponses.map(r => r.date)) : [];
   const completedCount = periods.filter(p => p.status === 'completed').length;
   const overdueCount = periods.filter(p => p.status === 'overdue').length;
@@ -590,7 +596,11 @@ export default function FormResponses() {
               </button>
               <button onClick={downloadAudit}
                 style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: 'pointer', textAlign: 'left', borderTop: '1px solid var(--border)' }}>
-                <FileText size={14} /> Audit Report (Single Page)
+                <FileText size={14} /> Audit Report (Combined)
+              </button>
+              <button onClick={downloadAuditSeparate} disabled={displayedResponses.length === 0}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', padding: '10px 14px', background: 'none', border: 'none', fontSize: 13, color: 'var(--text)', cursor: displayedResponses.length === 0 ? 'default' : 'pointer', textAlign: 'left', opacity: displayedResponses.length === 0 ? 0.5 : 1 }}>
+                <FileText size={14} /> Audit Report (Separate Files)
               </button>
             </div>
           )}
