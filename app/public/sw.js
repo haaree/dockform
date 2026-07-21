@@ -1,4 +1,4 @@
-const CACHE_NAME = 'dockform-v3';
+const CACHE_NAME = 'dockform-v4';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

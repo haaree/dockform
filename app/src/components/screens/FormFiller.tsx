@@ -422,17 +422,18 @@ function LockedFieldWrapper({ locked, comments, children }: { locked: boolean; c
 // existing annotations aren't hidden on reopen. Disabled together with the field itself
 // under a locked/resubmit state, since editing an answer's own note makes no sense once
 // the answer itself is locked.
-function FieldAnnotation({ note, media, onNoteChange, onMediaChange, locked }: {
-  note: string; media: string; onNoteChange: (v: string) => void; onMediaChange: (v: string) => void; locked?: boolean;
+function FieldAnnotation({ note, media, onNoteChange, onMediaChange, locked, large }: {
+  note: string; media: string; onNoteChange: (v: string) => void; onMediaChange: (v: string) => void; locked?: boolean; large?: boolean;
 }) {
   const [userOpened, setUserOpened] = useState(false);
   const [userClosed, setUserClosed] = useState(false);
   const expanded = !userClosed && (userOpened || !!note || !!media);
+  const toggleFontSize = large ? 14 : 11.5;
   if (!expanded) {
     return (
       <button type="button" onClick={() => { setUserOpened(true); setUserClosed(false); }} disabled={locked}
-        style={{ marginTop: 6, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, fontSize: 11.5, color: 'var(--muted)', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.5 : 1 }}>
-        <Plus size={11} /> {note || media ? 'Note / photo added' : 'Add note / photo'}
+        style={{ marginTop: large ? 10 : 6, display: 'inline-flex', alignItems: 'center', gap: 5, background: 'none', border: 'none', padding: 0, fontSize: toggleFontSize, fontWeight: large ? 600 : 400, color: large ? 'var(--text)' : 'var(--muted)', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.5 : 1 }}>
+        <Plus size={large ? 14 : 11} /> {note || media ? 'Note / photo added' : 'Add note / photo'}
       </button>
     );
   }
@@ -440,12 +441,12 @@ function FieldAnnotation({ note, media, onNoteChange, onMediaChange, locked }: {
     <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px dashed var(--border)', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
         <button type="button" onClick={() => setUserClosed(true)} disabled={locked}
-          style={{ background: 'none', border: 'none', padding: 0, fontSize: 11.5, color: 'var(--muted)', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.5 : 1 }}>
+          style={{ background: 'none', border: 'none', padding: 0, fontSize: toggleFontSize, color: 'var(--muted)', cursor: locked ? 'default' : 'pointer', opacity: locked ? 0.5 : 1 }}>
           Close
         </button>
       </div>
-      <textarea value={note} onChange={(e) => onNoteChange(e.target.value)} disabled={locked} placeholder="Add a note…" rows={2}
-        style={{ width: '100%', padding: '8px 10px', fontSize: 12.5, border: '1px solid var(--border)', borderRadius: 6, background: locked ? 'var(--surface2)' : 'var(--surface)', color: 'var(--text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
+      <textarea value={note} onChange={(e) => onNoteChange(e.target.value)} disabled={locked} placeholder="Add a note…" rows={large ? 3 : 2}
+        style={{ width: '100%', padding: large ? '12px 14px' : '8px 10px', fontSize: large ? 16 : 12.5, border: '1px solid var(--border)', borderRadius: 6, background: locked ? 'var(--surface2)' : 'var(--surface)', color: 'var(--text)', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
       <fieldset disabled={locked} style={{ border: 'none', margin: 0, padding: 0 }}>
         <FileUploadField value={media} onChange={onMediaChange} accept="image/*" label="Attach a photo" />
       </fieldset>
@@ -727,11 +728,151 @@ function GpsField({ value, onChange }: { value: string; onChange: (v: string) =>
   );
 }
 
-function FieldInput({ field, value, onChange, lockToToday }: { field: FormField; value: string; onChange: (v: string) => void; lockToToday?: boolean }) {
+// One question per screen for mobile filling, SafetyCulture-style: large type, one field (or
+// one whole section) visible at a time with Next/Back, so an auditor walking a site isn't
+// squinting at a dense scrolling form while also trying to attach a photo or write a note.
+function MobileStepFiller({
+  form, steps, stepIndex, isLastStep, onStepChange, values, setValue, isFieldRequired, accent,
+  missingRequired, submitError, saveError, saveOffline, onSubmit,
+}: {
+  form: { name: string; description?: string; schedule?: { frequency: string } };
+  steps: ({ kind: 'field'; field: FormField } | { kind: 'section'; field: FormField; memberFields: FormField[] })[];
+  stepIndex: number;
+  isLastStep: boolean;
+  onStepChange: (i: number) => void;
+  values: Record<string, string>;
+  setValue: (id: string, v: string) => void;
+  isFieldRequired: (f: FormField) => boolean;
+  accent: string;
+  missingRequired: FormField[];
+  submitError: string;
+  saveError: string;
+  saveOffline: boolean;
+  onSubmit: () => void;
+}) {
+  const step = steps[stepIndex];
+  const total = steps.length;
+
+  if (total === 0 || !step) {
+    return (
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, color: 'var(--muted)', fontSize: 14 }}>
+        No fields to fill in.
+      </div>
+    );
+  }
+
+  const renderField = (f: FormField, required: boolean) => (
+    <div>
+      <label style={{ display: 'block', fontSize: 20, fontWeight: 700, color: 'var(--text)', marginBottom: 10, lineHeight: 1.3 }}>
+        {f.label}
+        {required && <span style={{ color: '#EF4444', marginLeft: 6 }}>*</span>}
+      </label>
+      {f.helpText && <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 14 }}>{f.helpText}</div>}
+      <div style={{ fontSize: 16 }}>
+        <FieldInput field={f} value={values[f.id] || f.defaultValue || ''} onChange={(v) => setValue(f.id, v)}
+          lockToToday={f.type === 'date' && form.schedule?.frequency === 'daily'} large />
+      </div>
+      <div style={{ marginTop: 14, fontSize: 15 }}>
+        <FieldAnnotation
+          note={values[noteKey(f.id)] || ''} media={values[mediaKey(f.id)] || ''}
+          onNoteChange={(v) => setValue(noteKey(f.id), v)} onMediaChange={(v) => setValue(mediaKey(f.id), v)}
+          locked={false} large
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', background: 'var(--surface2)', minHeight: 0 }}>
+      <div style={{ padding: '10px 20px 0' }}>
+        <div style={{ height: 5, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${((stepIndex + 1) / total) * 100}%`, background: accent, transition: 'width .25s' }} />
+        </div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 6, fontWeight: 600 }}>
+          {stepIndex + 1} of {total}
+        </div>
+      </div>
+
+      <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px 24px' }}>
+        {step.kind === 'section' ? (
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 800, fontStyle: 'italic', color: 'var(--text)', marginBottom: 6, paddingBottom: 10, borderBottom: '2px solid var(--border)' }}>
+              {step.field.label}
+            </div>
+            {step.field.helpText && <div style={{ fontSize: 14, color: 'var(--muted)', margin: '8px 0 14px' }}>{step.field.helpText}</div>}
+            {step.field.repeatable ? (
+              <SectionInstanceGroup
+                value={values[step.field.id] || step.field.defaultValue || ''}
+                onChange={(v) => setValue(step.field.id, v)}
+                memberFields={step.memberFields}
+                accent={accent}
+                sectionLabel={step.field.label || 'Item'}
+                tableLayout={step.field.tableLayout}
+                seedRows={step.field.seedRows}
+              />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 22 }}>
+                {step.memberFields.map((mf) => <div key={mf.id}>{renderField(mf, isFieldRequired(mf))}</div>)}
+              </div>
+            )}
+          </div>
+        ) : (
+          renderField(step.field, isFieldRequired(step.field))
+        )}
+      </div>
+
+      <div style={{ padding: '12px 20px 20px', background: 'var(--surface)', borderTop: '1px solid var(--border)' }}>
+        {saveError && (
+          <div style={saveOffline
+            ? { fontSize: 12.5, color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 14px', marginBottom: 10 }
+            : { fontSize: 12.5, color: '#DC2626', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: 8, padding: '10px 14px', marginBottom: 10 }}>
+            {saveError}
+          </div>
+        )}
+        {isLastStep && submitError && (
+          <div style={{ fontSize: 12.5, color: '#DC2626', marginBottom: 10, textAlign: 'center' }}>{submitError}</div>
+        )}
+        {isLastStep && missingRequired.length > 0 && (
+          <div style={{ fontSize: 12.5, color: '#92400E', background: '#FEF3C7', border: '1px solid #FDE68A', borderRadius: 8, padding: '10px 14px', marginBottom: 10 }}>
+            Complete these required fields before submitting: {missingRequired.map(f => f.label).join(', ')}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10 }}>
+          <button type="button" onClick={() => onStepChange(stepIndex - 1)} disabled={stepIndex === 0}
+            style={{ flex: 1, padding: '14px 0', borderRadius: 10, border: '1px solid var(--border)', background: 'var(--surface)', color: stepIndex === 0 ? 'var(--muted)' : 'var(--text)', fontSize: 15, fontWeight: 700, cursor: stepIndex === 0 ? 'default' : 'pointer', opacity: stepIndex === 0 ? 0.5 : 1 }}>
+            Back
+          </button>
+          {isLastStep ? (
+            <button type="button" onClick={onSubmit} disabled={missingRequired.length > 0}
+              style={{
+                flex: 2, padding: '14px 0', borderRadius: 10, border: 'none',
+                background: missingRequired.length > 0 ? 'var(--border)' : accent,
+                color: missingRequired.length > 0 ? 'var(--muted)' : '#fff',
+                fontSize: 15, fontWeight: 700, cursor: missingRequired.length > 0 ? 'default' : 'pointer',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              }}>
+              <Send size={16} /> Submit Response
+            </button>
+          ) : (
+            <button type="button" onClick={() => onStepChange(stepIndex + 1)}
+              style={{ flex: 2, padding: '14px 0', borderRadius: 10, border: 'none', background: accent, color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}>
+              Next
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FieldInput({ field, value, onChange, lockToToday, large }: { field: FormField; value: string; onChange: (v: string) => void; lockToToday?: boolean; large?: boolean }) {
   const dark = useStore((s) => s.dark);
   const accent = useStore((s) => s.accent);
+  // `large` is used for the mobile one-question-per-screen filler: 16px keeps iOS Safari from
+  // auto-zooming the page on input focus (it zooms any input below that), and the bigger touch
+  // target makes it easier to tap accurately while walking a site with a phone in one hand.
   const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 12px', fontSize: 14, color: 'var(--text)',
+    width: '100%', padding: large ? '14px 16px' : '10px 12px', fontSize: large ? 16 : 14, color: 'var(--text)',
     background: dark ? '#1C1C1E' : '#FAFAFA', border: '1px solid var(--border)',
     borderRadius: 8, outline: 'none',
   };
@@ -955,6 +1096,12 @@ export default function FormFiller() {
   const [resubmitError, setResubmitError] = useState('');
 
   const [comments, setComments] = useState<{ id: string; fieldId: string | null; instanceId: string | null; text: string; authorName: string; resolved: boolean; createdAt: string }[]>([]);
+
+  // Mobile filling shows one step (a single field, or a whole section) at a time instead of a
+  // continuous scroll, so the current question is large and unobstructed for an auditor
+  // walking a site. Index is clamped against the visible-step count on every render since
+  // logic rules can hide/reveal fields as answers change, shrinking or growing the list.
+  const [mobileStep, setMobileStep] = useState(0);
 
   // Reviewer (manager) mode: composing an overall comment plus per-field comments before
   // Approve or Send Back. Keyed by `fieldId` (or `fieldId:instanceId` for a repeatable
@@ -1380,6 +1527,29 @@ export default function FormFiller() {
   }
   const missingRequired = visibleFields.filter(f => f.type !== 'section' && !repeatableMemberIds.has(f.id) && isFieldRequired(f) && !values[f.id]?.trim());
 
+  // Mirrors the section-grouping walk used by the scrolling layout below, but produces a flat
+  // list of steps for the one-at-a-time mobile mode: a section (with its member fields, whether
+  // repeatable or not) is a single step, and every other field is its own step.
+  type FillerStep = { kind: 'field'; field: FormField } | { kind: 'section'; field: FormField; memberFields: FormField[] };
+  const mobileSteps: FillerStep[] = [];
+  {
+    let i = 0;
+    while (i < visibleFields.length) {
+      const field = visibleFields[i];
+      if (field.type === 'section') {
+        let end = i + 1;
+        while (end < visibleFields.length && visibleFields[end].type !== 'section') end++;
+        mobileSteps.push({ kind: 'section', field, memberFields: visibleFields.slice(i + 1, end) });
+        i = end;
+      } else {
+        mobileSteps.push({ kind: 'field', field });
+        i++;
+      }
+    }
+  }
+  const clampedMobileStep = Math.min(mobileStep, Math.max(mobileSteps.length - 1, 0));
+  const isLastMobileStep = clampedMobileStep >= mobileSteps.length - 1;
+
   const handleSubmit = async () => {
     if (missingRequired.length > 0) return;
     setSubmitError('');
@@ -1523,6 +1693,24 @@ export default function FormFiller() {
         )}
       </div>
 
+      {isMobile && !isLocked ? (
+        <MobileStepFiller
+          form={form}
+          steps={mobileSteps}
+          stepIndex={clampedMobileStep}
+          isLastStep={isLastMobileStep}
+          onStepChange={setMobileStep}
+          values={values}
+          setValue={setValue}
+          isFieldRequired={isFieldRequired}
+          accent={accent}
+          missingRequired={missingRequired}
+          submitError={submitError}
+          saveError={saveError}
+          saveOffline={saveOffline}
+          onSubmit={handleSubmit}
+        />
+      ) : (
       <div style={{ flex: 1, overflowY: 'auto', background: 'var(--surface2)' }}>
         <div style={{ maxWidth: 680, margin: '0 auto', padding: isMobile ? 16 : 24 }}>
           {saveError && (
@@ -1664,6 +1852,7 @@ export default function FormFiller() {
           </div>
         </div>
       </div>
+      )}
 
       {showHandoff && (
         <div onClick={() => setShowHandoff(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 }}>
