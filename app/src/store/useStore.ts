@@ -480,6 +480,11 @@ export const useStore = create<AppState>((set) => ({
     const fields = pack.fields.map((f, i) => ({ ...f, id: 'f' + (i + 1) })) as FormField[];
     set({
       fields, selectedId: null,
+      // A template is always a brand-new form, never an edit of whatever form was last open
+      // in the builder -- without resetting this, publishing would PUT to a stale/unrelated
+      // formId left over from a previous builder session and 404 ("Not found") instead of
+      // creating the new form.
+      currentFormId: null,
       currentFormName: pack.name,
       currentFormDesc: pack.description,
       activePackId: pack.id,
