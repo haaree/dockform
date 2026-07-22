@@ -28,7 +28,13 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js');
+          navigator.serviceWorker.register('/sw.js').then((reg) => {
+            // The browser only re-fetches sw.js on its own schedule (hours, sometimes not
+            // until next full navigation) -- an installed PWA tab can otherwise sit on a
+            // stale bundle indefinitely since nothing else prompts a check. Poll explicitly
+            // so a deploy is detected within minutes of the tab being open, not "eventually".
+            setInterval(() => reg.update().catch(() => {}), 5 * 60 * 1000);
+          });
         });
       }
     </script>

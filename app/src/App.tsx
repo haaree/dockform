@@ -315,6 +315,26 @@ function App() {
   const fillForm = useStore((s) => s.fillForm);
   const [pendingSyncCount, setPendingSyncCount] = useState(0);
 
+  // sw.js already calls skipWaiting()+clients.claim() on install/activate, so a new deploy
+  // takes over as this tab's controller as soon as it's fetched (see index.html's periodic
+  // reg.update() poll) -- this just reloads once that handover happens, so an open tab picks
+  // up the new bundle (and thus new form templates) without the user having to manually
+  // clear site data or force-quit/reopen. Guarded to only fire for a tab that already had a
+  // controller at startup, so a brand-new visitor's first-ever install doesn't trigger a
+  // pointless immediate reload.
+  useEffect(() => {
+    if (!('serviceWorker' in navigator)) return;
+    const hadControllerAtStart = !!navigator.serviceWorker.controller;
+    let refreshing = false;
+    const onControllerChange = () => {
+      if (!hadControllerAtStart || refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+    navigator.serviceWorker.addEventListener('controllerchange', onControllerChange);
+    return () => navigator.serviceWorker.removeEventListener('controllerchange', onControllerChange);
+  }, []);
+
   useEffect(() => {
     const handleResize = () => setWinWidth(window.innerWidth);
     window.addEventListener('resize', handleResize);
